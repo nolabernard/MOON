@@ -5,7 +5,7 @@ const STAGES=["Nouveau","Contacté","En discussion","RDV / Proposition","Gagné"
 const TYPES=["VAE","Formation courte","Autre"];
 const CHANNELS=["Appel","Email","SMS","Visioconférence","Rendez-vous","Note"];
 let data={version:2,contacts:[],opportunities:[],tasks:[]};
-let page="dashboard",period="all",tax="ht",taskMode="open",afterContact=false;
+let page="dashboard",period="all",rangeFrom="",rangeTo="",tax="ht",taskMode="open",afterContact=false;
 const $=id=>document.getElementById(id);
 const today=()=>{const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)};
 const id=()=>typeof crypto!=="undefined"&&crypto.randomUUID?crypto.randomUUID():"moon-"+Date.now()+"-"+Math.random().toString(36).slice(2);
@@ -59,11 +59,19 @@ catch(e){alert("Impossible d'enregistrer dans ce navigateur : "+e.message);retur
 function toast(message){const area=$("toast");area.textContent=message;area.hidden=false;clearTimeout(toast.timer);toast.timer=setTimeout(()=>area.hidden=true,3600)}
 function badge(stage){return `<span class="badge ${stage==="Gagné"?"won":stage==="Perdu"?"lost":""}">${esc(stage)}</span>`}
 function opts(values,chosen){return values.map(s=>`<option value="${esc(s)}" ${String(chosen)===String(s)?"selected":""}>${esc(s)}</option>`).join("")}
-function monthMatch(date){if(period==="all")return true;if(!date)return false;return date.startsWith(period==="month"?today().slice(0,7):today().slice(0,4))}
+function monthMatch(date){
+if(period==="all")return true;
+if(!date)return false;
+if(period==="month")return date.startsWith(today().slice(0,7));
+if(period==="year")return date.startsWith(today().slice(0,4));
+if(period==="quarter"){const now=today();return date.slice(0,4)===now.slice(0,4)&&Math.floor((Number(date.slice(5,7))-1)/3)===Math.floor((Number(now.slice(5,7))-1)/3)}
+if(period==="custom")return (!rangeFrom||date>=rangeFrom)&&(!rangeTo||date<=rangeTo);
+return true;
+}
 function scoped(){return data.opportunities.filter(o=>monthMatch(isActive(o)?o.forecast:o.closed||o.created))}
 function navButton(k,icon,label){return `<button class="nav-button ${page===k?"active":""}" data-action="nav" data-page="${k}" type="button"><span class="nav-ico">${icon}</span><span>${label}</span></button>`}
 function toolbar(){
-const filter=`<select class="field" id="period" aria-label="Période">${opts(["all","month","year"],period).replace(/>all</g,">Toutes périodes<").replace(/>month</g,">Ce mois<").replace(/>year</g,">Cette année<")}</select>`;
+const filter=`<select class="field" id="period" aria-label="Période">${opts(["all","month","quarter","year","custom"],period).replace(/>all</g,">Toutes périodes<").replace(/>month</g,">Ce mois<").replace(/>quarter</g,">Ce trimestre<").replace(/>year</g,">Cette année<").replace(/>custom</g,">Personnalisée<")}</select>${period==="custom"?`<label class="subtle">Du <input class="field" id="range-from" type="date" value="${esc(rangeFrom)}"></label><label class="subtle">Au <input class="field" id="range-to" type="date" value="${esc(rangeTo)}"></label>`:""}`;
 return `<div class="filters">${page==="dashboard"||page==="board"||page==="opportunities"?filter:""}
 ${page==="dashboard"||page==="board"||page==="opportunities"?`<select class="field" id="tax" aria-label="Affichage financier">${opts(["ht","ttc"],tax).replace(/>ht</g,">Montants HT<").replace(/>ttc</g,">Montants TTC<")}</select>`:""}
 ${page==="contacts"||page==="opportunities"||page==="tasks"?`<input class="field search" id="search" placeholder="Rechercher..." autocomplete="off" aria-label="Rechercher">`:""}
@@ -304,6 +312,8 @@ document.addEventListener("click",onClick);
 document.addEventListener("change",e=>{
 const t=e.target;
 if(t.id==="period"){period=t.value;render()}
+else if(t.id==="range-from"){rangeFrom=t.value;render()}
+else if(t.id==="range-to"){rangeTo=t.value;render()}
 else if(t.id==="tax"){tax=t.value;render()}
 else if(t.id==="task-mode"){taskMode=t.value;render()}
 else if(t.dataset.action==="toggle-task"){const item=task(t.dataset.id);if(item){item.status=t.checked?"done":"open";item.completed=item.status==="done"?new Date().toISOString():"";if(save())render()}}
