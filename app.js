@@ -408,8 +408,8 @@ function saveVoiceConversation(v){
  const existing=v.existingContact?contact(v.existingContact):null;
  if(v.existingContact&&!existing)return {ok:false,error:"Contact sélectionné introuvable."};
  if(!existing&&!name)return {ok:false,error:"Indiquez un nom ou sélectionnez un contact existant."};
- if(v.email&&!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email))return {ok:false,error:"Email invalide."};
- if(v.due&&!/^\\d{4}-\\d{2}-\\d{2}$/.test(v.due))return {ok:false,error:"Date de relance invalide."};
+ if(v.email&&!/^[^\s@]+@[^\s@]+\\.[^\s@]+$/.test(email))return {ok:false,error:"Email invalide."};
+ if(v.due&&!/^\d{4}-\d{2}-\d{2}$/.test(v.due))return {ok:false,error:"Date de relance invalide."};
  if(!String(v.training||"").trim())return {ok:false,error:"Précisez la formation ou la prestation."};
  const snapshot=JSON.stringify(data);
  try{
