@@ -2,4 +2,4 @@
  * The Supabase project must be created/configured before filling these fields.
  * A publishable key (sb_publishable_...) is intentionally public, protected by RLS.
  */
-window.MOON_SUPABASE_CONFIG={url:"",publishableKey:""};
+window.MOON_SUPABASE_CONFIG={url:"https://kmrbqwnetgughjohvfpx.supabase.co",publishableKey:"sb_publishable_lPDWZIw6dsaCeCaZmrd0lg__Q0K1IHl"};
