@@ -230,7 +230,7 @@ if(!v.title||!v.due){alert("Intitulé et échéance obligatoires.");return}
 const existing=task(v.id);const op=v.opportunityId?opportunity(v.opportunityId):null;
 const values={title:v.title,type:v.type,due:v.due,priority:v.priority,opportunityId:op?.id||"",contactId:op?.contactId||v.contactId,notes:v.notes};
 if(existing)Object.assign(existing,values);else data.tasks.push({id:id(),created:new Date().toISOString(),status:"open",...values});
-if(save()){closeModal();render()}
+if(save()){closeModal();page="tasks";taskMode="all";render();toast("Tâche enregistrée dans la liste des tâches")}
 }
 function interactionSubmit(f){
 const o=opportunity(f.dataset.id);if(!o)return;
