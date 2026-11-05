@@ -156,7 +156,7 @@ ${input("first","Prénom",c?.first)}${input("last","Nom *",c?.last,"text",true)}
 ${input("email","Email",c?.email,"email")}${input("phone","Téléphone",c?.phone,"tel")}
 ${input("company","Entreprise",c?.company)}${select("profile","Profil",["Salarié","Reconversion","Entreprise"],c?.profile||"Salarié")}
 ${textarea("notes","Notes sur le contact",c?.notes)}
-</div>${formFooter(c,"contact")}</form>
+</div><div class="form-footer"><div>${c?`<button type="button" class="btn danger" data-action="delete-contact" data-id="${esc(c.id)}">Supprimer</button>`:""}</div><div class="actions"><button type="button" class="btn" data-action="close-modal">Annuler</button><button type="button" class="btn primary" data-action="save-contact-direct">Enregistrer le contact</button></div></div></form>
 ${c?`<div class="row" style="margin-top:25px"><h3>Opportunités liées (${data.opportunities.filter(o=>o.contactId===c.id).length})</h3><button class="btn small" data-action="new-opportunity" data-contact-id="${esc(c.id)}">+ Opportunité</button></div>
 ${data.opportunities.filter(o=>o.contactId===c.id).map(o=>`<div class="task-item"><div class="task-content"><strong>${esc(o.training)}</strong><div class="subtle">${esc(o.stage)} · ${amountText(o)}</div></div><button class="btn small" data-action="edit-opportunity" data-id="${esc(o.id)}">Ouvrir</button></div>`).join("")}`:""}`);
 }
@@ -321,6 +321,7 @@ render();if(kind==="json")toast("Sauvegarde restaurée");else toast("Import CSV 
 function onClick(e){
 const btn=e.target.closest("[data-action]");if(!btn||btn.matches("input[type=checkbox]"))return;
 const a=btn.dataset.action,x=btn.dataset.id;
+if(a==="save-contact-direct"){e.preventDefault();e.stopPropagation();const form=$("modal").querySelector("#contact-form");if(!form)return;if(!form.reportValidity())return;contactSubmit(form);return}
 if(a.startsWith("cloud-")){window.MOON_CLOUD?.act(a);return}
 if(a==="nav"){page=btn.dataset.page;render()}
 else if(a==="voice-open")window.MOON_VOICE?.open();
