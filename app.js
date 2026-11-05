@@ -53,8 +53,16 @@ try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s&&Array.isArray(s.
 if(!loaded){migrateOld();save(false)}normalize();
 }
 function save(show=true){
-try{localStorage.setItem(KEY,JSON.stringify(data));if(show)window.MOON_CLOUD?.onLocalSave?.();if(show)toast("Modifications enregistrées");return true}
-catch(e){alert("Impossible d'enregistrer dans ce navigateur : "+e.message);return false}
+ try{
+  const serialized=JSON.stringify(data);
+  localStorage.setItem(KEY,serialized);
+  if(localStorage.getItem(KEY)!==serialized)throw Error("Vérification du stockage local échouée.");
+ }catch(e){alert("Impossible d'enregistrer dans ce navigateur : "+e.message);return false}
+ if(show){
+  try{window.MOON_CLOUD?.onLocalSave?.()}catch(e){console.error("MOON cloud notification",e)}
+  try{toast("Modifications enregistrées")}catch(e){console.error("MOON toast",e)}
+ }
+ return true;
 }
 function toast(message){const area=$("toast");area.textContent=message;area.hidden=false;clearTimeout(toast.timer);toast.timer=setTimeout(()=>area.hidden=true,3600)}
 function badge(stage){return `<span class="badge ${stage==="Gagné"?"won":stage==="Perdu"?"lost":""}">${esc(stage)}</span>`}
@@ -210,7 +218,15 @@ if(!v.email.trim()&&!v.phone.trim()){alert("Renseignez au moins un email ou un t
 const existing=data.contacts.find(c=>c.id===v.id);
 if(existing){Object.assign(existing,{first:v.first.trim(),last:v.last,email:v.email.trim(),phone:v.phone.trim(),company:v.company.trim(),profile:v.profile,notes:v.notes})}
 else{const c={id:id(),created:today(),first:v.first.trim(),last:v.last,email:v.email.trim(),phone:v.phone.trim(),company:v.company.trim(),profile:v.profile,notes:v.notes};data.contacts.push(c)}
-if(save()){const openOpportunity=afterContact;afterContact=false;closeModal();page="contacts";render();toast(existing?"Contact modifié avec succès":"Contact créé avec succès");if(openOpportunity)opportunityModal(null,data.contacts[data.contacts.length-1]?.id)}
+if(save()){
+ const savedId=existing?.id||data.contacts[data.contacts.length-1]?.id;
+ const verified=JSON.parse(localStorage.getItem(KEY)||"null")?.contacts?.some(c=>c.id===savedId);
+ if(!verified){alert("Le contact n'a pas été confirmé dans le stockage local. Le formulaire reste ouvert.");return}
+ const openOpportunity=afterContact;afterContact=false;
+ page="contacts";closeModal();render();
+ toast(existing?"Contact modifié et vérifié":"Contact créé et vérifié dans le répertoire");
+ if(openOpportunity)opportunityModal(null,savedId);
+}
 }
 function opportunitySubmit(f){
 const v=Object.fromEntries(new FormData(f));v.training=v.training.trim();
@@ -322,6 +338,23 @@ else if(a==="export-json")exportJson();
 else if(a==="export-csv")exportCsv();
 else if(a==="import-json"||a==="import-csv"){$("file-import").dataset.kind=a==="import-json"?"json":"csv";$("file-import").accept=a==="import-json"?".json":".csv,text/csv";$("file-import").click()}
 }
+function handleFormSubmit(e){
+ const form=e.target;
+ if(!["cloud-login-form","contact-form","opportunity-form","task-form","interaction-form"].includes(form?.id))return;
+ // Capture-phase cancellation: never allow a CRM form to navigate/reload the page.
+ e.preventDefault();
+ e.stopPropagation();
+ try{
+  if(form.id==="cloud-login-form"){window.MOON_CLOUD?.login(form);return}
+  if(form.id==="contact-form")contactSubmit(form);
+  else if(form.id==="opportunity-form")opportunitySubmit(form);
+  else if(form.id==="task-form")taskSubmit(form);
+  else interactionSubmit(form);
+ }catch(err){
+  console.error("MOON submit failure",form.id,err);
+  alert("Enregistrement interrompu : "+(err?.message||err)+". Vos données précédentes sont conservées.");
+ }
+}
 function init(){
 load();render();
 document.addEventListener("click",onClick);
@@ -336,7 +369,7 @@ else if(t.dataset.action==="toggle-task"){const item=task(t.dataset.id);if(item)
 else if(t.id==="file-import"){const f=t.files?.[0];if(f)importFile(f,t.dataset.kind);t.value=""}
 });
 document.addEventListener("input",e=>{if(e.target.id==="search"){const term=e.target.value.trim().toLowerCase();document.querySelectorAll("[data-search]").forEach(el=>el.hidden=!el.dataset.search.includes(term))}});
-document.addEventListener("submit",e=>{if(e.target.id==="cloud-login-form"){e.preventDefault();window.MOON_CLOUD?.login(e.target);return}if(!["contact-form","opportunity-form","task-form","interaction-form"].includes(e.target.id))return;e.preventDefault();if(e.target.id==="contact-form")contactSubmit(e.target);else if(e.target.id==="opportunity-form")opportunitySubmit(e.target);else if(e.target.id==="task-form")taskSubmit(e.target);else interactionSubmit(e.target)});
+document.addEventListener("submit",handleFormSubmit,true);
 let dragged="";
 document.addEventListener("dragstart",e=>{const card=e.target.closest(".op-card");if(card){dragged=card.dataset.id;e.dataTransfer.setData("text/plain",dragged);e.dataTransfer.effectAllowed="move"}});
 document.addEventListener("dragover",e=>{const lane=e.target.closest(".lane");if(lane){e.preventDefault();lane.classList.add("over")}});
