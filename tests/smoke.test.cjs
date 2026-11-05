@@ -36,3 +36,25 @@ test("CSV parser reads semicolon and quoted values",()=>{
 test("Task records persist and can be marked complete",()=>{
  run('load();data.tasks.push({id:"t1",title:"Rappeler Jean",due:"2026-11-09",status:"open",type:"Relance"});if(!save(false))throw Error("Save failed");if(JSON.parse(localStorage.getItem(KEY)).tasks.length!==1)throw Error("Task was not persisted");data.tasks[0].status="done";save(false);if(JSON.parse(localStorage.getItem(KEY)).tasks[0].status!=="done")throw Error("Completion was not persisted");');
 });
+test("User flow: add, edit, complete and delete tasks",function regressionTest(){
+ const store=new Map(),elements=new Map();
+ const doc={
+  readyState:"loading",addEventListener(){},
+  getElementById(key){if(!elements.has(key))elements.set(key,{innerHTML:"",textContent:"",hidden:true,close(){},showModal(){}});return elements.get(key)}
+ };
+ class MockFormData{constructor(form){this.fields=form.fields}*[Symbol.iterator](){yield* Object.entries(this.fields)}}
+ const context={document:doc,localStorage:{getItem:k=>store.get(k)||null,setItem:(k,v)=>store.set(k,v)},FormData:MockFormData,crypto:{randomUUID:()=>String(Math.random())},console,Date,Intl,Math,Number,String,Array,JSON,alert(message){throw Error(message)},confirm(){return true},setTimeout(){return 1},clearTimeout(){}};
+ const commands=[
+ 'load();page="tasks";',
+ 'taskSubmit({fields:{id:"",title:"Appeler le candidat",type:"Appel",due:"2026-11-07",priority:"Haute",opportunityId:"",contactId:"",notes:"Premier contact"}});',
+ 'if(data.tasks.length!==1||data.tasks[0].title!=="Appeler le candidat")throw Error("Task not added");',
+ 'const t=data.tasks[0];',
+ 'taskSubmit({fields:{id:t.id,title:"Rappeler le candidat",type:"Relance",due:"2026-11-08",priority:"Normale",opportunityId:"",contactId:"",notes:"Suivi"}});',
+ 'if(data.tasks.length!==1||data.tasks[0].title!=="Rappeler le candidat")throw Error("Task not updated");',
+ 'data.tasks[0].status="done";save(false);',
+ 'if(JSON.parse(localStorage.getItem(KEY)).tasks[0].status!=="done")throw Error("Task not completed");',
+ 'deleteRecord("task",t.id);',
+ 'if(data.tasks.length!==0||JSON.parse(localStorage.getItem(KEY)).tasks.length!==0)throw Error("Task not deleted");'
+ ];
+ vm.runInNewContext(source+"\n"+commands.join("\n"),context);
+});
