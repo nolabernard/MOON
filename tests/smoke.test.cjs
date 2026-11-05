@@ -147,3 +147,7 @@ test("Direct buttons create contact, opportunity, task and interaction without n
  if(saved.contacts.length!==1||saved.opportunities.length!==1||saved.tasks.length!==1||saved.opportunities[0].events.length!==1)throw Error("Persistence incomplete");
  `,ctx);
 });
+
+test("Four commercial intelligence features: contact timeline, suggestions, natural search, reporting",()=>{
+ run('load();data.contacts.push({id:"c",first:"Sophie",last:"Martin"});data.opportunities.push({id:"o",contactId:"c",training:"VAE",category:"VAE",ht:"5980",vat:"0",stage:"Nouveau",created:"2026-01-01",events:[{at:"2026-02-01T10:00:00Z",channel:"Email",text:"Proposition envoyée"}]});data.tasks.push({id:"t",contactId:"c",title:"Relancer",due:"2026-11-12",status:"open"});if(!contactTimeline(data.contacts[0]).includes("Proposition envoyée"))throw Error("Timeline missing");if(suggestedStage(data.opportunities[0])!=="RDV / Proposition")throw Error("Suggestion missing");if(naturalMatches("VAE de plus de 5000 euros sans échange depuis 15 jours").length!==1)throw Error("Natural filter missing");if(!reportingPage().includes("CA pondéré"))throw Error("Reporting missing");');
+});
