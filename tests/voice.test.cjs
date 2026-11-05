@@ -39,3 +39,16 @@ test("Task dictation is identified",()=>{
  assert.equal(p.kind,"task");
  assert.ok(p.title);
 });
+
+test("Mme Martin is surname only; do not mistake it for first name",()=>{
+ const p=setup().parse("J'ai eu Mme Martin, elle est intéressée par une VAE, elle doit vérifier son CPF, je la rappelle jeudi.",new Date(2026,10,5));
+ assert.equal(p.first,"");
+ assert.equal(p.last,"Martin");
+ assert.equal(p.training,"VAE");
+ assert.equal(p.due,"2026-11-12");
+ assert.equal(p.conversational,true);
+});
+test("Voice confirmation is a direct button, not a native submit",()=>{
+ assert.match(source,/id="voice-save-direct"/);
+ assert.match(source,/\$\("voice-save-direct"\)\.onclick=commit/);
+});
