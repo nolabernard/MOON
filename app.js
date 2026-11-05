@@ -5,7 +5,7 @@ const STAGES=["Nouveau","Contacté","En discussion","RDV / Proposition","Gagné"
 const TYPES=["VAE","Formation courte","Autre"];
 const CHANNELS=["Appel","Email","SMS","Visioconférence","Rendez-vous","Note"];
 let data={version:2,contacts:[],opportunities:[],tasks:[]};
-let page="dashboard",period="all",rangeFrom="",rangeTo="",tax="ht",taskMode="open",afterContact=false;
+let page="day",period="all",rangeFrom="",rangeTo="",tax="ht",taskMode="open",afterContact=false;
 const $=id=>document.getElementById(id);
 const today=()=>{const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)};
 const id=()=>typeof crypto!=="undefined"&&crypto.randomUUID?crypto.randomUUID():"moon-"+Date.now()+"-"+Math.random().toString(36).slice(2);
@@ -87,14 +87,14 @@ ${page==="tasks"?`<select id="task-mode" class="field" aria-label="Filtrer les t
 </div>`;
 }
 function render(){
-const titles={dashboard:["Tableau de bord","Une vision claire de vos résultats et priorités"],board:["Pipeline commercial","Déplacez les opportunités pour suivre leur progression"],opportunities:["Opportunités","Les projets commerciaux et leurs montants"],contacts:["Contacts","Un contact peut avoir plusieurs opportunités"],tasks:["Tâches & relances","Ajoutez, terminez, modifiez ou supprimez vos actions"],settings:["Réglages & sauvegardes","Conservez vos informations en toute sécurité"]};
+const titles={day:["Ma journée","Vos relances, dossiers à suivre et priorités du jour"],dashboard:["Tableau de bord","Une vision claire de vos résultats et priorités"],board:["Pipeline commercial","Déplacez les opportunités pour suivre leur progression"],opportunities:["Opportunités","Les projets commerciaux et leurs montants"],contacts:["Contacts","Un contact peut avoir plusieurs opportunités"],tasks:["Tâches & relances","Ajoutez, terminez, modifiez ou supprimez vos actions"],settings:["Réglages & sauvegardes","Conservez vos informations en toute sécurité"]};
 const [title,subtitle]=titles[page];
 $("app").innerHTML=`<div class="shell"><aside class="sidebar"><div class="brand"><div class="brand-symbol">☾</div><div><strong>MOON</strong><small>ESPI EXECUTIVE</small></div></div><nav aria-label="Navigation principale">
-${navButton("dashboard","◫","Accueil")}${navButton("board","▥","Pipeline")}${navButton("opportunities","◇","Opportunités")}${navButton("contacts","♙","Contacts")}${navButton("tasks","☑","Tâches")}${navButton("settings","⚙","Réglages")}
+${navButton("day","☀","Ma journée")}${navButton("dashboard","◫","Accueil")}${navButton("board","▥","Pipeline")}${navButton("opportunities","◇","Opportunités")}${navButton("contacts","♙","Contacts")}${navButton("tasks","☑","Tâches")}${navButton("settings","⚙","Réglages")}
 </nav><div class="sidebar-bottom">MOON · Version 3<br>Stockage local avec synchronisation cloud facultative</div></aside>
 <div class="main"><div class="topbar"><div><div class="eyebrow">MOON / ${esc(page)}</div><h1>${title}</h1><div class="subtle">${subtitle}</div></div><div class="actions"><button class="btn" data-action="voice-open" type="button">🎙 Dicter</button>
 ${page==="contacts"?`<button class="btn primary" data-action="new-contact">+ Nouveau contact</button>`:page==="tasks"?`<button class="btn primary" data-action="new-task">+ Nouvelle tâche</button>`:page==="settings"?"":`<button class="btn" data-action="new-task">+ Tâche</button><button class="btn primary" data-action="new-opportunity">+ Opportunité</button>`}</div></div>
-${toolbar()}<div id="view">${page==="dashboard"?dashboard():page==="board"?board():page==="opportunities"?opportunities():page==="contacts"?contacts():page==="tasks"?tasks():settings()}</div></div></div>`;
+${toolbar()}<div id="view">${page==="day"?dayPage():page==="dashboard"?dashboard():page==="board"?board():page==="opportunities"?opportunities():page==="contacts"?contacts():page==="tasks"?tasks():settings()}</div></div></div>`;
 }
 function metric(label,value,foot,icon,color=""){return `<div class="metric"><div class="label">${label}<span>${icon}</span></div><div class="number ${color}">${value}</div><div class="foot">${foot}</div></div>`}
 function dueClass(t){if(t.status==="done")return "won";if(t.due&&t.due<today())return "late";if(t.due===today())return "today";return ""}
@@ -102,6 +102,33 @@ function dueLabel(t){if(t.status==="done")return "Terminée";if(!t.due)return "S
 function taskRelation(t){const o=opportunity(t.opportunityId);const c=o?linkedContact(o):contact(t.contactId);return [c?contactName(c):"",o?o.training:""].filter(Boolean).join(" · ")}
 function taskRow(t){return `<div class="task-item ${t.status==="done"?"done":""}"><input class="task-check" type="checkbox" aria-label="Terminer ${esc(t.title)}" data-action="toggle-task" data-id="${esc(t.id)}" ${t.status==="done"?"checked":""}>
 <div class="task-content"><div class="task-title">${esc(t.title)}</div><div class="task-meta">${esc(t.type||"Tâche")} · ${esc(taskRelation(t))} ${t.notes?"· "+esc(t.notes):""}</div></div><span class="badge ${dueClass(t)}">${esc(dueLabel(t))}</span><div class="task-actions"><button class="btn small" data-action="edit-task" data-id="${esc(t.id)}">Modifier</button><button class="btn small danger" data-action="delete-task" data-id="${esc(t.id)}">Supprimer</button></div></div>`}
+function daysSince(date){
+ if(!date)return null;
+ const d=new Date(date);if(Number.isNaN(d.getTime()))return null;
+ return Math.max(0,Math.floor((new Date(today()+"T12:00:00")-d)/86400000));
+}
+function lastActivity(o){
+ const times=[o.created,...(o.events||[]).map(e=>e.at||e.date)].filter(Boolean).map(x=>new Date(x).getTime()).filter(Number.isFinite);
+ return times.length?new Date(Math.max(...times)).toISOString():"";
+}
+function priorityScore(o){
+ const late=o.follow&&o.follow<today(),due=o.follow===today(),idle=daysSince(lastActivity(o));
+ let score=(late?45:due?30:0)+(idle>=15?25:idle>=7?15:0)+(known(o)?Math.min(20,Math.floor(Number(o.ht)/1000)*3):0);
+ if(o.stage==="RDV / Proposition")score+=10;
+ return Math.min(100,score);
+}
+function dayPage(){
+ const active=data.opportunities.filter(isActive),due=data.tasks.filter(t=>t.status==="open"&&t.due&&t.due<=today()).sort((a,b)=>compare(a.due,b.due));
+ const overdue=active.filter(o=>o.follow&&o.follow<=today()).sort((a,b)=>compare(a.follow,b.follow));
+ const dormant=active.filter(o=>!o.follow&&daysSince(lastActivity(o))>=7).sort((a,b)=>priorityScore(b)-priorityScore(a));
+ const urgent=active.slice().sort((a,b)=>priorityScore(b)-priorityScore(a)).slice(0,6);
+ const oppRow=o=>'<div class="task-item"><div class="task-content"><div class="task-title">'+esc(contactName(linkedContact(o)))+' · '+esc(o.training)+'</div><div class="task-meta">'+esc(o.stage)+' · Priorité '+priorityScore(o)+'/100'+(o.follow?' · Relance '+esc(dt(o.follow)):' · Dernier mouvement il y a '+(daysSince(lastActivity(o))??"—")+' j')+'</div></div><button type="button" class="btn small" data-action="edit-opportunity" data-id="'+esc(o.id)+'">Ouvrir</button></div>';
+ return '<section class="grid-metrics">'+metric("Tâches à traiter",String(due.length),"Échéance aujourd’hui ou dépassée","☑")+metric("Relances prévues",String(overdue.length),"Dossiers actifs à rappeler","↗")+metric("Sans nouvelles",String(dormant.length),"Aucune activité depuis 7 jours","◷")+'</section>'+
+ '<section class="panel"><h2>À faire aujourd’hui</h2>'+(due.length?due.map(taskRow).join(""):'<p class="subtle">Aucune tâche en retard ou prévue aujourd’hui.</p>')+'</section>'+
+ '<section class="panel"><h2>Contacts à relancer</h2>'+(overdue.length?overdue.map(oppRow).join(""):'<p class="subtle">Aucune relance en attente.</p>')+'</section>'+
+ '<section class="panel"><h2>Dossiers sans nouvelles depuis 7 jours</h2><p class="subtle">Suggestion fondée sur le dernier événement enregistré, sans envoi automatique.</p>'+(dormant.length?dormant.map(oppRow).join(""):'<p class="subtle">Aucun dossier détecté.</p>')+'</section>'+
+ '<section class="panel"><h2>Priorités commerciales</h2><p class="subtle">Score sur 100 : retard de relance, inactivité, montant et avancement.</p>'+(urgent.length?urgent.map(oppRow).join(""):'<p class="subtle">Aucune opportunité active.</p>')+'</section>';
+}
 function dashboard(){
 const all=scoped(),won=all.filter(o=>o.stage==="Gagné"),lost=all.filter(o=>o.stage==="Perdu"),open=all.filter(isActive),priced=won.filter(known);
 const due=data.tasks.filter(t=>t.status==="open"&&t.due&&t.due<=today()).sort((a,b)=>compare(a.due,b.due));
