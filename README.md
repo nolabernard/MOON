@@ -37,3 +37,15 @@ Les données sont enregistrées dans le **localStorage du navigateur**, uniqueme
 **Cette version n'est pas sécurisée pour la production** : pas d'authentification ni de base serveur ; GitHub Pages diffuse l'interface publiquement. N'utilisez que des données fictives tant qu'une solution sécurisée et autorisée par la DSI ESPI n'a pas été mise en place.
 
 Le site de démonstration ne remplace pas une application métier hébergée avec comptes utilisateurs, sauvegardes serveur et règles de confidentialité.
+
+## Dictée vocale (expérimentale)
+
+Depuis MOON, cliquer sur **🎙 Dicter**, autoriser le microphone si disponible, puis parler en français. La transcription peut également être saisie manuellement si le navigateur ne propose pas la reconnaissance vocale. Cliquer sur **Analyser la demande**, corriger les champs puis **Confirmer l’enregistrement**. L'assistant peut créer un contact, une opportunité liée et une relance, ou une tâche seule.
+
+- Aucun abonnement ni API payante ajouté : extraction de champs par règles JavaScript locales.
+- Les expressions comme « demain », « mardi prochain » et les dates explicites sont prises en charge, mais **à vérifier dans l'aperçu**.
+- La reconnaissance vocale dépend du navigateur ; certains navigateurs peuvent envoyer l'audio à leur fournisseur de reconnaissance. Aucune garantie de traitement hors ligne.
+- Si le montant est annoncé TTC ou sans précision, MOON ne l'assimile pas à un montant HT : il le conserve en note pour qualification.
+- Aucune création n'est effectuée sans confirmation explicite.
+
+**Ne dictez pas de données personnelles réelles ESPI avant validation DSI.**
