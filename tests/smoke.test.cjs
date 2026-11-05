@@ -124,10 +124,10 @@ test("Direct buttons create contact, opportunity, task and interaction without n
  const ctx={window:{},document:doc,localStorage:{getItem:k=>store.get(k)||null,setItem:(k,v)=>store.set(k,v)},FormData:MockFormData,crypto:{randomUUID:()=>String(Math.random())},console,Date,Intl,Math,Number,String,Array,JSON,alert(m){throw Error(m)},confirm(){return true},setTimeout(){return 1},clearTimeout(){}};
  vm.runInNewContext(source+`
  load();
- const modal=$("modal");
+ const dialog=$("modal");
  const form=(id,fields)=>({id,fields,reportValidity(){return true},dataset:{id:fields.opportunityId||""}});
  const click=(action,formElement)=>{
-  modal.querySelector=()=>formElement;
+  dialog.querySelector=()=>formElement;
   let prevented=false;
   const e={target:{closest:()=>({dataset:{action},matches:()=>false})},preventDefault(){prevented=true},stopPropagation(){}};
   onClick(e);
