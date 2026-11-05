@@ -5,6 +5,7 @@ const STAGES=["Nouveau","Contacté","En discussion","RDV / Proposition","Gagné"
 const TYPES=["VAE","Formation courte","Autre"];
 const CHANNELS=["Appel","Email","SMS","Visioconférence","Rendez-vous","Note"];
 let data={version:2,contacts:[],opportunities:[],tasks:[]};
+let naturalQuery="";
 let page="day",period="all",rangeFrom="",rangeTo="",tax="ht",taskMode="open",afterContact=false;
 const $=id=>document.getElementById(id);
 const today=()=>{const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)};
@@ -87,14 +88,14 @@ ${page==="tasks"?`<select id="task-mode" class="field" aria-label="Filtrer les t
 </div>`;
 }
 function render(){
-const titles={day:["Ma journée","Vos relances, dossiers à suivre et priorités du jour"],dashboard:["Tableau de bord","Une vision claire de vos résultats et priorités"],board:["Pipeline commercial","Déplacez les opportunités pour suivre leur progression"],opportunities:["Opportunités","Les projets commerciaux et leurs montants"],contacts:["Contacts","Un contact peut avoir plusieurs opportunités"],tasks:["Tâches & relances","Ajoutez, terminez, modifiez ou supprimez vos actions"],settings:["Réglages & sauvegardes","Conservez vos informations en toute sécurité"]};
+const titles={day:["Ma journée","Vos relances, dossiers à suivre et priorités du jour"],dashboard:["Tableau de bord","Une vision claire de vos résultats et priorités"],board:["Pipeline commercial","Déplacez les opportunités pour suivre leur progression"],opportunities:["Opportunités","Les projets commerciaux et leurs montants"],contacts:["Contacts","Un contact peut avoir plusieurs opportunités"],tasks:["Tâches & relances","Ajoutez, terminez, modifiez ou supprimez vos actions"],search:["Recherche intelligente","Retrouvez vos dossiers avec des mots simples"],reporting:["Reporting commercial","Vos indicateurs et votre bilan partageable"],settings:["Réglages & sauvegardes","Conservez vos informations en toute sécurité"]};
 const [title,subtitle]=titles[page];
 $("app").innerHTML=`<div class="shell"><aside class="sidebar"><div class="brand"><div class="brand-symbol">☾</div><div><strong>MOON</strong><small>ESPI EXECUTIVE</small></div></div><nav aria-label="Navigation principale">
-${navButton("day","☀","Ma journée")}${navButton("dashboard","◫","Accueil")}${navButton("board","▥","Pipeline")}${navButton("opportunities","◇","Opportunités")}${navButton("contacts","♙","Contacts")}${navButton("tasks","☑","Tâches")}${navButton("settings","⚙","Réglages")}
+${navButton("day","☀","Ma journée")}${navButton("dashboard","◫","Accueil")}${navButton("board","▥","Pipeline")}${navButton("opportunities","◇","Opportunités")}${navButton("contacts","♙","Contacts")}${navButton("tasks","☑","Tâches")}${navButton("search","⌕","Recherche")}${navButton("reporting","▤","Reporting")}${navButton("settings","⚙","Réglages")}
 </nav><div class="sidebar-bottom">MOON · Version 3<br>Stockage local avec synchronisation cloud facultative</div></aside>
 <div class="main"><div class="topbar"><div><div class="eyebrow">MOON / ${esc(page)}</div><h1>${title}</h1><div class="subtle">${subtitle}</div></div><div class="actions"><button class="btn" data-action="voice-open" type="button">🎙 Dicter</button>
 ${page==="contacts"?`<button class="btn primary" data-action="new-contact">+ Nouveau contact</button>`:page==="tasks"?`<button class="btn primary" data-action="new-task">+ Nouvelle tâche</button>`:page==="settings"?"":`<button class="btn" data-action="new-task">+ Tâche</button><button class="btn primary" data-action="new-opportunity">+ Opportunité</button>`}</div></div>
-${toolbar()}<div id="view">${page==="day"?dayPage():page==="dashboard"?dashboard():page==="board"?board():page==="opportunities"?opportunities():page==="contacts"?contacts():page==="tasks"?tasks():settings()}</div></div></div>`;
+${toolbar()}<div id="view">${page==="day"?dayPage():page==="dashboard"?dashboard():page==="board"?board():page==="opportunities"?opportunities():page==="contacts"?contacts():page==="tasks"?tasks():page==="search"?searchNaturalPage():page==="reporting"?reportingPage():settings()}</div></div></div>`;
 }
 function metric(label,value,foot,icon,color=""){return `<div class="metric"><div class="label">${label}<span>${icon}</span></div><div class="number ${color}">${value}</div><div class="foot">${foot}</div></div>`}
 function dueClass(t){if(t.status==="done")return "won";if(t.due&&t.due<today())return "late";if(t.due===today())return "today";return ""}
@@ -129,6 +130,49 @@ function dayPage(){
  '<section class="panel"><h2>Dossiers sans nouvelles depuis 7 jours</h2><p class="subtle">Suggestion fondée sur le dernier événement enregistré, sans envoi automatique.</p>'+(dormant.length?dormant.map(oppRow).join(""):'<p class="subtle">Aucun dossier détecté.</p>')+'</section>'+
  '<section class="panel"><h2>Priorités commerciales</h2><p class="subtle">Score sur 100 : retard de relance, inactivité, montant et avancement.</p>'+(urgent.length?urgent.map(oppRow).join(""):'<p class="subtle">Aucune opportunité active.</p>')+'</section>';
 }
+
+function contactTimeline(c){
+ const ops=data.opportunities.filter(o=>o.contactId===c.id);
+ const events=ops.flatMap(o=>(o.events||[]).map(e=>({...e,training:o.training,oid:o.id}))).sort((a,b)=>String(b.at).localeCompare(String(a.at)));
+ const tasks=data.tasks.filter(t=>t.status!=="done"&&(t.contactId===c.id||ops.some(o=>o.id===t.opportunityId))).sort((a,b)=>String(a.due).localeCompare(String(b.due)));
+ const last=events[0],next=tasks[0];
+ return '<section class="panel" style="margin-top:18px"><h3>Historique chronologique</h3><p class="subtle">'+(last?'Dernier échange : '+esc(fmtDateTime(last.at))+' · '+esc(last.text):'Aucun échange enregistré')+(next?' · Prochaine action : '+esc(next.title)+' ('+esc(dt(next.due))+')':'')+'</p>'+
+ (events.length?events.map(e=>'<div class="task-item"><div class="task-content"><strong>'+esc(e.channel||"Échange")+' · '+esc(e.training)+'</strong><div class="subtle">'+esc(fmtDateTime(e.at))+'</div><div>'+esc(e.text)+'</div></div><button type="button" class="btn small" data-action="edit-opportunity" data-id="'+esc(e.oid)+'">Dossier</button></div>').join(""):'<p class="subtle">Les échanges des opportunités apparaîtront ici.</p>')+
+ '<h3>Actions en attente</h3>'+(tasks.length?tasks.map(taskRow).join(""):'<p class="subtle">Aucune tâche en attente.</p>')+'</section>';
+}
+function suggestedStage(o){
+ const txt=[o.notes,...(o.events||[]).map(e=>e.text)].join(" ").toLowerCase();
+ if(!isActive(o))return "";
+ if(/\b(financement confirmé|financement validé|accord de financement|cpf validé|devis signé|inscription confirmée|proposition envoyée|devis envoyé|offre transmise|rendez-vous effectué)\b/.test(txt)&&o.stage!=="RDV / Proposition")return "RDV / Proposition";
+ if(/\b(intéressé|interessé|à rappeler|a rappeler|échange réalisé)\b/.test(txt)&&["Nouveau","Contacté"].includes(o.stage))return "En discussion";
+ return "";
+}
+function naturalMatches(raw){
+ const q=String(raw||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+ const cat=q.includes("vae")?"VAE":q.includes("formation courte")?"Formation courte":"";
+ const amount=Number(q.match(/(?:plus de|superieur a|au dessus de)\s*([\d\s]+)\s*(?:€|euros)?/)?.[1]?.replace(/\s/g,"")||0);
+ const idle=Number(q.match(/(?:depuis|sans echange depuis|sans nouvelles depuis)\s*(\d+)\s*jours?/)?.[1]||0);
+ const won=q.includes("gagne"),lost=q.includes("perdu"),active=q.includes("en cours");
+ return data.opportunities.filter(o=>(!cat||o.category===cat||String(o.training).toLowerCase().includes(cat.toLowerCase()))&&(!amount||Number(o.ht)>amount)&&(!idle||(daysSince(lastActivity(o))??0)>=idle)&&(!won||o.stage==="Gagné")&&(!lost||o.stage==="Perdu")&&(!active||isActive(o)));
+}
+function searchNaturalPage(){
+ const q=naturalQuery||"",found=q?naturalMatches(q):[];
+ return '<section class="panel"><h2>Recherche en langage naturel</h2><p class="subtle">Exemples : « VAE de plus de 5 000 € », « sans échange depuis 15 jours », « dossiers gagnés ». Filtres locaux, sans IA externe.</p><div class="actions"><input class="field" style="flex:1;min-width:220px" id="natural-query" value="'+esc(q)+'" placeholder="VAE de plus de 5000 € sans échange depuis 15 jours"><button class="btn primary" type="button" data-action="natural-search">Rechercher</button></div>'+
+ (q?'<p class="subtle">'+found.length+' dossier(s) trouvé(s)</p>'+found.map(o=>'<div class="task-item"><div class="task-content"><strong>'+esc(contactName(linkedContact(o)))+' · '+esc(o.training)+'</strong><div class="subtle">'+esc(o.stage)+' · '+esc(amountText(o))+'</div></div><button type="button" class="btn small" data-action="edit-opportunity" data-id="'+esc(o.id)+'">Ouvrir</button></div>').join(""):'')+'</section>';
+}
+function reportText(){
+ const won=data.opportunities.filter(o=>o.stage==="Gagné"),lost=data.opportunities.filter(o=>o.stage==="Perdu");
+ return "MOON — Bilan commercial ("+today()+")\nContacts : "+data.contacts.length+"\nOpportunités : "+data.opportunities.length+"\nGagnées : "+won.length+"\nPerdues : "+lost.length+"\nCA sécurisé HT : "+money(sum(won))+"\nTâches en attente : "+data.tasks.filter(t=>t.status!=="done").length;
+}
+function reportingPage(){
+ const ops=data.opportunities,won=ops.filter(o=>o.stage==="Gagné"),lost=ops.filter(o=>o.stage==="Perdu"),open=ops.filter(isActive);
+ const rate=won.length+lost.length?Math.round(won.length/(won.length+lost.length)*100):0;
+ const weighted=open.reduce((acc,o)=>acc+(Number(o.ht)||0)*({Nouveau:.1,Contacté:.2,"En discussion":.4,"RDV / Proposition":.7}[o.stage]||0),0);
+ return '<section class="grid-metrics">'+metric("CA sécurisé",money(sum(won)),won.length+" dossiers gagnés","€")+metric("CA pondéré estimé",money(Math.round(weighted*100)),"Probabilités indicatives par étape","↗")+metric("Conversion",rate+" %",(won.length+lost.length)+" dossiers clos","%")+metric("Perdus",lost.length+"","Dossiers non convertis","×")+'</section>'+
+ '<section class="panel"><h2>Résultats par formation</h2>'+TYPES.map(cat=>{const a=ops.filter(o=>o.category===cat);return '<div class="task-item"><div class="task-content"><strong>'+esc(cat)+'</strong><div class="subtle">'+a.length+' opportunités · '+a.filter(o=>o.stage==="Gagné").length+' gagnées</div></div><strong>'+money(sum(a.filter(o=>o.stage==="Gagné")))+'</strong></div>'}).join("")+'</section>'+
+ '<section class="panel"><h2>Bilan partageable</h2><p class="subtle">Données CRM à cet instant. Le CA pondéré est une estimation.</p><button type="button" class="btn primary" data-action="copy-report">Copier le bilan</button></section>';
+}
+
 function dashboard(){
 const all=scoped(),won=all.filter(o=>o.stage==="Gagné"),lost=all.filter(o=>o.stage==="Perdu"),open=all.filter(isActive),priced=won.filter(known);
 const due=data.tasks.filter(t=>t.status==="open"&&t.due&&t.due<=today()).sort((a,b)=>compare(a.due,b.due));
@@ -184,6 +228,7 @@ ${input("email","Email",c?.email,"email")}${input("phone","Téléphone",c?.phone
 ${input("company","Entreprise",c?.company)}${select("profile","Profil",["Salarié","Reconversion","Entreprise"],c?.profile||"Salarié")}
 ${textarea("notes","Notes sur le contact",c?.notes)}
 </div><div class="form-footer"><div>${c?`<button type="button" class="btn danger" data-action="delete-contact" data-id="${esc(c.id)}">Supprimer</button>`:""}</div><div class="actions"><button type="button" class="btn" data-action="close-modal">Annuler</button><button type="button" class="btn primary" data-action="save-contact-direct">Enregistrer le contact</button></div></div></form>
+${c?contactTimeline(c):""}
 ${c?`<div class="row" style="margin-top:25px"><h3>Opportunités liées (${data.opportunities.filter(o=>o.contactId===c.id).length})</h3><button class="btn small" data-action="new-opportunity" data-contact-id="${esc(c.id)}">+ Opportunité</button></div>
 ${data.opportunities.filter(o=>o.contactId===c.id).map(o=>`<div class="task-item"><div class="task-content"><strong>${esc(o.training)}</strong><div class="subtle">${esc(o.stage)} · ${amountText(o)}</div></div><button class="btn small" data-action="edit-opportunity" data-id="${esc(o.id)}">Ouvrir</button></div>`).join("")}`:""}`);
 }
