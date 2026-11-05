@@ -132,10 +132,10 @@ return `<section class="panel"><div class="row"><h2>Tâches <span class="badge">
 <div class="stack" style="margin-top:12px">${all.length?all.map(t=>`<div data-search="${esc((t.title+" "+t.notes+" "+taskRelation(t)).toLowerCase())}">${taskRow(t)}</div>`).join(""):`<div class="empty"><strong>Aucune tâche dans cette vue</strong><p>Les nouvelles tâches apparaîtront ici immédiatement après leur enregistrement.</p><button class="btn primary" data-action="new-task">Nouvelle tâche</button></div>`}</div></section>`;
 }
 function settings(){
-return `<section class="panel"><h2>Sauvegardes et données</h2><p class="subtle">Les données de MOON restent dans le navigateur sur cet appareil. Elles ne sont pas partagées entre ordinateurs ni conservées sur GitHub. Exportez régulièrement une copie pour éviter toute perte.</p>
+return `<section class="panel"><h2>Sauvegardes et données</h2><p class="subtle">Les données de MOON sont enregistrées dans ce navigateur. Exportez régulièrement une copie JSON. La sauvegarde Supabase, lorsqu’elle est configurée, est facultative et déclenchée manuellement.</p>
 <div class="actions" style="margin-top:18px"><button class="btn primary" data-action="export-json">Télécharger une sauvegarde complète (.json)</button><button class="btn" data-action="import-json">Restaurer une sauvegarde JSON</button><button class="btn" data-action="export-csv">Exporter les opportunités CSV</button><button class="btn" data-action="import-csv">Importer des opportunités CSV</button></div>
 <div class="help">⚠️ La version GitHub Pages est publique et ne comporte ni authentification ni stockage serveur sécurisé. Utilisez uniquement des données fictives tant que l'usage de données ESPI réelles n'a pas été validé par la DSI.</div>
-<div class="kpi-line"><span>Contacts</span><strong>${data.contacts.length}</strong></div><div class="kpi-line"><span>Opportunités</span><strong>${data.opportunities.length}</strong></div><div class="kpi-line"><span>Tâches</span><strong>${data.tasks.length}</strong></div></section>`;
+<div class="kpi-line"><span>Contacts</span><strong>${data.contacts.length}</strong></div><div class="kpi-line"><span>Opportunités</span><strong>${data.opportunities.length}</strong></div><div class="kpi-line"><span>Tâches</span><strong>${data.tasks.length}</strong></div></section><div id="cloud-live">${window.MOON_CLOUD?.settingsHtml()||""}</div>`;
 }
 function modal(title,body){$("modal").innerHTML=`<div class="dialog-head"><h2>${esc(title)}</h2><button type="button" class="btn small ghost" data-action="close-modal" aria-label="Fermer">✕</button></div><div class="dialog-body">${body}</div>`;$("modal").showModal()}
 function input(name,label,value="",type="text",required=false,extra=""){return `<label>${esc(label)}<input class="field" name="${name}" type="${type}" value="${esc(value)}" ${required?"required":""} ${extra}></label>`}
@@ -305,6 +305,7 @@ render();if(kind==="json")toast("Sauvegarde restaurée");else toast("Import CSV 
 function onClick(e){
 const btn=e.target.closest("[data-action]");if(!btn||btn.matches("input[type=checkbox]"))return;
 const a=btn.dataset.action,x=btn.dataset.id;
+if(a.startsWith("cloud-")){window.MOON_CLOUD?.act(a);return}
 if(a==="nav"){page=btn.dataset.page;render()}
 else if(a==="voice-open")window.MOON_VOICE?.open();
 else if(a==="new-contact"||a==="new-contact-from-op"){afterContact=a==="new-contact-from-op";contactModal()}
@@ -335,7 +336,7 @@ else if(t.dataset.action==="toggle-task"){const item=task(t.dataset.id);if(item)
 else if(t.id==="file-import"){const f=t.files?.[0];if(f)importFile(f,t.dataset.kind);t.value=""}
 });
 document.addEventListener("input",e=>{if(e.target.id==="search"){const term=e.target.value.trim().toLowerCase();document.querySelectorAll("[data-search]").forEach(el=>el.hidden=!el.dataset.search.includes(term))}});
-document.addEventListener("submit",e=>{if(!["contact-form","opportunity-form","task-form","interaction-form"].includes(e.target.id))return;e.preventDefault();if(e.target.id==="contact-form")contactSubmit(e.target);else if(e.target.id==="opportunity-form")opportunitySubmit(e.target);else if(e.target.id==="task-form")taskSubmit(e.target);else interactionSubmit(e.target)});
+document.addEventListener("submit",e=>{if(e.target.id==="cloud-login-form"){e.preventDefault();window.MOON_CLOUD?.login(e.target);return}if(!["contact-form","opportunity-form","task-form","interaction-form"].includes(e.target.id))return;e.preventDefault();if(e.target.id==="contact-form")contactSubmit(e.target);else if(e.target.id==="opportunity-form")opportunitySubmit(e.target);else if(e.target.id==="task-form")taskSubmit(e.target);else interactionSubmit(e.target)});
 let dragged="";
 document.addEventListener("dragstart",e=>{const card=e.target.closest(".op-card");if(card){dragged=card.dataset.id;e.dataTransfer.setData("text/plain",dragged);e.dataTransfer.effectAllowed="move"}});
 document.addEventListener("dragover",e=>{const lane=e.target.closest(".lane");if(lane){e.preventDefault();lane.classList.add("over")}});
@@ -343,6 +344,29 @@ document.addEventListener("dragleave",e=>{const lane=e.target.closest(".lane");i
 document.addEventListener("drop",e=>{const lane=e.target.closest(".lane");if(!lane)return;e.preventDefault();document.querySelectorAll(".lane.over").forEach(n=>n.classList.remove("over"));const o=opportunity(e.dataTransfer.getData("text/plain")||dragged);if(o&&markStage(o,lane.dataset.stage)){save();render()}dragged=""});
 $("modal").addEventListener("click",e=>{if(e.target===$("modal"))closeModal()});
 }
+
+/* Optional Supabase bridge: never uploads without confirmation in cloud.js. */
+window.MOON_CLOUD_BRIDGE={
+ snapshot:()=>JSON.parse(JSON.stringify(data)),
+ restore:record=>{
+  if(!record||!Array.isArray(record.contacts)||!Array.isArray(record.opportunities)||!Array.isArray(record.tasks))return false;
+  const current=JSON.stringify(data),checkpoint=KEY+".precloud."+Date.now();
+  try{
+   // Stop rather than overwriting without a recovery point.
+   localStorage.setItem(checkpoint,current);
+   data=JSON.parse(JSON.stringify(record));
+   normalize();
+   if(!save(false))throw Error("Échec du stockage local");
+   render();
+   return true;
+  }catch(e){
+   data=JSON.parse(current);
+   try{localStorage.setItem(KEY,current)}catch{}
+   console.error("MOON cloud restore",e);
+   return false;
+  }
+ }
+};
 
 /* Voice assistant bridge: validate parsed fields and persist only after explicit confirmation. */
 window.MOON_VOICE_BRIDGE={

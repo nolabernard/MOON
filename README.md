@@ -49,3 +49,27 @@ Depuis MOON, cliquer sur **🎙 Dicter**, autoriser le microphone si disponible,
 - Aucune création n'est effectuée sans confirmation explicite.
 
 **Ne dictez pas de données personnelles réelles ESPI avant validation DSI.**
+
+## Préparation de l'intégration Supabase (branche feature/supabase-secure-sync)
+
+La sauvegarde distante est **désactivée tant qu'aucun projet Supabase n'est configuré**. MOON continue à fonctionner localement ; les données existantes ne sont jamais envoyées au serveur automatiquement.
+
+### Mise en place
+
+1. Créer un projet Supabase Free dédié à MOON dans l'organisation choisie, après vérification du prix.
+2. Exécuter le fichier SQL **supabase/moon_snapshots.sql** dans l'éditeur SQL du nouveau projet : table protégée par RLS, données séparées par compte, aucun accès anonyme.
+3. Dans Supabase Auth > URL Configuration, autoriser **https://nolabernard.github.io/MOON/** comme URL du site et redirection du lien email.
+4. Renseigner l'URL et la **clé publiable** sb_publishable_... dans **supabase-config.js**. Ne jamais exposer de clé service_role ou secret.
+5. Déployer après validation, puis se connecter dans Réglages > Sauvegarde cloud. Avant la première sauvegarde, exporter un JSON local.
+6. Sauvegarder ou restaurer manuellement et confirmer chaque opération. Les restaurations conservent un point de retour local sous la clé moon.crm.v2.precloud.<timestamp>.
+
+### Limites
+
+- Sauvegarde manuelle ; pas de synchronisation automatique ni de fusion multi-appareils.
+- Conflits de révision détectés pour éviter un écrasement silencieux.
+- Les sauvegardes périodiques JSON restent indispensables.
+- Email Auth soumis aux limites du plan gratuit et à sa configuration.
+- **Utiliser exclusivement des données fictives sans validation préalable de la DSI de l'ESPI.**
+- Le dépôt GitHub reste public : seule une clé publique (publishable) est autorisée dans les fichiers clients.
+
+Tests : node --check app.js && node --check cloud.js && node --check voice.js && node --test tests/*.test.cjs.
