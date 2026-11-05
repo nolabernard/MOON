@@ -102,3 +102,17 @@ test("Voice conversation commits contact, opportunity, history and follow-up onl
  if(JSON.parse(localStorage.getItem(KEY)).tasks.length!==1)throw Error("Not persisted");
  `,ctx);
 });
+
+test("Ma journée computes overdue follow-ups and priority without mutating data",()=>{
+ const store=new Map(),doc={readyState:"loading",addEventListener(){},getElementById(){return {innerHTML:""}}};
+ const ctx={window:{},document:doc,localStorage:{getItem:k=>store.get(k)||null,setItem:(k,v)=>store.set(k,v)},crypto:{randomUUID:()=>String(Math.random())},console,Date,Intl,Math,Number,String,Array,JSON,alert(){},confirm(){return true},setTimeout(){return 1},clearTimeout(){}};
+ vm.runInNewContext(source+`
+ load();
+ data.contacts.push({id:"c1",first:"Sophie",last:"Martin"});
+ data.opportunities.push({id:"o1",contactId:"c1",training:"VAE",stage:"Nouveau",created:"2026-01-01",follow:"2026-01-02",ht:"5980",events:[]});
+ const before=JSON.stringify(data),html=dayPage();
+ if(!html.includes("Sophie Martin")||!html.includes("VAE"))throw Error("Daily page missing opportunity");
+ if(priorityScore(data.opportunities[0])<=0)throw Error("Priority missing");
+ if(JSON.stringify(data)!==before)throw Error("Daily page mutated data");
+ `,ctx);
+});
