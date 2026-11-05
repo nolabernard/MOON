@@ -176,7 +176,7 @@ function modal(title,body){$("modal").innerHTML=`<div class="dialog-head"><h2>${
 function input(name,label,value="",type="text",required=false,extra=""){return `<label>${esc(label)}<input class="field" name="${name}" type="${type}" value="${esc(value)}" ${required?"required":""} ${extra}></label>`}
 function select(name,label,values,value){return `<label>${esc(label)}<select class="field" name="${name}">${opts(values,value)}</select></label>`}
 function textarea(name,label,value=""){return `<label class="wide">${esc(label)}<textarea class="field" name="${name}">${esc(value)}</textarea></label>`}
-function formFooter(edit,kind){return `<div class="form-footer"><div>${edit?`<button type="button" class="btn danger" data-action="delete-${kind}" data-id="${esc(edit.id)}">Supprimer</button>`:""}</div><div class="actions"><button type="button" class="btn" data-action="close-modal">Annuler</button><button class="btn primary" type="submit">Enregistrer</button></div></div>`}
+function formFooter(edit,kind){return `<div class="form-footer"><div>${edit?`<button type="button" class="btn danger" data-action="delete-${kind}" data-id="${esc(edit.id)}">Supprimer</button>`:""}</div><div class="actions"><button type="button" class="btn" data-action="close-modal">Annuler</button><button class="btn primary" type="button" data-action="save-${kind}-direct">Enregistrer</button></div></div>`}
 function contactModal(c=null){
 modal(c?"Fiche contact":"Nouveau contact",`<form id="contact-form"><input type="hidden" name="id" value="${esc(c?.id||"")}"><div class="form-grid">
 ${input("first","Prénom",c?.first)}${input("last","Nom *",c?.last,"text",true)}
@@ -348,7 +348,19 @@ render();if(kind==="json")toast("Sauvegarde restaurée");else toast("Import CSV 
 function onClick(e){
 const btn=e.target.closest("[data-action]");if(!btn||btn.matches("input[type=checkbox]"))return;
 const a=btn.dataset.action,x=btn.dataset.id;
-if(a==="save-contact-direct"){e.preventDefault();e.stopPropagation();const form=$("modal").querySelector("#contact-form");if(!form)return;if(!form.reportValidity())return;contactSubmit(form);return}
+if(["save-contact-direct","save-opportunity-direct","save-task-direct","save-interaction-direct"].includes(a)){
+ e.preventDefault();e.stopPropagation();
+ const kind=a.slice(5,-7),form=$("modal")?.querySelector("#"+kind+"-form");
+ if(!form){alert("Formulaire introuvable. Réessayez.");return}
+ if(!form.reportValidity())return;
+ try{
+  if(kind==="contact")contactSubmit(form);
+  else if(kind==="opportunity")opportunitySubmit(form);
+  else if(kind==="task")taskSubmit(form);
+  else interactionSubmit(form);
+ }catch(err){console.error("MOON direct save failure",kind,err);alert("Enregistrement interrompu : "+(err?.message||err))}
+ return;
+}
 if(a.startsWith("cloud-")){window.MOON_CLOUD?.act(a);return}
 if(a==="nav"){page=btn.dataset.page;render()}
 else if(a==="voice-open")window.MOON_VOICE?.open();
