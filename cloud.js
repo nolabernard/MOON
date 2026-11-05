@@ -29,16 +29,19 @@
    const changed=Number(latest.revision)!==Number(base.revision);
    if(dirty&&changed){stopSync("Conflit entre appareils : vos modifications locales sont conservées. Sauvegardez vos données en JSON puis choisissez la version à conserver.");return}
    if(changed){
+     if(serialize(local())!==base.content){stopSync("Modification locale détectée pendant la récupération : synchronisation arrêtée.");return}
      if(!bridge()?.restore(latest.content)){stopSync("Restauration automatique impossible : données locales conservées.");return}
      localStorage.setItem(BASE_KEY,serialize({user:user.id,revision:latest.revision,content:serialize(local())}));
      remote=latest;notice="Modifications récupérées depuis le cloud.";refresh();return;
    }
    if(dirty){
-     const result=await client.from("moon_snapshots").update({content:local(),revision:Number(base.revision)+1,updated_at:new Date().toISOString()}).eq("owner_id",user.id).eq("revision",base.revision).select("revision,updated_at").maybeSingle();
+     const outgoing=local();
+     const result=await client.from("moon_snapshots").update({content:outgoing,revision:Number(base.revision)+1,updated_at:new Date().toISOString()}).eq("owner_id",user.id).eq("revision",base.revision).select("revision,updated_at").maybeSingle();
      if(result.error)throw result.error;
      if(!result.data){stopSync("Conflit de synchronisation : données locales conservées.");return}
-     remote={content:local(),revision:result.data.revision,updated_at:result.data.updated_at};
-     localStorage.setItem(BASE_KEY,serialize({user:user.id,revision:result.data.revision,content:serialize(local())}));
+     remote={content:outgoing,revision:result.data.revision,updated_at:result.data.updated_at};
+     localStorage.setItem(BASE_KEY,serialize({user:user.id,revision:result.data.revision,content:serialize(outgoing)}));
+     if(serialize(local())!==serialize(outgoing))scheduleSync();
      notice="Synchronisation automatique effectuée.";refresh();
    }
   }finally{syncRunning=false}
