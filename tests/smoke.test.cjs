@@ -59,3 +59,27 @@ test("User flow: add, edit, complete and delete tasks",function regressionTest()
  ];
  vm.runInNewContext(source+"\n"+commands.join("\n"),context);
 });
+
+test("Contact submit prevents page navigation and persists a verifiable contact",()=>{
+ const store=new Map(),elements=new Map();
+ const doc={readyState:"loading",addEventListener(){},getElementById(k){
+  if(!elements.has(k))elements.set(k,{innerHTML:"",textContent:"",hidden:true,close(){},showModal(){}});
+  return elements.get(k);
+ }};
+ class MockFormData{constructor(form){this.fields=form.fields}*[Symbol.iterator](){yield* Object.entries(this.fields)}}
+ const ctx={window:{},document:doc,localStorage:{getItem:k=>store.get(k)??null,setItem:(k,v)=>store.set(k,v)},
+  FormData:MockFormData,crypto:{randomUUID:()=>"new-contact-1"},console,Date,Intl,Math,Number,String,Array,JSON,
+  alert(message){throw Error(message)},confirm(){return true},setTimeout(){return 1},clearTimeout(){}};
+ const check=`
+ load();page="dashboard";
+ let prevented=false,stopped=false;
+ handleFormSubmit({target:{id:"contact-form",fields:{id:"",first:"Marie",last:"Martin",email:"marie@example.org",phone:"",company:"",profile:"Salarié",notes:""}},
+  preventDefault(){prevented=true},stopPropagation(){stopped=true}});
+ if(!prevented||!stopped)throw Error("Browser navigation was not blocked");
+ if(page!=="contacts")throw Error("Contact list not displayed");
+ if(data.contacts.length!==1)throw Error("Contact missing from memory");
+ if(!JSON.parse(localStorage.getItem(KEY)).contacts.some(c=>c.email==="marie@example.org"))throw Error("Contact missing from localStorage");
+ if(!document.getElementById("app").innerHTML.includes("Marie Martin"))throw Error("New contact missing from visible directory");
+ `;
+ vm.runInNewContext(source+"\n"+check,ctx);
+});
