@@ -210,7 +210,7 @@ if(!v.email.trim()&&!v.phone.trim()){alert("Renseignez au moins un email ou un t
 const existing=data.contacts.find(c=>c.id===v.id);
 if(existing){Object.assign(existing,{first:v.first.trim(),last:v.last,email:v.email.trim(),phone:v.phone.trim(),company:v.company.trim(),profile:v.profile,notes:v.notes})}
 else{const c={id:id(),created:today(),first:v.first.trim(),last:v.last,email:v.email.trim(),phone:v.phone.trim(),company:v.company.trim(),profile:v.profile,notes:v.notes};data.contacts.push(c)}
-if(save()){closeModal();render();if(afterContact){afterContact=false;opportunityModal(null,data.contacts[data.contacts.length-1]?.id)}}
+if(save()){const openOpportunity=afterContact;afterContact=false;closeModal();page="contacts";render();toast(existing?"Contact modifié avec succès":"Contact créé avec succès");if(openOpportunity)opportunityModal(null,data.contacts[data.contacts.length-1]?.id)}
 }
 function opportunitySubmit(f){
 const v=Object.fromEntries(new FormData(f));v.training=v.training.trim();
