@@ -52,3 +52,10 @@ test("Voice confirmation is a direct button, not a native submit",()=>{
  assert.match(source,/id="voice-save-direct"/);
  assert.match(source,/\$\("voice-save-direct"\)\.onclick=commit/);
 });
+
+test("Créer le contact de Nolan Bernard maps first and last name",()=>{
+ const p=setup().parse("créer le contact de Nolan Bernard");
+ assert.equal(p.kind,"contact");
+ assert.equal(p.first,"Nolan");
+ assert.equal(p.last,"Bernard");
+});

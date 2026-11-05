@@ -30,7 +30,7 @@ function parse(text,base=new Date()){
  const original=clean(text),t=normalize(original);
  let kind=/\b(tache|rappel|rappelle|relance|appeler|rappeler|penser a|faire)\b/.test(t)?"task":/\b(contact|personne|prospect)\b/.test(t)&&!/\b(formation|vae|opportunite|interesse|projet)\b/.test(t)?"contact":"opportunity";
  const titled=original.match(/\b(?:mme|madame|monsieur|mr|m\.)\s+([A-ZÀ-Ÿ][\p{L}'-]+)(?:\s+([A-ZÀ-Ÿ][\p{L}'-]+))?/iu);
- const named=original.match(/\b(?:avec|pour|contact|prospect)\s+([A-ZÀ-Ÿ][\p{L}'-]+)\s+([A-ZÀ-Ÿ][\p{L}'-]+)/u);
+ const named=original.match(/\b(?:avec|pour|contact|prospect)(?:\s+de)?\s+([A-ZÀ-Ÿ][\p{L}'-]+)\s+([A-ZÀ-Ÿ][\p{L}'-]+)/u);
  // Mme Martin: surname only; do not guess the first name.
  let first=titled?.[2]?titled[1]:named?.[1]||"",last=titled?.[2]||titled?.[1]||named?.[2]||"";
  const email=original.match(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/)?.[0]||"";
@@ -92,11 +92,13 @@ function analyze(){
  html+=field("Prénom","first",p.first)+field("Nom","last",p.last)+field("Entreprise","company",p.company)+field("Email","email",p.email,"email")+field("Téléphone","phone",p.phone,"tel");
  html+=select("Contact existant (facultatif)","existingContact",[["","Créer un contact / aucun"],...contacts.map(c=>[c.id,[c.first,c.last,c.company].filter(Boolean).join(" · ")])],suggested);
  if(matches.length>1)html+='<p class="help">Plusieurs contacts portent ce nom : choisissez la bonne personne.</p>';
+ html+='<div id="voice-extra-fields">';
  html+=field("Compte rendu / décision","summary",p.summary||p.transcript);
  html+=field("Formation / prestation","training",p.training)+select("Catégorie","category",TYPES.map(x=>[x,x]),p.category);
  html+='<p class="subtle">Actions proposées : associer le contact, créer ou mettre à jour une opportunité, ajouter le compte rendu à l’historique et créer une relance si une date est indiquée. Rien ne sera enregistré avant votre confirmation.</p>';
  html+=field("Montant (€)","amount",p.amount,"number",'min="0" step="0.01"')+select("Montant annoncé","vatMode",[["unknown","Non précisé : à vérifier"],["ht","HT"],["ttc","TTC"]],p.vatMode);
  html+=field("Date de relance / échéance","due",p.due,"date")+field("Intitulé de tâche","title",p.title);
+ html+='</div>';
  html+='</div><p class="subtle">Le montant TTC ou sans précision ne sera pas converti automatiquement en HT. Il faudra compléter la TVA dans la fiche opportunité. Les dates relatives doivent être vérifiées.</p><div class="form-footer"><button type="button" class="btn" id="voice-cancel">Annuler</button><button type="button" class="btn primary" id="voice-save-direct">Confirmer l’enregistrement</button></div></form>';
  $("voice-preview").innerHTML=html;
  $("voice-cancel").onclick=()=>{$("voice-preview").innerHTML=""};
@@ -108,6 +110,9 @@ function analyze(){
  else status(result?.error||"Impossible d'enregistrer cette demande.");
  };
  $("voice-save-direct").onclick=commit;
+ const actionSelect=$("voice-confirm").elements.namedItem("kind");
+ const updateFields=()=>{const extra=$("voice-extra-fields");if(extra)extra.hidden=actionSelect.value==="contact"};
+ actionSelect.addEventListener("change",updateFields);updateFields();
  status("Informations proposées : vérifiez et complétez les champs manquants.");
 }
 window.MOON_VOICE={open,parse,dateFromSpeech,available:!!Recognition};
