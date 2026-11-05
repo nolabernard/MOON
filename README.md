@@ -1,30 +1,39 @@
-# ☾ MOON — Mini-CRM commercial
+# ☾ MOON — Mini-CRM ESPI Executive
 
-Application légère pour le suivi des opportunités ESPI Executive.
+Application web légère dédiée au suivi des contacts, opportunités, tâches, relances et résultats commerciaux.
 
-## Lancer la version GitHub
+**Application :** https://nolabernard.github.io/MOON/  
+**Code :** https://github.com/nolabernard/MOON
 
-Télécharger le dépôt avec **Code → Download ZIP**, décompresser puis **ouvrir `index.html`** dans un navigateur moderne. Aucun serveur ni installation n'est nécessaire.
+## Version 2 : fonctionnalités
 
-## Fonctionnalités de cette version
+- **Contacts indépendants** : identité, coordonnées, entreprise, profil, notes ; un contact peut posséder plusieurs opportunités.
+- **Opportunités** : formation, origine, responsable, statut, dates, montants HT/TTC et TVA propre à la prestation, notes, motif de perte.
+- **Kanban** : glisser-déposer dans les six étapes du pipeline ; transitions consignées dans l'historique.
+- **Tâches** : ajouter, modifier, supprimer et terminer les tâches ; échéance, priorité, type, contact et opportunité liée.
+- **Accueil** : tâches prioritaires, rendez-vous futurs, CA sécurisé, pipeline actif, pertes, panier moyen et conversion.
+- **Interactions** : journal chronologique d'appels, emails, SMS, visios, rendez-vous et notes.
+- **Recherche** : opportunités, contacts et tâches ; filtres de période pour les résultats commerciaux.
+- **Sauvegarde** : export/import JSON complet ; export et import CSV des opportunités.
+- **Compatibilité** : migration automatique des opportunités de l'ancienne version `moon.crm.v1` vers les contacts et opportunités de la version `moon.crm.v2`.
 
-- Création, édition et suppression d'opportunités
-- Pipeline Kanban avec glisser-déposer
-- Historique chronologique des interactions et changements de statut
-- Relances prioritaires du jour et en retard
-- CA sécurisé, pipeline en cours, montant perdu, panier moyen, conversion
-- Affichage HT/TTC selon le taux de TVA de chaque opportunité
-- Filtres temporels et recherche
-- Sauvegarde/export et restauration **JSON**
+## Développement et vérification
 
-## Stockage et limites
+Application statique, sans serveur. Les fichiers principaux sont `index.html`, `styles.css` et `app.js`.
 
-Cette version GitHub est une **application statique autonome**. Les données sont stockées dans le **localStorage du navigateur**, sur l'ordinateur utilisé. Elles ne sont pas synchronisées avec GitHub et peuvent être perdues en cas d'effacement des données du navigateur. **Exporter régulièrement une sauvegarde JSON.**
+Les tests sont dans `tests/smoke.test.cjs`. Exécution locale avec Node :
 
-L'application n'a pas d'authentification ni de backend. **Ne pas saisir de données personnelles ESPI réelles avant validation par la DSI**. Le dépôt est privé mais les données ne sont pas protégées par une authentification propre à l'application.
+```bash
+node --check app.js
+node --test tests/*.test.cjs
+```
 
-Une version locale plus complète (Python/FastAPI/SQLite, CSV et tests) existe séparément dans l'archive `MOON_CRM_local_GitHub.zip` remise dans la conversation ; **son code n'est pas encore inclus dans ce dépôt**.
+Le workflow GitHub Actions les exécute avant de publier vers GitHub Pages.
 
-## Développement
+## Données et confidentialité
 
-Ouvrir `index.html` directement ou le servir avec `python3 -m http.server 8765`. Le code est autonome, sans dépendances.
+Les données sont enregistrées dans le **localStorage du navigateur**, uniquement sur l'appareil et dans le navigateur utilisés. GitHub ne stocke pas les fiches de contacts saisies dans l'application. Les données ne se synchronisent **pas** entre appareils et peuvent disparaître à l'effacement des données du navigateur. Exportez régulièrement une sauvegarde JSON.
+
+**Cette version n'est pas sécurisée pour la production** : pas d'authentification ni de base serveur ; GitHub Pages diffuse l'interface publiquement. N'utilisez que des données fictives tant qu'une solution sécurisée et autorisée par la DSI ESPI n'a pas été mise en place.
+
+Le site de démonstration ne remplace pas une application métier hébergée avec comptes utilisateurs, sauvegardes serveur et règles de confidentialité.
