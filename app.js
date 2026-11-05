@@ -84,7 +84,7 @@ const [title,subtitle]=titles[page];
 $("app").innerHTML=`<div class="shell"><aside class="sidebar"><div class="brand"><div class="brand-symbol">☾</div><div><strong>MOON</strong><small>ESPI EXECUTIVE</small></div></div><nav aria-label="Navigation principale">
 ${navButton("dashboard","◫","Accueil")}${navButton("board","▥","Pipeline")}${navButton("opportunities","◇","Opportunités")}${navButton("contacts","♙","Contacts")}${navButton("tasks","☑","Tâches")}${navButton("settings","⚙","Réglages")}
 </nav><div class="sidebar-bottom">MOON · Version 2<br>Stockage local dans ce navigateur<br>Sans synchronisation entre appareils</div></aside>
-<div class="main"><div class="topbar"><div><div class="eyebrow">MOON / ${esc(page)}</div><h1>${title}</h1><div class="subtle">${subtitle}</div></div><div class="actions">
+<div class="main"><div class="topbar"><div><div class="eyebrow">MOON / ${esc(page)}</div><h1>${title}</h1><div class="subtle">${subtitle}</div></div><div class="actions"><button class="btn" data-action="voice-open" type="button">🎙 Dicter</button>
 ${page==="contacts"?`<button class="btn primary" data-action="new-contact">+ Nouveau contact</button>`:page==="tasks"?`<button class="btn primary" data-action="new-task">+ Nouvelle tâche</button>`:page==="settings"?"":`<button class="btn" data-action="new-task">+ Tâche</button><button class="btn primary" data-action="new-opportunity">+ Opportunité</button>`}</div></div>
 ${toolbar()}<div id="view">${page==="dashboard"?dashboard():page==="board"?board():page==="opportunities"?opportunities():page==="contacts"?contacts():page==="tasks"?tasks():settings()}</div></div></div>`;
 }
@@ -306,6 +306,7 @@ function onClick(e){
 const btn=e.target.closest("[data-action]");if(!btn||btn.matches("input[type=checkbox]"))return;
 const a=btn.dataset.action,x=btn.dataset.id;
 if(a==="nav"){page=btn.dataset.page;render()}
+else if(a==="voice-open")window.MOON_VOICE?.open();
 else if(a==="new-contact"||a==="new-contact-from-op"){afterContact=a==="new-contact-from-op";contactModal()}
 else if(a==="new-opportunity")opportunityModal(null,btn.dataset.contactId||"");
 else if(a==="new-task")taskModal(null,btn.dataset.opportunityId||"");
@@ -342,4 +343,48 @@ document.addEventListener("dragleave",e=>{const lane=e.target.closest(".lane");i
 document.addEventListener("drop",e=>{const lane=e.target.closest(".lane");if(!lane)return;e.preventDefault();document.querySelectorAll(".lane.over").forEach(n=>n.classList.remove("over"));const o=opportunity(e.dataTransfer.getData("text/plain")||dragged);if(o&&markStage(o,lane.dataset.stage)){save();render()}dragged=""});
 $("modal").addEventListener("click",e=>{if(e.target===$("modal"))closeModal()});
 }
+
+/* Voice assistant bridge: validate parsed fields and persist only after explicit confirmation. */
+window.MOON_VOICE_BRIDGE={
+ contacts:()=>data.contacts.map(c=>({id:c.id,first:c.first,last:c.last,company:c.company})),
+ refresh:()=>render(),
+ notify:message=>toast(message),
+ save(v){
+  const kind=v.kind,existing=v.existingContact?contact(v.existingContact):null;
+  if(!["contact","opportunity","task"].includes(kind))return {ok:false,error:"Action non reconnue."};
+  if(v.email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.email))return {ok:false,error:"Adresse email invalide."};
+  if(v.due&&!/^\d{4}-\d{2}-\d{2}$/.test(v.due))return {ok:false,error:"Date invalide."};
+  if(v.amount!==""&&(!Number.isFinite(Number(v.amount))||Number(v.amount)<0))return {ok:false,error:"Montant invalide."};
+  if(kind!=="task"&&!existing&&(!v.last?.trim()||(!v.email?.trim()&&!v.phone?.trim())))return {ok:false,error:"Pour créer un contact, renseignez le nom et au moins un email ou téléphone."};
+  if(kind==="opportunity"&&!v.training?.trim())return {ok:false,error:"La formation / prestation est obligatoire."};
+  if(kind==="task"&&!v.title?.trim())return {ok:false,error:"L’intitulé de la tâche est obligatoire."};
+  if(kind==="task"&&!v.due)return {ok:false,error:"La date d’échéance est obligatoire pour une tâche."};
+  let c=existing;
+  if(!c&&kind!=="task"){
+   const email=v.email?.trim().toLowerCase();
+   if(email)c=data.contacts.find(x=>x.email?.trim().toLowerCase()===email);
+   if(!c&&v.last?.trim())c=data.contacts.find(x=>x.last?.trim().toLowerCase()===v.last.trim().toLowerCase()&&x.first?.trim().toLowerCase()===(v.first||"").trim().toLowerCase());
+   if(!c){c={id:id(),created:today(),first:v.first?.trim()||"",last:v.last.trim(),company:v.company?.trim()||"",email:v.email?.trim()||"",phone:v.phone?.trim()||"",profile:"Salarié",notes:""};data.contacts.push(c)}
+  }
+  if(kind==="contact"){if(!save())return {ok:false,error:"Enregistrement impossible."};return {ok:true,message:"Contact enregistré : "+contactName(c)}}
+  if(kind==="task"){
+   const t={id:id(),created:new Date().toISOString(),status:"open",title:v.title.trim(),type:"Relance",due:v.due,priority:"Normale",opportunityId:"",contactId:existing?.id||"",notes:"Ajouté par dictée vocale"};
+   data.tasks.push(t);
+   if(!save())return {ok:false,error:"Enregistrement impossible."};
+   page="tasks";taskMode="all";return {ok:true,message:"Tâche enregistrée : "+t.title};
+  }
+  const amountKnown=v.amount!=="";
+  const amountHT=amountKnown&&v.vatMode==="ht"?v.amount:"";
+  const notes=["Créé par dictée vocale."];
+  if(amountKnown&&v.vatMode==="ttc")notes.push("Montant annoncé : "+v.amount+" € TTC. HT et TVA à préciser.");
+  if(amountKnown&&v.vatMode==="unknown")notes.push("Montant annoncé : "+v.amount+" €. HT/TTC à vérifier.");
+  const o={id:id(),created:today(),contactId:c.id,training:v.training.trim(),category:TYPES.includes(v.category)?v.category:"Autre",stage:"Nouveau",ht:amountHT,vat:"0",follow:v.due||"",forecast:"",closed:"",source:"Commande vocale",owner:"",notes:notes.join("\n"),lostReason:"",events:[]};
+  data.opportunities.push(o);
+  if(v.due)data.tasks.push({id:id(),created:new Date().toISOString(),status:"open",title:"Relancer "+contactName(c),type:"Relance",due:v.due,priority:"Normale",opportunityId:o.id,contactId:c.id,notes:"Créée par dictée vocale"});
+  if(!save())return {ok:false,error:"Enregistrement impossible."};
+  page="opportunities";
+  return {ok:true,message:"Contact, opportunité"+(v.due?" et relance":"")+" enregistrés"};
+ }
+};
+
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init();
