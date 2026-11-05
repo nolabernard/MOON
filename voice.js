@@ -29,9 +29,10 @@ function dateFromSpeech(text,base=new Date()){
 function parse(text,base=new Date()){
  const original=clean(text),t=normalize(original);
  let kind=/\b(tache|rappel|rappelle|relance|appeler|rappeler|penser a|faire)\b/.test(t)?"task":/\b(contact|personne|prospect)\b/.test(t)&&!/\b(formation|vae|opportunite|interesse|projet)\b/.test(t)?"contact":"opportunity";
- const titled=original.match(/\b(?:mme|madame|monsieur|mr|m\.)\s+([A-ZÀ-Ÿ][\p{L}'-]+)/iu);
- const firstWords=original.match(/(?:contact|prospect|pour|avec|monsieur|madame|mme|m\.|m'appelle|nomme|s'appelle)\s+(?:monsieur\s+|madame\s+)?([A-ZÀ-Ÿ][\p{L}'-]+)\s+([A-ZÀ-Ÿ][\p{L}'-]+)/u);
- let first=firstWords?.[1]||"",last=firstWords?.[2]||titled?.[1]||"";
+ const titled=original.match(/\b(?:mme|madame|monsieur|mr|m\.)\s+([A-ZÀ-Ÿ][\p{L}'-]+)(?:\s+([A-ZÀ-Ÿ][\p{L}'-]+))?/iu);
+ const named=original.match(/\b(?:avec|pour|contact|prospect)\s+([A-ZÀ-Ÿ][\p{L}'-]+)\s+([A-ZÀ-Ÿ][\p{L}'-]+)/u);
+ // Mme Martin: surname only; do not guess the first name.
+ let first=titled?.[2]?titled[1]:named?.[1]||"",last=titled?.[2]||titled?.[1]||named?.[2]||"";
  const email=original.match(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/)?.[0]||"";
  const phone=original.match(/(?:\+33\s?[1-9]|0[1-9])(?:[\s.-]?\d{2}){4}\b/)?.[0]||"";
  const company=original.match(/(?:entreprise|societe|société|chez)\s+([^\.,;]+?)(?=\s+(?:qui|pour|interess|intéress|a\s+|est\s+|avec\s+|et\s+|a\s+rappeler|à\s+rappeler|montant|formation)\b|[,.;]|$)/i)?.[1]?.trim()||"";
@@ -96,15 +97,17 @@ function analyze(){
  html+='<p class="subtle">Actions proposées : associer le contact, créer ou mettre à jour une opportunité, ajouter le compte rendu à l’historique et créer une relance si une date est indiquée. Rien ne sera enregistré avant votre confirmation.</p>';
  html+=field("Montant (€)","amount",p.amount,"number",'min="0" step="0.01"')+select("Montant annoncé","vatMode",[["unknown","Non précisé : à vérifier"],["ht","HT"],["ttc","TTC"]],p.vatMode);
  html+=field("Date de relance / échéance","due",p.due,"date")+field("Intitulé de tâche","title",p.title);
- html+='</div><p class="subtle">Le montant TTC ou sans précision ne sera pas converti automatiquement en HT. Il faudra compléter la TVA dans la fiche opportunité. Les dates relatives doivent être vérifiées.</p><div class="form-footer"><button type="button" class="btn" id="voice-cancel">Annuler</button><button type="submit" class="btn primary">Confirmer l’enregistrement</button></div></form>';
+ html+='</div><p class="subtle">Le montant TTC ou sans précision ne sera pas converti automatiquement en HT. Il faudra compléter la TVA dans la fiche opportunité. Les dates relatives doivent être vérifiées.</p><div class="form-footer"><button type="button" class="btn" id="voice-cancel">Annuler</button><button type="button" class="btn primary" id="voice-save-direct">Confirmer l’enregistrement</button></div></form>';
  $("voice-preview").innerHTML=html;
  $("voice-cancel").onclick=()=>{$("voice-preview").innerHTML=""};
- $("voice-confirm").onsubmit=e=>{
- e.preventDefault();const values=Object.fromEntries(new FormData(e.target));
+ const commit=()=>{
+ const form=$("voice-confirm");if(!form||!form.reportValidity())return;
+ const values=Object.fromEntries(new FormData(form));
  const result=values.kind==="conversation"?window.MOON_VOICE_BRIDGE?.saveConversation({...values,transcript}):window.MOON_VOICE_BRIDGE?.save(values);
  if(result?.ok){stop();$("voice-modal").close();status("");window.MOON_VOICE_BRIDGE?.refresh();window.MOON_VOICE_BRIDGE?.notify(result.message||"Enregistrement effectué")}
  else status(result?.error||"Impossible d'enregistrer cette demande.");
  };
+ $("voice-save-direct").onclick=commit;
  status("Informations proposées : vérifiez et complétez les champs manquants.");
 }
 window.MOON_VOICE={open,parse,dateFromSpeech,available:!!Recognition};
