@@ -90,6 +90,8 @@ function dashboard(){
 const all=scoped(),won=all.filter(o=>o.stage==="Gagné"),lost=all.filter(o=>o.stage==="Perdu"),open=all.filter(isActive),priced=won.filter(known);
 const due=data.tasks.filter(t=>t.status==="open"&&t.due&&t.due<=today()).sort((a,b)=>compare(a.due,b.due));
 const future=data.tasks.filter(t=>t.status==="open"&&t.due>today()).sort((a,b)=>compare(a.due,b.due));
+const dueOpportunities=data.opportunities.filter(o=>isActive(o)&&o.follow&&o.follow<=today()).sort((a,b)=>compare(a.follow,b.follow));
+const followRows=dueOpportunities.slice(0,5).map(o=>'<div class="task-item"><div class="task-content"><div class="task-title">Relancer '+esc(contactName(linkedContact(o)))+'</div><div class="task-meta">'+esc(o.training)+' · '+esc(dt(o.follow))+'</div></div><span class="badge '+(o.follow<today()?'late':'today')+'">'+(o.follow<today()?'En retard':"Aujourd’hui")+'</span><button class="btn small" data-action="edit-opportunity" data-id="'+esc(o.id)+'">Ouvrir</button></div>').join("");
 const conversion=won.length+lost.length?Math.round(won.length/(won.length+lost.length)*100)+" %":"—";
 return `<section class="grid-metrics">
 ${metric("CA sécurisé",money(sum(won)),won.length+" opportunité(s) gagnée(s)","↗","good")}
@@ -97,8 +99,8 @@ ${metric("Pipeline en cours",money(sum(open)),open.length+" opportunité(s) acti
 ${metric("Montant perdu",money(sum(lost)),lost.length+" opportunité(s) perdue(s)","↘","bad")}
 ${metric("Panier moyen",priced.length?money(Math.round(sum(priced)/priced.length)):"—",priced.length+" vente(s) chiffrée(s)","◈")}
 </section><div class="split"><section class="panel"><div class="row"><h2>Relances et tâches prioritaires</h2><button class="btn small" data-action="nav" data-page="tasks">Toutes les tâches</button></div>
-${due.length?due.slice(0,7).map(taskRow).join(""):`<div class="empty"><strong>Tout est à jour</strong><p>Aucune tâche en retard ou prévue aujourd'hui.</p><button class="btn" data-action="new-task">Ajouter une tâche</button></div>`}</section>
-<section class="panel"><h2>Indicateurs complémentaires</h2><div class="kpi-line"><span>Taux de conversion</span><strong>${conversion}</strong></div><div class="kpi-line"><span>Contacts enregistrés</span><strong>${data.contacts.length}</strong></div><div class="kpi-line"><span>Tâches en retard</span><strong>${due.filter(t=>t.due<today()).length}</strong></div><div class="kpi-line"><span>Tâches du jour</span><strong>${due.filter(t=>t.due===today()).length}</strong></div><div class="kpi-line"><span>Tâches à venir</span><strong>${future.length}</strong></div><div class="kpi-line"><span>Rendez-vous à venir</span><strong>${future.filter(t=>t.type==="Rendez-vous").length}</strong></div></section></div>`;
+${due.length||dueOpportunities.length?followRows+due.slice(0,7).map(taskRow).join(""):`<div class="empty"><strong>Tout est à jour</strong><p>Aucune tâche en retard ou prévue aujourd'hui.</p><button class="btn" data-action="new-task">Ajouter une tâche</button></div>`}</section>
+<section class="panel"><h2>Indicateurs complémentaires</h2><div class="kpi-line"><span>Taux de conversion</span><strong>${conversion}</strong></div><div class="kpi-line"><span>Contacts enregistrés</span><strong>${data.contacts.length}</strong></div><div class="kpi-line"><span>Relances d’opportunités en retard</span><strong>${dueOpportunities.filter(o=>o.follow<today()).length}</strong></div><div class="kpi-line"><span>Tâches en retard</span><strong>${due.filter(t=>t.due<today()).length}</strong></div><div class="kpi-line"><span>Tâches du jour</span><strong>${due.filter(t=>t.due===today()).length}</strong></div><div class="kpi-line"><span>Tâches à venir</span><strong>${future.length}</strong></div><div class="kpi-line"><span>Rendez-vous à venir</span><strong>${future.filter(t=>t.type==="Rendez-vous").length}</strong></div></section></div>`;
 }
 function board(){
 const all=scoped();
