@@ -241,7 +241,7 @@ const vatChoices=["0","5.5","10","20","exempt","custom"];
 const vatOptions=vatChoices.map(v=>`<option value="${v}" ${(v==="custom"?!["0","5.5","10","20","exempt"].includes(String(vat)):String(vat)===v)?"selected":""}>${v==="exempt"?"Exonéré":v==="custom"?"Taux personnalisé":v.replace(".",",")+" %"}</option>`).join("");
 const customVat=vatChoices.includes(String(vat))?"":vat;
 const events=[...(o?.events||[])].reverse();
-modal(o?"Modifier l'opportunité":"Nouvelle opportunité",`<form id="opportunity-form"><input type="hidden" name="id" value="${esc(o?.id||"")}"><div class="form-grid">
+modal(o?"Modifier l'opportunité":"Nouvelle opportunité",`${o&&suggestedStage(o)?`<div class="panel"><strong>Suggestion MOON</strong><p>Un échange enregistré suggère de passer à « ${esc(suggestedStage(o))} ».</p><button type="button" class="btn primary" data-action="apply-stage-suggestion" data-id="${esc(o.id)}">Valider le changement</button></div>`:""}<form id="opportunity-form"><input type="hidden" name="id" value="${esc(o?.id||"")}"><div class="form-grid">
 <label>Contact *<select name="contactId" class="field" required>${choices}</select></label><label>Ajouter un autre contact<button class="btn" type="button" data-action="new-contact-from-op">+ Nouveau contact</button></label>
 ${input("training","Formation / prestation *",o?.training,"text",true)}
 ${select("category","Catégorie",TYPES,o?.category||"VAE")}
@@ -420,6 +420,9 @@ if(["save-contact-direct","save-opportunity-direct","save-task-direct","save-int
  }catch(err){console.error("MOON direct save failure",kind,err);alert("Enregistrement interrompu : "+(err?.message||err))}
  return;
 }
+if(a==="natural-search"){naturalQuery=$("natural-query")?.value?.trim()||"";render();return}
+if(a==="copy-report"){if(typeof navigator!=="undefined"&&navigator.clipboard?.writeText)navigator.clipboard.writeText(reportText()).then(()=>toast("Bilan copié")).catch(()=>alert(reportText()));else alert(reportText());return}
+if(a==="apply-stage-suggestion"){const o=opportunity(x);if(!o)return;const next=suggestedStage(o);if(!next)return;if(!confirm("Passer cette opportunité à « "+next+" » ?"))return;if(markStage(o,next)&&save()){opportunityModal(o);toast("Étape mise à jour et historisée")}return}
 if(a.startsWith("cloud-")){window.MOON_CLOUD?.act(a);return}
 if(a==="nav"){page=btn.dataset.page;render()}
 else if(a==="voice-open")window.MOON_VOICE?.open();
