@@ -8,6 +8,7 @@ function run(check,old=[]){
  const db=new Map();
  if(old.length)db.set("moon.crm.v1",JSON.stringify(old));
  const context={
+  window:{},
   document:{readyState:"loading",addEventListener(){}},
   localStorage:{getItem(k){return db.get(k)??null},setItem(k,v){db.set(k,v)}},
   crypto:{randomUUID:()=>String(Math.random())},
@@ -43,7 +44,7 @@ test("User flow: add, edit, complete and delete tasks",function regressionTest()
   getElementById(key){if(!elements.has(key))elements.set(key,{innerHTML:"",textContent:"",hidden:true,close(){},showModal(){}});return elements.get(key)}
  };
  class MockFormData{constructor(form){this.fields=form.fields}*[Symbol.iterator](){yield* Object.entries(this.fields)}}
- const context={document:doc,localStorage:{getItem:k=>store.get(k)||null,setItem:(k,v)=>store.set(k,v)},FormData:MockFormData,crypto:{randomUUID:()=>String(Math.random())},console,Date,Intl,Math,Number,String,Array,JSON,alert(message){throw Error(message)},confirm(){return true},setTimeout(){return 1},clearTimeout(){}};
+ const context={window:{},document:doc,localStorage:{getItem:k=>store.get(k)||null,setItem:(k,v)=>store.set(k,v)},FormData:MockFormData,crypto:{randomUUID:()=>String(Math.random())},console,Date,Intl,Math,Number,String,Array,JSON,alert(message){throw Error(message)},confirm(){return true},setTimeout(){return 1},clearTimeout(){}};
  const commands=[
  'load();page="tasks";',
  'taskSubmit({fields:{id:"",title:"Appeler le candidat",type:"Appel",due:"2026-11-07",priority:"Haute",opportunityId:"",contactId:"",notes:"Premier contact"}});',
