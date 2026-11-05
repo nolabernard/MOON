@@ -116,3 +116,34 @@ test("Ma journée computes overdue follow-ups and priority without mutating data
  if(JSON.stringify(data)!==before)throw Error("Daily page mutated data");
  `,ctx);
 });
+
+test("Direct buttons create contact, opportunity, task and interaction without navigation",()=>{
+ const store=new Map(),elements=new Map();
+ const doc={readyState:"loading",addEventListener(){},getElementById(k){if(!elements.has(k))elements.set(k,{innerHTML:"",textContent:"",hidden:true,close(){},showModal(){}});return elements.get(k)}};
+ class MockFormData{constructor(form){this.fields=form.fields}*[Symbol.iterator](){yield* Object.entries(this.fields)}}
+ const ctx={window:{},document:doc,localStorage:{getItem:k=>store.get(k)||null,setItem:(k,v)=>store.set(k,v)},FormData:MockFormData,crypto:{randomUUID:()=>String(Math.random())},console,Date,Intl,Math,Number,String,Array,JSON,alert(m){throw Error(m)},confirm(){return true},setTimeout(){return 1},clearTimeout(){}};
+ vm.runInNewContext(source+`
+ load();
+ const modal=$("modal");
+ const form=(id,fields)=>({id,fields,reportValidity(){return true},dataset:{id:fields.opportunityId||""}});
+ const click=(action,formElement)=>{
+  modal.querySelector=()=>formElement;
+  let prevented=false;
+  const e={target:{closest:()=>({dataset:{action},matches:()=>false})},preventDefault(){prevented=true},stopPropagation(){}};
+  onClick(e);
+  if(!prevented)throw Error("Direct action did not prevent navigation: "+action);
+ };
+ click("save-contact-direct",form("contact-form",{id:"",first:"Camille",last:"Durand",email:"camille@example.com",phone:"",company:"",profile:"Salarié",notes:""}));
+ if(data.contacts.length!==1)throw Error("Contact missing");
+ const cid=data.contacts[0].id;
+ click("save-opportunity-direct",form("opportunity-form",{id:"",contactId:cid,training:"VAE",category:"VAE",stage:"Nouveau",ht:"5980",vat:"0",follow:"",forecast:"",closed:"",lostReason:"",source:"",owner:"",notes:""}));
+ if(data.opportunities.length!==1)throw Error("Opportunity missing");
+ const oid=data.opportunities[0].id;
+ click("save-task-direct",form("task-form",{id:"",title:"Rappeler Camille",type:"Relance",due:"2026-11-12",priority:"Haute",opportunityId:oid,contactId:cid,notes:""}));
+ if(data.tasks.length!==1)throw Error("Task missing");
+ click("save-interaction-direct",form("interaction-form",{opportunityId:oid,date:"2026-11-05T14:00",channel:"Appel",text:"Financement CPF à confirmer"}));
+ if(data.opportunities[0].events.length!==1)throw Error("History missing");
+ const saved=JSON.parse(localStorage.getItem(KEY));
+ if(saved.contacts.length!==1||saved.opportunities.length!==1||saved.tasks.length!==1||saved.opportunities[0].events.length!==1)throw Error("Persistence incomplete");
+ `,ctx);
+});
