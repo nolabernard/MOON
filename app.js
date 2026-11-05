@@ -176,7 +176,7 @@ function modal(title,body){$("modal").innerHTML=`<div class="dialog-head"><h2>${
 function input(name,label,value="",type="text",required=false,extra=""){return `<label>${esc(label)}<input class="field" name="${name}" type="${type}" value="${esc(value)}" ${required?"required":""} ${extra}></label>`}
 function select(name,label,values,value){return `<label>${esc(label)}<select class="field" name="${name}">${opts(values,value)}</select></label>`}
 function textarea(name,label,value=""){return `<label class="wide">${esc(label)}<textarea class="field" name="${name}">${esc(value)}</textarea></label>`}
-function formFooter(edit,kind){return `<div class="form-footer"><div>${edit?`<button type="button" class="btn danger" data-action="delete-${kind}" data-id="${esc(edit.id)}">Supprimer</button>`:""}</div><div class="actions"><button type="button" class="btn" data-action="close-modal">Annuler</button><button class="btn primary" type="submit">Enregistrer</button></div></div>`}
+function formFooter(edit,kind){return `<div class="form-footer"><div>${edit?`<button type="button" class="btn danger" data-action="delete-${kind}" data-id="${esc(edit.id)}">Supprimer</button>`:""}</div><div class="actions"><button type="button" class="btn" data-action="close-modal">Annuler</button><button class="btn primary" type="button" data-action="save-${kind}-direct">Enregistrer</button></div></div>`}
 function contactModal(c=null){
 modal(c?"Fiche contact":"Nouveau contact",`<form id="contact-form"><input type="hidden" name="id" value="${esc(c?.id||"")}"><div class="form-grid">
 ${input("first","Prénom",c?.first)}${input("last","Nom *",c?.last,"text",true)}
@@ -213,7 +213,7 @@ ${input("owner","Responsable",o?.owner)}
 ${textarea("notes","Notes commerciales",o?.notes)}
 </div>${formFooter(o,"opportunity")}</form>
 ${o?`<div class="row" style="margin-top:24px"><h3>Historique des échanges</h3><button class="btn small" data-action="new-task" data-opportunity-id="${esc(o.id)}">+ Tâche liée</button></div>
-<form id="interaction-form" data-id="${esc(o.id)}"><div class="form-grid">${select("channel","Canal",CHANNELS,"Appel")}${input("date","Date / heure",new Date().toISOString().slice(0,16),"datetime-local",true)}${textarea("text","Commentaire *","")}</div><div class="form-footer"><span></span><button type="submit" class="btn primary">+ Ajouter un échange</button></div></form>
+<form id="interaction-form" data-id="${esc(o.id)}"><div class="form-grid">${select("channel","Canal",CHANNELS,"Appel")}${input("date","Date / heure",new Date().toISOString().slice(0,16),"datetime-local",true)}${textarea("text","Commentaire *","")}</div><div class="form-footer"><span></span><button type="button" data-action="save-interaction-direct" class="btn primary">+ Ajouter un échange</button></div></form>
 <div class="timeline">${events.length?events.map(e=>`<div class="timeline-item"><div class="timeline-meta">${esc(e.channel)} · ${fmtDateTime(e.at)}</div><p>${esc(e.text)}</p></div>`).join(""):'<p class="subtle">Aucun échange enregistré.</p>'}</div>`:'<p class="subtle">Enregistrez l’opportunité pour ajouter des échanges et des tâches liées.</p>'}`);
 }
 function taskModal(t=null,opId=""){
@@ -265,7 +265,11 @@ const record={contactId:v.contactId,training:v.training,category:v.category,ht:v
 if(existing){o=existing;Object.assign(o,record);if(o.stage!==stage){if(!markStage(o,stage,v.lostReason))return}}
 else{o={id:id(),created:today(),events:[],stage:"Nouveau",...record};data.opportunities.push(o);if(stage!=="Nouveau"){if(!markStage(o,stage,v.lostReason)){data.opportunities.pop();return}}}
 if(!isActive(o))o.follow="";if((o.stage==="Gagné"||o.stage==="Perdu")&&!o.closed)o.closed=today();
-if(save()){closeModal();render()}
+if(save()){
+ const verified=JSON.parse(localStorage.getItem(KEY)||"null")?.opportunities?.some(x=>x.id===o.id);
+ if(!verified){alert("Opportunité non confirmée dans le stockage.");return}
+ closeModal();page="opportunities";render();toast("Opportunité enregistrée et vérifiée");
+}
 }
 function taskSubmit(f){
 const v=Object.fromEntries(new FormData(f));v.title=v.title.trim();
@@ -273,13 +277,23 @@ if(!v.title||!v.due){alert("Intitulé et échéance obligatoires.");return}
 const existing=task(v.id);const op=v.opportunityId?opportunity(v.opportunityId):null;
 const values={title:v.title,type:v.type,due:v.due,priority:v.priority,opportunityId:op?.id||"",contactId:op?.contactId||v.contactId,notes:v.notes};
 if(existing)Object.assign(existing,values);else data.tasks.push({id:id(),created:new Date().toISOString(),status:"open",...values});
-if(save()){closeModal();page="tasks";taskMode="all";render();toast("Tâche enregistrée dans la liste des tâches")}
+if(save()){
+ const savedId=existing?.id||data.tasks[data.tasks.length-1]?.id;
+ const verified=JSON.parse(localStorage.getItem(KEY)||"null")?.tasks?.some(x=>x.id===savedId);
+ if(!verified){alert("Tâche non confirmée dans le stockage.");return}
+ closeModal();page="tasks";taskMode="all";render();toast("Tâche enregistrée et vérifiée");
+}
 }
 function interactionSubmit(f){
 const o=opportunity(f.dataset.id);if(!o)return;
 const v=Object.fromEntries(new FormData(f));if(!v.text.trim()){alert("Saisissez un commentaire.");return}
 o.events??=[];o.events.push({at:new Date(v.date).toISOString(),channel:v.channel,text:v.text.trim()});
-if(save()){opportunityModal(o);toast("Échange ajouté à l'historique")}
+if(save()){
+ const last=o.events[o.events.length-1];
+ const verified=JSON.parse(localStorage.getItem(KEY)||"null")?.opportunities?.find(x=>x.id===o.id)?.events?.some(x=>x.at===last.at&&x.text===last.text);
+ if(!verified){alert("Échange non confirmé dans le stockage.");return}
+ opportunityModal(o);toast("Échange enregistré et vérifié");
+}
 }
 function deleteRecord(kind,entityId){
 let item=kind==="contact"?contact(entityId):kind==="opportunity"?opportunity(entityId):task(entityId);
@@ -348,7 +362,19 @@ render();if(kind==="json")toast("Sauvegarde restaurée");else toast("Import CSV 
 function onClick(e){
 const btn=e.target.closest("[data-action]");if(!btn||btn.matches("input[type=checkbox]"))return;
 const a=btn.dataset.action,x=btn.dataset.id;
-if(a==="save-contact-direct"){e.preventDefault();e.stopPropagation();const form=$("modal").querySelector("#contact-form");if(!form)return;if(!form.reportValidity())return;contactSubmit(form);return}
+if(["save-contact-direct","save-opportunity-direct","save-task-direct","save-interaction-direct"].includes(a)){
+ e.preventDefault();e.stopPropagation();
+ const kind=a.slice(5,-7),form=$("modal")?.querySelector("#"+kind+"-form");
+ if(!form){alert("Formulaire introuvable. Réessayez.");return}
+ if(!form.reportValidity())return;
+ try{
+  if(kind==="contact")contactSubmit(form);
+  else if(kind==="opportunity")opportunitySubmit(form);
+  else if(kind==="task")taskSubmit(form);
+  else interactionSubmit(form);
+ }catch(err){console.error("MOON direct save failure",kind,err);alert("Enregistrement interrompu : "+(err?.message||err))}
+ return;
+}
 if(a.startsWith("cloud-")){window.MOON_CLOUD?.act(a);return}
 if(a==="nav"){page=btn.dataset.page;render()}
 else if(a==="voice-open")window.MOON_VOICE?.open();
