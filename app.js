@@ -458,7 +458,8 @@ window.MOON_VOICE_BRIDGE={
   if(v.email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.email))return {ok:false,error:"Adresse email invalide."};
   if(v.due&&!/^\d{4}-\d{2}-\d{2}$/.test(v.due))return {ok:false,error:"Date invalide."};
   if(v.amount!==""&&(!Number.isFinite(Number(v.amount))||Number(v.amount)<0))return {ok:false,error:"Montant invalide."};
-  if(kind!=="task"&&!existing&&(!v.last?.trim()||(!v.email?.trim()&&!v.phone?.trim())))return {ok:false,error:"Pour créer un contact, renseignez le nom et au moins un email ou téléphone."};
+  if(kind!=="task"&&!existing&&!v.last?.trim())return {ok:false,error:"Le nom est obligatoire pour créer un contact."};
+  if(kind==="opportunity"&&!existing&&!v.email?.trim()&&!v.phone?.trim())return {ok:false,error:"Pour créer un contact lié à une opportunité, renseignez un email ou un téléphone."};
   if(kind==="opportunity"&&!v.training?.trim())return {ok:false,error:"La formation / prestation est obligatoire."};
   if(kind==="task"&&!v.title?.trim())return {ok:false,error:"L’intitulé de la tâche est obligatoire."};
   if(kind==="task"&&!v.due)return {ok:false,error:"La date d’échéance est obligatoire pour une tâche."};
