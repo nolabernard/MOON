@@ -276,16 +276,30 @@ const backup=data;data=imported;normalize();if(!save()){data=backup;return}
 else{
 const rows=parseCSV(txt).filter(r=>r.formation||r.training);
 if(!rows.length)throw Error("Fichier CSV sans colonne formation et opportunités");
-if(!confirm(`Importer ${rows.length} opportunité(s) ? Les données actuelles seront conservées.`))return;
+const signature=(email,first,last,company,training,forecast,ht)=>[
+(email||"").trim().toLowerCase()||[first,last,company].join("|").trim().toLowerCase(),
+(training||"").trim().toLowerCase(),forecast||"",(ht||"").replace(",",".")
+].join("::");
+const existingIds=new Set(data.opportunities.map(o=>o.id));
+const seen=new Set(data.opportunities.map(o=>{const c=linkedContact(o)||{};return signature(c.email,c.first,c.last,c.company,o.training,o.forecast,String(o.ht??""))}));
+const unique=[];let duplicateCount=0;
+for(const r of rows){
+ const key=signature(r.email,r.prenom||r.first,r.nom||r.last,r.entreprise||r.company,r.formation||r.training,r.cloture_prevue,r.montant_ht||"");
+ if((r.id&&existingIds.has(r.id))||seen.has(key)){duplicateCount++;continue}
+ seen.add(key);unique.push(r);
+}
+if(!unique.length){toast("Import ignoré : toutes les opportunités sont déjà présentes.");return}
+const columns=Object.keys(rows[0]).join(", ");
+if(!confirm("Colonnes détectées : "+columns+"\\n\\nImporter "+unique.length+" opportunité(s) ? "+duplicateCount+" doublon(s) ignoré(s). Les données actuelles seront conservées."))return;
 let n=0;
-for(const r of rows){const email=r.email||"",last=r.nom||r.last||"",first=r.prenom||r.first||"",company=r.entreprise||r.company||"";
+for(const r of unique){const email=r.email||"",last=r.nom||r.last||"",first=r.prenom||r.first||"",company=r.entreprise||r.company||"";
 let c=data.contacts.find(x=>email&&x.email?.toLowerCase()===email.toLowerCase());
 if(!c)c=data.contacts.find(x=>x.last.toLowerCase()===last.toLowerCase()&&x.first.toLowerCase()===first.toLowerCase()&&x.company.toLowerCase()===company.toLowerCase());
 if(!c){c={id:id(),created:today(),first,last:last||company||"Contact importé",email,phone:r.telephone||"",company,profile:"Salarié",notes:""};data.contacts.push(c)}
 const ht=(r.montant_ht||"").replace(",",".");data.opportunities.push({id:id(),contactId:c.id,created:today(),training:r.formation||r.training,category:TYPES.includes(r.categorie)?r.categorie:"Autre",stage:STAGES.includes(r.statut)?r.statut:"Nouveau",ht:ht!==""&&!isNaN(Number(ht))?ht:"",vat:r.tva||"0",follow:r.relance||"",forecast:r.cloture_prevue||"",closed:r.cloture_reelle||"",source:r.origine||"",owner:r.responsable||"",notes:r.notes||"",lostReason:"",events:[]});n++}
-if(!save())return;toast(n+" opportunité(s) importée(s)");
+if(!save())return;toast(n+" opportunité(s) importée(s) · "+duplicateCount+" doublon(s) ignoré(s)");
 }
-render();toast("Import terminé");
+render();if(kind==="json")toast("Sauvegarde restaurée");else toast("Import CSV terminé");
 }catch(e){alert("Import impossible : "+e.message)}
 }
 function onClick(e){
