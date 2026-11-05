@@ -16,7 +16,7 @@ test("Cloud is disabled without an explicit Supabase project configuration",()=>
 
 test("Cloud restore preserves previous local CRM data in a backup",()=>{
  const memory=new Map();
- const ctx={window:{},document:{readyState:"loading",addEventListener(){},getElementById(){return null}},localStorage:{
+ const ctx={window:{},document:{readyState:"loading",addEventListener(){},getElementById(id){return id==="app"?{innerHTML:""}:null}},localStorage:{
    getItem:k=>memory.get(k)||null,
    setItem:(k,v)=>memory.set(k,v)
  },crypto:{randomUUID:()=>"test-id"},console,Date,Intl,Math,Number,String,Array,JSON};
@@ -33,7 +33,7 @@ test("Cloud restore preserves previous local CRM data in a backup",()=>{
 
 test("Cloud rejects malformed remote data without touching local CRM",()=>{
  const memory=new Map();
- const ctx={window:{},document:{readyState:"loading",addEventListener(){},getElementById(){return null}},localStorage:{
+ const ctx={window:{},document:{readyState:"loading",addEventListener(){},getElementById(id){return id==="app"?{innerHTML:""}:null}},localStorage:{
   getItem:k=>memory.get(k)||null,setItem:(k,v)=>memory.set(k,v)
  },console,Date,Intl,Math,Number,String,Array,JSON};
  vm.runInNewContext(app,ctx);
