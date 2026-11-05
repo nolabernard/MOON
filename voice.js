@@ -29,7 +29,7 @@ function dateFromSpeech(text,base=new Date()){
 function parse(text,base=new Date()){
  const original=clean(text),t=normalize(original);
  let kind=/\b(tache|rappel|rappelle|relance|appeler|rappeler|penser a|faire)\b/.test(t)?"task":/\b(contact|personne|prospect)\b/.test(t)&&!/\b(formation|vae|opportunite|interesse|projet)\b/.test(t)?"contact":"opportunity";
- const titled=original.match(/\b(?:mme|madame|monsieur|mr|m\.)\s+([A-ZÀ-Ÿ][\\p{L}'-]+)/iu);
+ const titled=original.match(/\b(?:mme|madame|monsieur|mr|m\.)\s+([A-ZÀ-Ÿ][\p{L}'-]+)/iu);
  const firstWords=original.match(/(?:contact|prospect|pour|avec|monsieur|madame|mme|m\.|m'appelle|nomme|s'appelle)\s+(?:monsieur\s+|madame\s+)?([A-ZÀ-Ÿ][\p{L}'-]+)\s+([A-ZÀ-Ÿ][\p{L}'-]+)/u);
  let first=firstWords?.[1]||"",last=firstWords?.[2]||titled?.[1]||"";
  const email=original.match(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/)?.[0]||"";
@@ -42,7 +42,7 @@ function parse(text,base=new Date()){
  let training="";
  const trainingMatch=original.match(/(?:interess[ée]e?\s+par|intéress[ée]e?\s+par|formation\s+(?:en|sur|de|à)|vae\s+(?:en|de|sur)|projet\s+(?:de|en))\s+([^,.;]+?)(?=\s+(?:a\s+\d|à\s+\d|pour\s+\d|montant|a\s+rappeler|à\s+rappeler|rappeler|relancer|vendredi|lundi|mardi|mercredi|jeudi|samedi|dimanche)\b|[,.;]|$)/i);
  if(trainingMatch)training=clean(trainingMatch[1]);
- if(!training&&category==="VAE")training="VAE";
+ if(category==="VAE"&&(!training||/^(?:une?\s+)?vae\b/i.test(training)))training="VAE";
  if(!training&&category==="Formation courte")training="Formation courte";
  const duePhrase=original.match(/(?:rappeler|relancer|rappel|relance|pour|avant|le)\s+(.+)$/i)?.[1]||original;
  const due=dateFromSpeech(duePhrase,base);
