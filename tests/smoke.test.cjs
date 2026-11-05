@@ -83,3 +83,22 @@ test("Contact submit prevents page navigation and persists a verifiable contact"
  `;
  vm.runInNewContext(source+"\n"+check,ctx);
 });
+
+test("Voice conversation commits contact, opportunity, history and follow-up only after confirmation",()=>{
+ const store=new Map(),elements=new Map();
+ const doc={readyState:"loading",addEventListener(){},getElementById(k){if(!elements.has(k))elements.set(k,{innerHTML:"",textContent:"",hidden:true,close(){},showModal(){}});return elements.get(k)}};
+ const ctx={window:{},document:doc,localStorage:{getItem:k=>store.get(k)??null,setItem:(k,v)=>store.set(k,v)},crypto:{randomUUID:()=>String(Math.random())},console,Date,Intl,Math,Number,String,Array,JSON,alert(m){throw Error(m)},confirm(){return true},setTimeout(){return 1},clearTimeout(){}};
+ vm.runInNewContext(source+`
+ load();
+ const before=JSON.stringify(data);
+ const values={last:"Martin",first:"",training:"VAE",category:"VAE",summary:"En attente de vérification CPF",due:"2026-11-12"};
+ if(JSON.stringify(data)!==before)throw Error("Preview mutated CRM");
+ const a=saveVoiceConversation(values);
+ if(!a.ok)throw Error(a.error);
+ if(data.contacts.length!==1||data.opportunities.length!==1||data.tasks.length!==1)throw Error("Four-action save incomplete");
+ if(data.opportunities[0].events.length!==1)throw Error("History missing");
+ const b=saveVoiceConversation(values);
+ if(!b.ok||data.contacts.length!==1||data.opportunities.length!==1||data.tasks.length!==1)throw Error("Duplicate created");
+ if(JSON.parse(localStorage.getItem(KEY)).tasks.length!==1)throw Error("Not persisted");
+ `,ctx);
+});
