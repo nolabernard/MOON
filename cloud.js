@@ -12,6 +12,18 @@
  function error(e){return String(e?.message||e||"Erreur inconnue")}
  async function init(){
    if(!configured)return;
+   if(!window.supabase?.createClient){
+     try{
+       await new Promise((resolve,reject)=>{
+         const script=document.createElement("script");
+         script.src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js";
+         script.async=true;
+         script.onload=resolve;
+         script.onerror=()=>reject(new Error("Impossible de charger le SDK Supabase."));
+         document.head.appendChild(script);
+       });
+     }catch(e){errorMessage=error(e);refresh();return}
+   }
    if(!window.supabase?.createClient){errorMessage="SDK Supabase non disponible (vérifiez votre connexion ou le bloqueur de scripts).";refresh();return}
    try{
     client=window.supabase.createClient(config.url,config.publishableKey,{
