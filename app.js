@@ -141,10 +141,12 @@ function contactTimeline(c){
  '<h3>Actions en attente</h3>'+(tasks.length?tasks.map(taskRow).join(""):'<p class="subtle">Aucune tâche en attente.</p>')+'</section>';
 }
 function suggestedStage(o){
- const txt=[o.notes,...(o.events||[]).map(e=>e.text)].join(" ").toLowerCase();
- if(!isActive(o))return "";
- if(/\b(financement confirmé|financement validé|accord de financement|cpf validé|devis signé|inscription confirmée|proposition envoyée|devis envoyé|offre transmise|rendez-vous effectué)\b/.test(txt)&&o.stage!=="RDV / Proposition")return "RDV / Proposition";
- if(/\b(intéressé|interessé|à rappeler|a rappeler|échange réalisé)\b/.test(txt)&&["Nouveau","Contacté"].includes(o.stage))return "En discussion";
+ if(!o||!isActive(o))return "";
+ const txt=[o.notes,...(o.events||[]).map(e=>e.text)].join(" ").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+ const advanced=["financement confirme","financement valide","accord de financement","cpf valide","devis signe","inscription confirmee","proposition envoyee","devis envoye","offre transmise","rendez-vous effectue","rdv effectue"];
+ const discussing=["interesse","interessee","interesses","interessees","a rappeler","echange realise","echange effectue","souhaite avancer","veut avancer"];
+ if(advanced.some(term=>txt.includes(term))&&["Nouveau","Contacté","En discussion"].includes(o.stage))return "RDV / Proposition";
+ if(discussing.some(term=>txt.includes(term))&&["Nouveau","Contacté"].includes(o.stage))return "En discussion";
  return "";
 }
 function naturalMatches(raw){
@@ -337,7 +339,7 @@ if(save()){
  const last=o.events[o.events.length-1];
  const verified=JSON.parse(localStorage.getItem(KEY)||"null")?.opportunities?.find(x=>x.id===o.id)?.events?.some(x=>x.at===last.at&&x.text===last.text);
  if(!verified){alert("Échange non confirmé dans le stockage.");return}
- opportunityModal(o);toast("Échange enregistré et vérifié");
+ opportunityModal(o);toast(suggestedStage(o)?"Échange enregistré · suggestion de statut disponible en haut de la fiche":"Échange enregistré et vérifié");
 }
 }
 function deleteRecord(kind,entityId){
