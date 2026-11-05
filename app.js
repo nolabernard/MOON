@@ -403,7 +403,52 @@ window.MOON_CLOUD_BRIDGE={
 };
 
 /* Voice assistant bridge: validate parsed fields and persist only after explicit confirmation. */
+function saveVoiceConversation(v){
+ const name=String(v.last||"").trim(),email=String(v.email||"").trim(),phone=String(v.phone||"").trim();
+ const existing=v.existingContact?contact(v.existingContact):null;
+ if(v.existingContact&&!existing)return {ok:false,error:"Contact sélectionné introuvable."};
+ if(!existing&&!name)return {ok:false,error:"Indiquez un nom ou sélectionnez un contact existant."};
+ if(v.email&&!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email))return {ok:false,error:"Email invalide."};
+ if(v.due&&!/^\\d{4}-\\d{2}-\\d{2}$/.test(v.due))return {ok:false,error:"Date de relance invalide."};
+ if(!String(v.training||"").trim())return {ok:false,error:"Précisez la formation ou la prestation."};
+ const snapshot=JSON.stringify(data);
+ try{
+  let c=existing;
+  if(!c){
+   const sameEmail=email&&data.contacts.find(x=>x.email?.trim().toLowerCase()===email.toLowerCase());
+   const sameName=data.contacts.filter(x=>x.last?.trim().toLowerCase()===name.toLowerCase()&&(!v.first||x.first?.trim().toLowerCase()===String(v.first).trim().toLowerCase()));
+   if(sameEmail)c=sameEmail;
+   else if(sameName.length===1)c=sameName[0];
+   else if(sameName.length>1)return {ok:false,error:"Plusieurs contacts correspondent : choisissez le bon contact."};
+   else{
+    c={id:id(),created:today(),first:String(v.first||"").trim(),last:name,email,phone,company:String(v.company||"").trim(),profile:"Salarié",notes:""};
+    data.contacts.push(c);
+   }
+  }
+  const training=String(v.training).trim();
+  const existingOps=data.opportunities.filter(o=>o.contactId===c.id&&o.training?.trim().toLowerCase()===training.toLowerCase()&&isActive(o));
+  if(existingOps.length>1){data=JSON.parse(snapshot);return {ok:false,error:"Plusieurs opportunités actives correspondent : mettez à jour le dossier manuellement pour éviter un doublon."}}
+  let o=existingOps[0];
+  if(!o){
+   o={id:id(),created:today(),contactId:c.id,training,category:TYPES.includes(v.category)?v.category:"Autre",stage:"Nouveau",ht:"",vat:"0",follow:"",forecast:"",closed:"",source:"Assistant vocal",owner:"",notes:"",lostReason:"",events:[]};
+   data.opportunities.push(o);
+  }
+  const note=String(v.summary||v.transcript||"").trim();
+  if(note){o.events??=[];o.events.push({at:new Date().toISOString(),channel:"Appel",text:note})}
+  if(v.due){
+   o.follow=v.due;
+   const duplicate=data.tasks.some(t=>t.status!=="done"&&t.opportunityId===o.id&&t.due===v.due&&t.type==="Relance");
+   if(!duplicate)data.tasks.push({id:id(),created:new Date().toISOString(),status:"open",title:"Relancer "+contactName(c),type:"Relance",due:v.due,priority:"Normale",opportunityId:o.id,contactId:c.id,notes:"Suite au compte rendu vocal"});
+  }
+  if(!save()){data=JSON.parse(snapshot);return {ok:false,error:"Enregistrement local impossible."}}
+  const verified=JSON.parse(localStorage.getItem(KEY)||"null");
+  if(!verified?.contacts?.some(x=>x.id===c.id)||!verified?.opportunities?.some(x=>x.id===o.id)){data=JSON.parse(snapshot);return {ok:false,error:"Vérification de sauvegarde échouée."}}
+  page="contacts";
+  return {ok:true,message:"Échange enregistré : contact, opportunité, historique"+(v.due?" et relance":"")};
+ }catch(e){data=JSON.parse(snapshot);console.error("MOON voice conversation",e);return {ok:false,error:"Enregistrement interrompu : "+e.message}}
+}
 window.MOON_VOICE_BRIDGE={
+ saveConversation:saveVoiceConversation,
  contacts:()=>data.contacts.map(c=>({id:c.id,first:c.first,last:c.last,company:c.company})),
  refresh:()=>render(),
  notify:message=>toast(message),
