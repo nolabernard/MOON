@@ -73,3 +73,9 @@ La sauvegarde distante est **désactivée tant qu'aucun projet Supabase n'est co
 - Le dépôt GitHub reste public : seule une clé publique (publishable) est autorisée dans les fichiers clients.
 
 Tests : node --check app.js && node --check cloud.js && node --check voice.js && node --test tests/*.test.cjs.
+
+## Synchronisation automatique facultative
+
+Après une première sauvegarde manuelle ou restauration, ouvrez **Réglages → Sauvegarde cloud Supabase → Activer la synchronisation automatique**. L'activation est **par navigateur** et nécessite une confirmation. Les versions locale et distante doivent être identiques au moment de l'activation. Les modifications locales sont envoyées après enregistrement, et les changements distants sont vérifiés périodiquement et au retour dans la fenêtre.
+
+Le client conserve un état de référence local et utilise une révision conditionnelle pour empêcher un écrasement silencieux. Si les deux copies divergent, il désactive la synchronisation et conserve les données locales. Une restauration automatique crée un point de retour local. Les changements concurrents ne sont **pas fusionnés**. Conservez des exports JSON réguliers. La synchronisation n'est pas activée automatiquement sur un nouveau navigateur. Ne stockez pas de données personnelles réelles ESPI sans validation DSI.

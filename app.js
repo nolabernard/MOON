@@ -53,7 +53,7 @@ try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s&&Array.isArray(s.
 if(!loaded){migrateOld();save(false)}normalize();
 }
 function save(show=true){
-try{localStorage.setItem(KEY,JSON.stringify(data));if(show)toast("Modifications enregistrées");return true}
+try{localStorage.setItem(KEY,JSON.stringify(data));if(show)window.MOON_CLOUD?.onLocalSave?.();if(show)toast("Modifications enregistrées");return true}
 catch(e){alert("Impossible d'enregistrer dans ce navigateur : "+e.message);return false}
 }
 function toast(message){const area=$("toast");area.textContent=message;area.hidden=false;clearTimeout(toast.timer);toast.timer=setTimeout(()=>area.hidden=true,3600)}
@@ -83,7 +83,7 @@ const titles={dashboard:["Tableau de bord","Une vision claire de vos résultats 
 const [title,subtitle]=titles[page];
 $("app").innerHTML=`<div class="shell"><aside class="sidebar"><div class="brand"><div class="brand-symbol">☾</div><div><strong>MOON</strong><small>ESPI EXECUTIVE</small></div></div><nav aria-label="Navigation principale">
 ${navButton("dashboard","◫","Accueil")}${navButton("board","▥","Pipeline")}${navButton("opportunities","◇","Opportunités")}${navButton("contacts","♙","Contacts")}${navButton("tasks","☑","Tâches")}${navButton("settings","⚙","Réglages")}
-</nav><div class="sidebar-bottom">MOON · Version 2<br>Stockage local dans ce navigateur<br>Sans synchronisation entre appareils</div></aside>
+</nav><div class="sidebar-bottom">MOON · Version 3<br>Stockage local avec synchronisation cloud facultative</div></aside>
 <div class="main"><div class="topbar"><div><div class="eyebrow">MOON / ${esc(page)}</div><h1>${title}</h1><div class="subtle">${subtitle}</div></div><div class="actions"><button class="btn" data-action="voice-open" type="button">🎙 Dicter</button>
 ${page==="contacts"?`<button class="btn primary" data-action="new-contact">+ Nouveau contact</button>`:page==="tasks"?`<button class="btn primary" data-action="new-task">+ Nouvelle tâche</button>`:page==="settings"?"":`<button class="btn" data-action="new-task">+ Tâche</button><button class="btn primary" data-action="new-opportunity">+ Opportunité</button>`}</div></div>
 ${toolbar()}<div id="view">${page==="dashboard"?dashboard():page==="board"?board():page==="opportunities"?opportunities():page==="contacts"?contacts():page==="tasks"?tasks():settings()}</div></div></div>`;
@@ -132,7 +132,7 @@ return `<section class="panel"><div class="row"><h2>Tâches <span class="badge">
 <div class="stack" style="margin-top:12px">${all.length?all.map(t=>`<div data-search="${esc((t.title+" "+t.notes+" "+taskRelation(t)).toLowerCase())}">${taskRow(t)}</div>`).join(""):`<div class="empty"><strong>Aucune tâche dans cette vue</strong><p>Les nouvelles tâches apparaîtront ici immédiatement après leur enregistrement.</p><button class="btn primary" data-action="new-task">Nouvelle tâche</button></div>`}</div></section>`;
 }
 function settings(){
-return `<section class="panel"><h2>Sauvegardes et données</h2><p class="subtle">Les données de MOON sont enregistrées dans ce navigateur. Exportez régulièrement une copie JSON. La sauvegarde Supabase, lorsqu’elle est configurée, est facultative et déclenchée manuellement.</p>
+return `<section class="panel"><h2>Sauvegardes et données</h2><p class="subtle">Les données de MOON sont enregistrées dans ce navigateur. Exportez régulièrement une copie JSON. La sauvegarde Supabase est facultative. Vous pouvez activer la synchronisation automatique après une première sauvegarde manuelle.</p>
 <div class="actions" style="margin-top:18px"><button class="btn primary" data-action="export-json">Télécharger une sauvegarde complète (.json)</button><button class="btn" data-action="import-json">Restaurer une sauvegarde JSON</button><button class="btn" data-action="export-csv">Exporter les opportunités CSV</button><button class="btn" data-action="import-csv">Importer des opportunités CSV</button></div>
 <div class="help">⚠️ La version GitHub Pages est publique et ne comporte ni authentification ni stockage serveur sécurisé. Utilisez uniquement des données fictives tant que l'usage de données ESPI réelles n'a pas été validé par la DSI.</div>
 <div class="kpi-line"><span>Contacts</span><strong>${data.contacts.length}</strong></div><div class="kpi-line"><span>Opportunités</span><strong>${data.opportunities.length}</strong></div><div class="kpi-line"><span>Tâches</span><strong>${data.tasks.length}</strong></div></section><div id="cloud-live">${window.MOON_CLOUD?.settingsHtml()||""}</div>`;
