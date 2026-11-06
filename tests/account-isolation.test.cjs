@@ -10,7 +10,7 @@ function setup(){
  const store=new Map(),listeners={};
  const ctx={
   window:{MOON_CLOUD:{isAuthenticated:()=>false}},
-  document:{readyState:"loading",addEventListener(name,fn){listeners[name]=fn},getElementById(key){if(key==="app")return {innerHTML:""};return null}},
+  document:{readyState:"loading",addEventListener(name,fn){listeners[name]=fn},getElementById(key){if(key==="app")return {innerHTML:""};if(key==="modal"||key==="voice-modal")return {addEventListener(){},open:false};return null}},
   localStorage:{getItem:key=>store.get(key)??null,setItem:(key,value)=>store.set(key,value),removeItem:key=>store.delete(key)},
   console,Date,Math,JSON,Number,Array,String,Intl
  };
