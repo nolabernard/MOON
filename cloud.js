@@ -10,6 +10,8 @@
  let explicitLogout=false,initPromise=null,initOwner=null;
  const SYNC_KEY="moon.crm.v2.autosync", BASE_KEY="moon.crm.v2.syncbase";
  let syncTimer=null,syncRunning=false,conflicted=false,syncState="loading",syncError="",syncQueued=false;
+ const SYNC_DELAY_MS=1500,FOCUS_CHECK_INTERVAL_MS=30000;
+ let lastCloudCheckAt=0,retryTimer=null,retryCount=0;
  const syncKey=()=>SYNC_KEY+"."+(user?.id||"anon");
  const baseKey=()=>BASE_KEY+"."+(user?.id||"anon");
  const enabled=()=>!!user&&localStorage.getItem(syncKey())==="yes";
@@ -25,11 +27,21 @@
   const detail=$("cloud-sync-detail");if(detail)detail.textContent=syncError||"Les changements sont envoyés automatiquement à votre compte.";
  }
  const hasUnsynced=()=>{if(!user||!bridge()?.ownerId?.())return false;const base=JSON.parse(localStorage.getItem(baseKey())||"null");return !base||base.user!==user.id||serialize(local())!==base.content};
- function stopSync(message){localStorage.removeItem(syncKey());conflicted=true;clearTimeout(syncTimer);syncTimer=null;notice=message||"Synchronisation arrêtée pour éviter une perte de données.";setState("conflict",notice);refresh()}
+ function stopSync(message){localStorage.removeItem(syncKey());conflicted=true;clearTimeout(syncTimer);clearTimeout(retryTimer);syncTimer=null;notice=message||"Synchronisation arrêtée pour éviter une perte de données.";setState("conflict",notice);refresh()}
+ function syncFailed(e){setState("error",error(e));errorMessage="Synchronisation temporairement indisponible. Les modifications restent sur cet appareil.";refresh();
+  if(!enabled()||conflicted||!user)return;
+  clearTimeout(retryTimer);
+  const delay=Math.min(60000,3000*Math.pow(2,Math.min(retryCount++,5)));
+  retryTimer=setTimeout(()=>{if(document.visibilityState!=="hidden")syncOnce().catch(syncFailed)},delay);
+ }
+ function syncOnReturn(){if(!enabled()||!user||conflicted||document.visibilityState==="hidden")return;
+  if(Date.now()-lastCloudCheckAt<FOCUS_CHECK_INTERVAL_MS)return;
+  clearTimeout(syncTimer);syncOnce().catch(syncFailed);
+ }
  function scheduleSync(){if(!user||!bridge()?.ownerId?.())return;
   if(!enabled()||conflicted){setState("paused");return}
   if(syncRunning){syncQueued=true;setState("pending");return}
-  clearTimeout(syncTimer);setState("pending");syncTimer=setTimeout(()=>syncOnce().catch(e=>{setState("error",error(e));errorMessage="La synchronisation a échoué. Vos données sont conservées sur cet appareil. Une nouvelle tentative sera effectuée.";refresh()}),350)
+  clearTimeout(syncTimer);setState("pending");syncTimer=setTimeout(()=>syncOnce().catch(syncFailed),SYNC_DELAY_MS)
  }
  async function syncOnce(){
   if(syncRunning||busy||!enabled()||!client||!user||conflicted)return;
@@ -41,9 +53,11 @@
    if(!base||base.user!==user.id){stopSync("Synchronisation désactivée : appareil non initialisé.");return}
    const current=serialize(local());
    if(!valid(JSON.parse(current)))throw Error("Données CRM invalides : synchronisation interrompue.");
-   const response=await client.from("moon_snapshots").select("content,revision,updated_at").eq("owner_id",user.id).maybeSingle();
+   // Read only revision metadata on ordinary checks: avoid downloading the whole CRM.
+   const response=await client.from("moon_snapshots").select("revision,updated_at").eq("owner_id",owner).maybeSingle();
    if(response.error)throw response.error;
    if(user?.id!==owner||bridge()?.ownerId?.()!==owner)return;
+   lastCloudCheckAt=Date.now();
    const latest=response.data;
    if(!latest){stopSync("La sauvegarde cloud a disparu : synchronisation arrêtée.");return}
    const dirty=current!==base.content;
@@ -51,9 +65,14 @@
    if(dirty&&changed){stopSync("Conflit entre appareils : vos modifications locales sont conservées. Sauvegardez vos données en JSON puis choisissez la version à conserver.");return}
    if(changed){
      if(serialize(local())!==base.content){stopSync("Modification locale détectée pendant la récupération : synchronisation arrêtée.");return}
-     if(!bridge()?.restore(latest.content)){stopSync("Restauration automatique impossible : données locales conservées.");return}
-     localStorage.setItem(baseKey(),serialize({user:user.id,revision:latest.revision,content:serialize(local())}));
-     remote=latest;notice="Modifications récupérées depuis le cloud.";setState("synced");refresh();return;
+     const full=await client.from("moon_snapshots").select("content,revision,updated_at").eq("owner_id",owner).maybeSingle();
+     if(full.error)throw full.error;
+     if(user?.id!==owner||bridge()?.ownerId?.()!==owner)return;
+     if(!full.data||Number(full.data.revision)!==Number(latest.revision)){syncQueued=true;return}
+     if(serialize(local())!==base.content){stopSync("Modification locale détectée pendant la récupération : synchronisation arrêtée.");return}
+     if(!valid(full.data.content)||!bridge()?.restore(full.data.content)){stopSync("Restauration automatique impossible : données locales conservées.");return}
+     localStorage.setItem(baseKey(),serialize({user:owner,revision:full.data.revision,content:serialize(local())}));
+     remote=full.data;notice="Modifications récupérées depuis le cloud.";setState("synced");refresh();return;
    }
    if(dirty){
      const outgoing=local();
@@ -67,6 +86,7 @@
      notice="Synchronisation automatique effectuée.";setState(syncQueued?"pending":"synced");refresh();
    }
    if(!dirty&&!changed)setState("synced");
+   retryCount=0;clearTimeout(retryTimer);
   }finally{syncRunning=false;if(syncQueued){syncQueued=false;setTimeout(scheduleSync,0)}}
  }
  function hasRecords(snapshot){return !!snapshot&&(snapshot.contacts?.length>0||snapshot.opportunities?.length>0||snapshot.tasks?.length>0)}
@@ -118,7 +138,12 @@
   notice="Votre espace MOON est prêt. La synchronisation est activée.";setState("synced");refresh();
  }
  function setBaseline(){if(!user||!remote)return;localStorage.setItem(baseKey(),serialize({user:user.id,revision:remote.revision,content:serialize(local())}))}
- function startPolling(){setInterval(()=>{if(enabled()&&user&&document.visibilityState!=="hidden")scheduleSync()},6000);window.addEventListener("focus",scheduleSync);document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")scheduleSync()})}
+ function startPolling(){
+  // No recurring requests while the user is idle. Check when returning to the app.
+  window.addEventListener("focus",syncOnReturn);
+  document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")syncOnReturn()});
+  window.addEventListener("online",()=>{if(enabled()&&user&&!conflicted){clearTimeout(retryTimer);syncOnce().catch(syncFailed)}});
+ }
  const $=id=>document.getElementById(id);
  const bridge=()=>window.MOON_CLOUD_BRIDGE;
  function error(e){return String(e?.message||e||"Erreur inconnue")}
@@ -156,7 +181,7 @@
       }
       user=next;accountReady=false;remote=null;notice="";conflicted=false;
       if(!user){
-        clearTimeout(syncTimer);
+        clearTimeout(syncTimer);clearTimeout(retryTimer);retryCount=0;lastCloudCheckAt=0;
         if(priorOwner){localStorage.removeItem(SYNC_KEY+"."+priorOwner);localStorage.removeItem(BASE_KEY+"."+priorOwner)}
         if(!priorOwner)bridge()?.clearSession?.(explicitLogout);
       }
@@ -229,8 +254,8 @@
      if(!confirm("Activer la synchronisation automatique sur CET appareil ? Les modifications seront envoyées à Supabase et les changements d’autres appareils seront récupérés. En cas de conflit, la synchronisation s’arrête sans écraser vos données."))return;
      conflicted=false;remote=latest;setBaseline();localStorage.setItem(syncKey(),"yes");notice="Synchronisation automatique activée.";refresh();return;
    }
-   if(action==="cloud-sync-now"){if(!enabled()){errorMessage="La synchronisation est en pause. Résolvez le conflit ou restaurez la sauvegarde distante.";refresh();return}try{clearTimeout(syncTimer);await syncOnce();notice=syncState==="synced"?"Tout est synchronisé.":"Synchronisation demandée.";errorMessage="";}catch(e){setState("error",error(e));errorMessage=error(e)}refresh();return}
-   if(action==="cloud-refresh"){try{await syncOnce();notice="État actualisé.";errorMessage="";}catch(e){setState("error",error(e));errorMessage=error(e)}refresh();return}
+   if(action==="cloud-sync-now"){if(!enabled()){errorMessage="La synchronisation est en pause. Résolvez le conflit ou restaurez la sauvegarde distante.";refresh();return}try{clearTimeout(syncTimer);await syncOnce();notice=syncState==="synced"?"Tout est synchronisé.":"Synchronisation demandée.";errorMessage="";}catch(e){syncFailed(e)}refresh();return}
+   if(action==="cloud-refresh"){try{await syncOnce();notice="État actualisé.";errorMessage="";}catch(e){syncFailed(e)}refresh();return}
    if(action==="cloud-logout"){if(hasUnsynced()&&enabled()){try{clearTimeout(syncTimer);await syncOnce()}catch(e){setState("error",error(e))}}const baseline=JSON.parse(localStorage.getItem(baseKey())||"null");if(!baseline||serialize(local())!==baseline.content){errorMessage="Des modifications ne sont pas encore confirmées dans le cloud. Attendez la synchronisation ou exportez une sauvegarde JSON avant de vous déconnecter.";refresh();return}busy=true;explicitLogout=true;const owner=user.id;let loggedOut=false;try{const r=await client.auth.signOut();if(r.error)throw r.error;loggedOut=true;user=null;remote=null;notice="Déconnecté.";errorMessage="";}catch(e){errorMessage=error(e)}finally{if(loggedOut&&bridge()?.ownerId?.()===owner)bridge()?.clearSession?.(true);explicitLogout=false;busy=false;refresh()}return}
    if(!client||!user)return;
    const ui=bridge();if(!ui)return;
