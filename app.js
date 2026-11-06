@@ -248,7 +248,7 @@ function reportingPage(){
  const ops=reportingOpportunities(),won=ops.filter(o=>o.stage==="Gagné"),lost=ops.filter(o=>o.stage==="Perdu"),open=ops.filter(isActive);
  const rate=won.length+lost.length?Math.round(won.length/(won.length+lost.length)*100):0;
  const weighted=weightedSum(open);
- return '<section class="grid-metrics">'+metric("CA sécurisé",money(sum(won)),won.length+" dossiers gagnés","€","","secured")+metric("CA pondéré estimé",money(weighted),"Probabilités indicatives par étape","↗","","weighted")+metric("Conversion",rate+" %",(won.length+lost.length)+" dossiers clos","%")+metric("Perdus",lost.length+"","Dossiers non convertis","×")+'</section>'+
+ return '<p class="subtle">Période analysée : '+esc(reportingPeriodLabel())+' · Date de clôture pour les ventes, date prévisionnelle pour les opportunités actives.</p><section class="grid-metrics">'+metric("CA sécurisé",money(sum(won)),won.length+" dossiers gagnés","€","","secured")+metric("CA pondéré estimé",money(weighted),"Probabilités indicatives par étape","↗","","weighted")+metric("Conversion",rate+" %",(won.length+lost.length)+" dossiers clos","%")+metric("Perdus",lost.length+"","Dossiers non convertis","×")+'</section>'+
  '<section class="panel"><h2>Résultats par formation</h2>'+TYPES.map(cat=>{const a=ops.filter(o=>o.category===cat);return '<button type="button" class="task-item revenue-category-row" data-action="revenue-breakdown" data-revenue="category:'+esc(cat)+'" aria-label="Voir les ventes gagnées et le chiffre d’affaires de '+esc(cat)+'"><div class="task-content"><strong>'+esc(cat)+'</strong><div class="subtle">'+a.length+' opportunités · '+a.filter(o=>o.stage==="Gagné").length+' gagnées</div></div><strong>'+money(sum(a.filter(o=>o.stage==="Gagné")))+' <span aria-hidden="true">↗</span></strong></button>'}).join("")+'</section>'+
  '<section class="panel"><h2>Bilan partageable</h2><p class="subtle">Données CRM à cet instant. Le CA pondéré est une estimation.</p><button type="button" class="btn primary" data-action="copy-report">Copier le bilan</button></section>';
 }
@@ -609,6 +609,10 @@ document.addEventListener("click",onClick);
 document.addEventListener("change",e=>{
 const t=e.target;
 if(t.id==="period"){period=t.value;render()}
+ else if(t.id==="reporting-period"){reportingPeriod=t.value;render()}
+ else if(t.id==="reporting-anchor"){reportingAnchor=t.value||today();render()}
+ else if(t.id==="reporting-from"){reportingFrom=t.value;render()}
+ else if(t.id==="reporting-to"){reportingTo=t.value;render()}
 else if(t.id==="range-from"){rangeFrom=t.value;render()}
 else if(t.id==="range-to"){rangeTo=t.value;render()}
 else if(t.id==="tax"){tax=t.value;render()}
