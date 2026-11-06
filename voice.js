@@ -59,6 +59,7 @@ function select(label,name,items,chosen){return '<label>'+label+'<select class="
 function status(message){const e=$("voice-status");if(e)e.textContent=message}
 let recognition=null;
 function open(){
+ if(window.MOON_CLOUD&&!window.MOON_CLOUD.isAuthenticated?.())return;
  const dialog=$("voice-modal");if(!dialog)return;
  dialog.innerHTML='<div class="dialog-head"><h2>🎙 Dictée MOON</h2><button type="button" class="btn small" id="voice-close">Fermer</button></div><div class="dialog-body"><p class="subtle">Dictez un contact, une opportunité ou une tâche. MOON prépare une fiche que vous vérifierez avant enregistrement.</p><div class="help">La reconnaissance vocale dépend du navigateur et peut transmettre l’audio à son fournisseur. N’utilisez pas de données personnelles réelles ESPI sans validation DSI.</div><div class="actions"><button class="btn primary" id="voice-start">🎤 Commencer à dicter</button><button class="btn" id="voice-stop" disabled>Arrêter</button></div><p id="voice-status" class="subtle" role="status">'+(Recognition?"Microphone disponible si autorisé par le navigateur.":"Reconnaissance vocale indisponible ici : vous pouvez saisir la phrase ci-dessous.")+'</p><label class="wide">Texte dicté ou saisi<textarea id="voice-transcript" class="field" placeholder="Exemple : Ajoute un contact Sophie Martin de Nexity intéressée par une VAE à 5980 euros, à rappeler mardi prochain."></textarea></label><div class="actions" style="margin:15px 0"><button class="btn primary" id="voice-analyze">Analyser la demande</button></div><div id="voice-preview"></div></div>';
  dialog.showModal();
@@ -79,7 +80,8 @@ function start(){
  recognition.start();$("voice-start").disabled=true;$("voice-stop").disabled=false;status("Écoute en cours… Parlez maintenant.");
  }catch(e){status("Impossible d'activer le microphone : "+e.message)}
 }
-function stop(){if(recognition){try{recognition.stop()}catch{}recognition=null}if($("voice-start"))$("voice-start").disabled=false;if($("voice-stop"))$("voice-stop").disabled=true}
+function stop(){if(recognition){try{recognition.onresult=null;recognition.onerror=null;recognition.onend=null;recognition.stop()}catch{}recognition=null}if($("voice-start"))$("voice-start").disabled=false;if($("voice-stop"))$("voice-stop").disabled=true}
+function close(){stop();const dialog=$("voice-modal");if(dialog?.open)dialog.close();if(dialog)dialog.innerHTML=""}
 function analyze(){
  const transcript=clean($("voice-transcript")?.value);if(!transcript){status("Dictez ou saisissez d'abord une demande.");return}
  const p=parse(transcript);
@@ -115,5 +117,5 @@ function analyze(){
  actionSelect.addEventListener("change",updateFields);updateFields();
  status("Informations proposées : vérifiez et complétez les champs manquants.");
 }
-window.MOON_VOICE={open,parse,dateFromSpeech,available:!!Recognition};
+window.MOON_VOICE={open,close,parse,dateFromSpeech,available:!!Recognition};
 })();
