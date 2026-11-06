@@ -46,6 +46,43 @@
    }
   }finally{syncRunning=false}
  }
+ function hasRecords(snapshot){return !!snapshot&&(snapshot.contacts?.length>0||snapshot.opportunities?.length>0||snapshot.tasks?.length>0)}
+ async function initializeAccount(){
+  if(!client||!user||!bridge())return;
+  const current=local(),latest=await fetchRemote();
+  if(!current)return;
+  const previous=JSON.parse(localStorage.getItem(BASE_KEY)||"null");
+  if(previous?.user===user.id&&enabled()){
+    scheduleSync();return;
+  }
+  if(latest){
+    if(serialize(current)===serialize(latest.content)){
+      remote=latest;conflicted=false;setBaseline();localStorage.setItem(SYNC_KEY,"yes");
+      notice="Compte synchronisé. Vos données sont à jour.";refresh();return;
+    }
+    if(hasRecords(current)){
+      localStorage.removeItem(SYNC_KEY);
+      notice="Des données existent sur cet appareil et sur votre compte. Pour éviter toute perte, choisissez une version dans Mon compte : restaurer depuis le cloud ou sauvegarder cet appareil.";
+      refresh();return;
+    }
+    if(!bridge()?.restore(latest.content))throw Error("Impossible de charger les données du compte.");
+    remote=latest;conflicted=false;setBaseline();localStorage.setItem(SYNC_KEY,"yes");
+    notice="Vos données MOON ont été chargées automatiquement depuis votre compte.";refresh();return;
+  }
+  if(hasRecords(current)){
+    localStorage.removeItem(SYNC_KEY);
+    notice="Votre compte est prêt. Cet appareil contient déjà des données : cliquez sur « Sauvegarder ce navigateur » pour les associer à votre compte.";
+    refresh();return;
+  }
+  const result=await client.from("moon_snapshots").insert({owner_id:user.id,content:current,revision:1}).select("revision,updated_at").single();
+  if(result.error){
+    if(result.error.code==="23505"){await fetchRemote();notice="Une sauvegarde existe déjà. Actualisez la page pour la récupérer.";refresh();return}
+    throw result.error;
+  }
+  remote={content:current,revision:result.data.revision,updated_at:result.data.updated_at};
+  conflicted=false;setBaseline();localStorage.setItem(SYNC_KEY,"yes");
+  notice="Votre espace MOON est prêt. La synchronisation est activée.";refresh();
+ }
  function setBaseline(){if(!user||!remote)return;localStorage.setItem(BASE_KEY,serialize({user:user.id,revision:remote.revision,content:serialize(local())}))}
  function startPolling(){setInterval(()=>{if(enabled()&&user&&document.visibilityState!=="hidden")scheduleSync()},15000);window.addEventListener("focus",scheduleSync)}
  const $=id=>document.getElementById(id);
@@ -73,32 +110,32 @@
     const res=await client.auth.getUser();
     if(res.error && !/session.*missing/i.test(error(res.error)))throw res.error;
     user=res.data?.user||null;
-    if(user){await fetchRemote();if(enabled())scheduleSync();}
+    if(user)await initializeAccount();
     client.auth.onAuthStateChange((evt,session)=>{
       // Never await a Supabase query inside this callback.
       user=session?.user||null;remote=null;notice="";if(!user){clearTimeout(syncTimer);localStorage.removeItem(SYNC_KEY);localStorage.removeItem(BASE_KEY)}
       refresh();
-      if(user)setTimeout(()=>fetchRemote().then(()=>{if(enabled())scheduleSync()}).catch(e=>{errorMessage=error(e);refresh()}),0);
+      if(user)setTimeout(()=>initializeAccount().catch(e=>{errorMessage=error(e);refresh()}),0);
     });
     startPolling();refresh();
    }catch(e){errorMessage=error(e);refresh()}
  }
  function settingsHtml(){
    if(!configured)return '<section class="panel cloud-panel"><h2>☁️ Sauvegarde cloud Supabase</h2><p class="subtle">Intégration prête à configurer. MOON reste en mode local et aucune donnée n’est envoyée en ligne.</p><div class="help">Un projet Supabase gratuit doit être créé et sa clé publique configurée. Les données ESPI réelles restent interdites sans validation DSI.</div></section>';
-   let html='<section class="panel cloud-panel"><h2>☁️ Mon compte et mes appareils</h2><p class="subtle">Connectez-vous avec votre email pour retrouver votre sauvegarde MOON depuis un autre ordinateur. Aucun mot de passe à mémoriser : vous recevez un lien sécurisé.</p>';
+   let html='<section class="panel cloud-panel"><h2>☁️ Mon compte et mes appareils</h2><p class="subtle">Connectez-vous avec votre email sur n’importe quel ordinateur : vos données sont récupérées automatiquement et les modifications sont synchronisées. Aucun mot de passe à mémoriser.</p>';
    if(!client){html+='<div class="help">Connexion à Supabase en cours…</div>';}
    else if(!user){
-     html+='<form id="cloud-login-form"><div class="help">1. Saisissez votre email et recevez un lien de connexion. 2. Ouvrez le lien sur cet appareil. 3. Sauvegardez vos données une première fois, puis activez la synchronisation si vous le souhaitez.</div><label>Votre email de connexion<input class="field" type="email" name="email" id="cloud-email" autocomplete="email" required placeholder="vous@exemple.fr"></label><div class="actions" style="margin-top:12px"><button class="btn primary" type="submit">Créer mon compte / Me connecter</button></div></form><p class="subtle">Si votre email ne possède pas encore de compte, Supabase peut le créer lors de votre première connexion, selon la configuration du projet.</p>';
+     html+='<form id="cloud-login-form"><div class="help">1. Saisissez votre email pour créer votre compte ou vous connecter. 2. Cliquez sur le lien reçu. 3. Vos données se chargent automatiquement sur un nouvel appareil vide.</div><label>Votre email de connexion<input class="field" type="email" name="email" id="cloud-email" autocomplete="email" required placeholder="vous@exemple.fr"></label><div class="actions" style="margin-top:12px"><button class="btn primary" type="submit">Créer mon compte / Me connecter</button></div></form><p class="subtle">Si votre email ne possède pas encore de compte, Supabase peut le créer lors de votre première connexion, selon la configuration du projet.</p>';
    }else{
      const ts=remote?.updated_at?new Date(remote.updated_at).toLocaleString("fr-FR"):"";
      html+='<p class="subtle">✓ Compte connecté : <strong>'+esc(user.email||user.id)+'</strong></p><p class="subtle">Copie distante : '+(remote?'existante · dernière modification '+esc(ts):"aucune sauvegarde détectée")+'</p>';
      html+='<div class="actions"><button class="btn primary" type="button" data-action="cloud-upload">Sauvegarder ce navigateur dans Supabase</button><button class="btn" type="button" data-action="cloud-download" '+(remote?"":"disabled")+'>Restaurer depuis Supabase</button><button class="btn" type="button" data-action="cloud-refresh">Actualiser l’état</button><button class="btn" type="button" data-action="cloud-logout">Se déconnecter</button></div>';
-     html+='<div class="actions" style="margin-top:12px"><button class="btn" type="button" data-action="cloud-auto-toggle">'+(enabled()?"Désactiver la synchronisation automatique":"Activer la synchronisation automatique")+'</button></div><p class="subtle">Synchronisation sur cet appareil : <strong>'+(enabled()?"activée":"désactivée")+'</strong>. Activez-la après avoir choisi votre version de référence avec Sauvegarder ou Restaurer.</p>';
+     html+='<div class="actions" style="margin-top:12px"><button class="btn" type="button" data-action="cloud-auto-toggle">'+(enabled()?"Désactiver la synchronisation automatique":"Activer la synchronisation automatique")+'</button></div><p class="subtle">Synchronisation sur cet appareil : <strong>'+(enabled()?"activée":"désactivée")+'</strong>. Elle s’active automatiquement lorsque les données locales et celles du compte sont compatibles. En cas de divergence, choisissez une version.</p>';
      html+='<div class="help">Un téléchargement crée d’abord une copie locale de secours. Une sauvegarde distante existante doit être confirmée avant tout remplacement. Évitez de modifier les mêmes dossiers simultanément sur deux appareils : les conflits sont bloqués, pas fusionnés.</div>';
    }
    if(notice)html+='<p class="subtle" role="status">'+esc(notice)+'</p>';
    if(errorMessage)html+='<div class="help" role="alert">'+esc(errorMessage)+'</div>';
-   html+='<div class="help">⚠️ Version de démonstration : ne stockez pas de données personnelles ESPI sans autorisation de votre DSI.</div></section>';
+   html+='<div class="help">Les données de votre compte sont privées grâce aux règles d’accès Supabase. Sur un ordinateur partagé, déconnectez-vous et effacez les données locales du navigateur avant de le quitter.</div></section>';
    return html;
  }
  function refresh(){if(document.getElementById("cloud-live"))$("cloud-live").innerHTML=settingsHtml();}
@@ -143,16 +180,16 @@
        if(result.error)throw result.error;
        if(!result.data)throw Error("Conflit : une autre copie a été sauvegardée entretemps. Actualisez et recommencez.");
        remote={content,revision:result.data.revision,updated_at:result.data.updated_at};
-       if(enabled())setBaseline();
-       notice="Sauvegarde cloud effectuée avec succès.";
+       conflicted=false;setBaseline();localStorage.setItem(SYNC_KEY,"yes");scheduleSync();
+       notice="Sauvegarde cloud effectuée. Synchronisation automatique activée.";
      }else if(action==="cloud-download"){
        const latest=await fetchRemote();
        if(!latest)throw Error("Aucune sauvegarde distante trouvée.");
        const counts=[latest.content?.contacts?.length||0,latest.content?.opportunities?.length||0,latest.content?.tasks?.length||0];
        if(!confirm("Restaurer "+counts[0]+" contacts, "+counts[1]+" opportunités et "+counts[2]+" tâches depuis Supabase ? La copie actuelle du navigateur sera d’abord conservée en secours local."))return;
        if(!ui.restore(latest.content))throw Error("Impossible de restaurer les données du serveur.");
-       if(enabled())setBaseline();
-       notice="Sauvegarde restaurée depuis Supabase. Copie locale précédente conservée dans ce navigateur.";
+       conflicted=false;setBaseline();localStorage.setItem(SYNC_KEY,"yes");
+       notice="Données du compte chargées. Synchronisation automatique activée. Copie locale précédente conservée en secours.";
      }
    }catch(e){errorMessage=error(e);if(/duplicate key/i.test(errorMessage))errorMessage="Une sauvegarde distante existe déjà. Actualisez avant de recommencer."}
    finally{busy=false;refresh()}
