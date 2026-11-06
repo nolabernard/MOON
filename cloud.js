@@ -178,7 +178,7 @@
      conflicted=false;remote=latest;setBaseline();localStorage.setItem(SYNC_KEY,"yes");notice="Synchronisation automatique activée.";refresh();return;
    }
    if(action==="cloud-refresh"){try{await fetchRemote();notice="État actualisé.";errorMessage="";}catch(e){errorMessage=error(e)}refresh();return}
-   if(action==="cloud-logout"){busy=true;try{const r=await client.auth.signOut();if(r.error)throw r.error;user=null;remote=null;bridge()?.clearSession?.();notice="Déconnecté.";errorMessage="";}catch(e){errorMessage=error(e)}finally{busy=false;refresh()}return}
+   if(action==="cloud-logout"){const baseline=JSON.parse(localStorage.getItem(BASE_KEY)||"null");if(!baseline||serialize(local())!==baseline.content){errorMessage="Des modifications ne sont pas encore confirmées dans le cloud. Vérifiez la synchronisation ou exportez une sauvegarde JSON avant de vous déconnecter.";refresh();return}busy=true;try{const r=await client.auth.signOut();if(r.error)throw r.error;user=null;remote=null;bridge()?.clearSession?.();notice="Déconnecté.";errorMessage="";}catch(e){errorMessage=error(e)}finally{busy=false;refresh()}return}
    if(!client||!user)return;
    const ui=bridge();if(!ui)return;
    busy=true;errorMessage="";notice="";
