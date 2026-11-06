@@ -132,7 +132,11 @@
       // Never await a Supabase query inside this callback.
       const priorOwner=user?.id||null,next=session?.user||null;
       if(next?.id===priorOwner&&accountReady){user=next;return}
-      if(priorOwner&&priorOwner!==next?.id)bridge()?.clearSession?.(explicitLogout);
+      if(priorOwner&&priorOwner!==next?.id){
+        let synced=false;
+        try{const baseline=JSON.parse(localStorage.getItem(BASE_KEY+"."+priorOwner)||"null");synced=!!baseline&&baseline.user===priorOwner&&serialize(local())===baseline.content}catch{}
+        bridge()?.clearSession?.(explicitLogout||synced);
+      }
       user=next;accountReady=false;remote=null;notice="";conflicted=false;
       if(!user){
         clearTimeout(syncTimer);
@@ -211,6 +215,8 @@
    if(action==="cloud-logout"){const baseline=JSON.parse(localStorage.getItem(baseKey())||"null");if(!baseline||serialize(local())!==baseline.content){errorMessage="Des modifications ne sont pas encore confirmées dans le cloud. Vérifiez la synchronisation ou exportez une sauvegarde JSON avant de vous déconnecter.";refresh();return}busy=true;explicitLogout=true;const owner=user.id;let loggedOut=false;try{const r=await client.auth.signOut();if(r.error)throw r.error;loggedOut=true;user=null;remote=null;notice="Déconnecté.";errorMessage="";}catch(e){errorMessage=error(e)}finally{if(loggedOut&&bridge()?.ownerId?.()===owner)bridge()?.clearSession?.(true);explicitLogout=false;busy=false;refresh()}return}
    if(!client||!user)return;
    const ui=bridge();if(!ui)return;
+   const actionOwner=user.id;
+   if(ui.ownerId?.()!==actionOwner){errorMessage="Compte local non initialisé.";refresh();return}
    busy=true;errorMessage="";notice="";
    try{
      if(action==="cloud-upload"){
@@ -219,14 +225,14 @@
        const content=ui.snapshot();
        if(!Array.isArray(content.contacts)||!Array.isArray(content.opportunities)||!Array.isArray(content.tasks))throw Error("Données locales invalides.");
        const latest=await fetchRemote();
-       if(!user||ui.ownerId?.()!==user.id)throw Error("Le compte a changé. Recommencez la sauvegarde.");
+       if(user?.id!==actionOwner||ui.ownerId?.()!==actionOwner)throw Error("Le compte a changé. Recommencez la sauvegarde.");
        if(latest&&!confirm("Une sauvegarde distante existe déjà (révision "+latest.revision+"). Voulez-vous vraiment la remplacer par les données de CE navigateur ?"))return;
        let result;
        if(latest)result=await client.from("moon_snapshots")
         .update({content,revision:Number(latest.revision)+1,updated_at:new Date().toISOString()})
-        .eq("owner_id",user.id).eq("revision",latest.revision).select("revision,updated_at").maybeSingle();
+        .eq("owner_id",actionOwner).eq("revision",latest.revision).select("revision,updated_at").maybeSingle();
        else result=await client.from("moon_snapshots")
-        .insert({owner_id:user.id,content,revision:1}).select("revision,updated_at").single();
+        .insert({owner_id:actionOwner,content,revision:1}).select("revision,updated_at").single();
        if(result.error)throw result.error;
        if(!result.data)throw Error("Conflit : une autre copie a été sauvegardée entretemps. Actualisez et recommencez.");
        remote={content,revision:result.data.revision,updated_at:result.data.updated_at};
@@ -237,7 +243,7 @@
        if(!latest)throw Error("Aucune sauvegarde distante trouvée.");
        const counts=[latest.content?.contacts?.length||0,latest.content?.opportunities?.length||0,latest.content?.tasks?.length||0];
        if(!confirm("Restaurer "+counts[0]+" contacts, "+counts[1]+" opportunités et "+counts[2]+" tâches depuis Supabase ? La copie actuelle du navigateur sera d’abord conservée en secours local."))return;
-       if(!user||ui.ownerId?.()!==user.id)throw Error("Le compte a changé. Recommencez la restauration.");
+       if(user?.id!==actionOwner||ui.ownerId?.()!==actionOwner)throw Error("Le compte a changé. Recommencez la restauration.");
      if(!ui.restore(latest.content))throw Error("Impossible de restaurer les données du serveur.");
        conflicted=false;setBaseline();localStorage.setItem(syncKey(),"yes");
        notice="Données du compte chargées. Synchronisation automatique activée. Copie locale précédente conservée en secours.";
