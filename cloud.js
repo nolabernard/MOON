@@ -6,7 +6,7 @@
  const configured=/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(config.url||"")
    && /^(sb_publishable_|eyJ)/.test(config.publishableKey||"");
  const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
- let client=null,user=null,remote=null,busy=false,errorMessage="",notice="",pendingEmail="";
+ let client=null,user=null,remote=null,busy=false,errorMessage="",notice="",pendingEmail="",accountReady=false;
  const SYNC_KEY="moon.crm.v2.autosync", BASE_KEY="moon.crm.v2.syncbase";
  let syncTimer=null,syncRunning=false,conflicted=false;
  const enabled=()=>localStorage.getItem(SYNC_KEY)==="yes";
@@ -110,12 +110,12 @@
     const res=await client.auth.getUser();
     if(res.error && !/session.*missing/i.test(error(res.error)))throw res.error;
     user=res.data?.user||null;
-    if(user)await initializeAccount();
+    if(user){await initializeAccount();accountReady=true;}
     client.auth.onAuthStateChange((evt,session)=>{
       // Never await a Supabase query inside this callback.
-      user=session?.user||null;remote=null;notice="";if(!user){clearTimeout(syncTimer);localStorage.removeItem(SYNC_KEY);localStorage.removeItem(BASE_KEY);bridge()?.clearSession?.()}
+      user=session?.user||null;accountReady=false;remote=null;notice="";if(!user){clearTimeout(syncTimer);localStorage.removeItem(SYNC_KEY);localStorage.removeItem(BASE_KEY);bridge()?.clearSession?.()}
       refresh();
-      if(user)setTimeout(()=>initializeAccount().catch(e=>{errorMessage=error(e);refresh()}),0);
+      if(user)setTimeout(()=>initializeAccount().then(()=>{accountReady=true;refresh()}).catch(e=>{errorMessage=error(e);refresh()}),0);
     });
     startPolling();refresh();
    }catch(e){errorMessage=error(e);refresh()}
@@ -140,7 +140,7 @@
  }
  function authScreen(){
   const root=document.getElementById("auth-root");if(!root)return;
-  if(user){root.hidden=true;document.body.classList.remove("moon-locked");if(!document.querySelector(".shell"))bridge()?.show?.();return}
+  if(user&&accountReady){root.hidden=true;document.body.classList.remove("moon-locked");if(!document.querySelector(".shell"))bridge()?.show?.();return}
   document.body.classList.add("moon-locked");root.hidden=false;
   const form=pendingEmail?'<form id="otp-verify-form"><label>Code reçu sur '+esc(pendingEmail)+'<input class="field otp-code" name="token" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="000000" required></label><button class="btn primary" type="submit">Se connecter à MOON</button><button class="btn ghost" type="button" id="otp-back">Changer d’adresse</button></form>':'<form id="otp-email-form"><label>Adresse email<input class="field" name="email" type="email" autocomplete="email" placeholder="vous@exemple.fr" required></label><button class="btn primary" type="submit">Recevoir mon code</button></form>';
   root.innerHTML='<div class="auth-card"><div class="auth-brand"><span class="brand-symbol">☾</span><strong>MOON</strong></div><h1>Votre espace commercial.</h1><p>Connectez-vous pour retrouver vos contacts, dossiers et relances sur tous vos appareils.</p>'+form+(busy?'<p role="status">Veuillez patienter…</p>':'')+(notice?'<p class="auth-notice" role="status">'+esc(notice)+'</p>':'')+(errorMessage?'<p class="auth-error" role="alert">'+esc(errorMessage)+'</p>':'')+'<small>Connexion sécurisée par code unique à 6 chiffres. Aucun mot de passe.</small></div>';
@@ -153,7 +153,7 @@
   const token=String(new FormData(form).get("token")||"").trim();
   if(!/^\\d{6}$/.test(token)){errorMessage="Saisissez les 6 chiffres du code.";authScreen();return}
   busy=true;errorMessage="";notice="";authScreen();
-  try{const r=await client.auth.verifyOtp({email:pendingEmail,token,type:"email"});if(r.error)throw r.error;if(!r.data?.user)throw Error("Connexion non confirmée.");pendingEmail="";user=r.data.user;await initializeAccount();authScreen()}
+  try{const r=await client.auth.verifyOtp({email:pendingEmail,token,type:"email"});if(r.error)throw r.error;if(!r.data?.user)throw Error("Connexion non confirmée.");pendingEmail="";user=r.data.user;await initializeAccount();accountReady=true;authScreen()}
   catch(e){errorMessage=error(e)}
   finally{busy=false;authScreen()}
  }
@@ -226,7 +226,7 @@
      pendingEmail=email;notice="Un code à 6 chiffres a été demandé. Vérifiez votre boîte email.";
    }catch(e){errorMessage=error(e)}finally{busy=false;refresh()}
  }
- window.MOON_CLOUD={settingsHtml,act,login,verifyCode,init,configured,onLocalSave:scheduleSync,isAuthenticated:()=>!!user};
+ window.MOON_CLOUD={settingsHtml,act,login,verifyCode,init,configured,onLocalSave:scheduleSync,isAuthenticated:()=>!!user&&accountReady};
  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);
  else init();
 })();
