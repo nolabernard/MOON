@@ -88,11 +88,12 @@ ${page==="tasks"?`<select id="task-mode" class="field" aria-label="Filtrer les t
 </div>`;
 }
 function render(){
+if(window.MOON_CLOUD&&!window.MOON_CLOUD.isAuthenticated?.()){const root=$("app");if(root)root.innerHTML="";return}
 const titles={day:["Ma journée","Vos relances, dossiers à suivre et priorités du jour"],dashboard:["Tableau de bord","Une vision claire de vos résultats et priorités"],board:["Pipeline commercial","Déplacez les opportunités pour suivre leur progression"],opportunities:["Opportunités","Les projets commerciaux et leurs montants"],contacts:["Contacts","Un contact peut avoir plusieurs opportunités"],tasks:["Tâches & relances","Ajoutez, terminez, modifiez ou supprimez vos actions"],search:["Recherche intelligente","Retrouvez vos dossiers avec des mots simples"],reporting:["Reporting commercial","Vos indicateurs et votre bilan partageable"],settings:["Réglages & sauvegardes","Conservez vos informations en toute sécurité"]};
 const [title,subtitle]=titles[page];
 $("app").innerHTML=`<div class="shell"><aside class="sidebar"><div class="brand"><div class="brand-symbol">☾</div><div><strong>MOON</strong><small>ESPI EXECUTIVE</small></div></div><nav aria-label="Navigation principale">
 ${navButton("day","☀","Ma journée")}${navButton("dashboard","◫","Accueil")}${navButton("board","▥","Pipeline")}${navButton("opportunities","◇","Opportunités")}${navButton("contacts","♙","Contacts")}${navButton("tasks","☑","Tâches")}${navButton("search","⌕","Recherche")}${navButton("reporting","▤","Reporting")}${navButton("settings","⚙","Réglages")}
-</nav><div class="sidebar-bottom">MOON · Version 3<br>Stockage local avec synchronisation cloud facultative</div></aside>
+</nav><div class="sidebar-bottom">MOON · Version 3<br>Compte personnel et synchronisation Supabase</div></aside>
 <div class="main"><div class="topbar"><div><div class="eyebrow">MOON / ${esc(page)}</div><h1>${title}</h1><div class="subtle">${subtitle}</div></div><div class="actions"><button class="btn" type="button" data-action="nav" data-page="settings" title="Connexion et synchronisation entre ordinateurs">☁ Mon compte</button><button class="btn" data-action="voice-open" type="button">🎙 Dicter</button>
 ${page==="contacts"?`<button class="btn primary" data-action="new-contact">+ Nouveau contact</button>`:page==="tasks"?`<button class="btn primary" data-action="new-task">+ Nouvelle tâche</button>`:page==="settings"?"":`<button class="btn" data-action="new-task">+ Tâche</button><button class="btn primary" data-action="new-opportunity">+ Opportunité</button>`}</div></div>
 ${toolbar()}<div id="view">${page==="day"?dayPage():page==="dashboard"?dashboard():page==="board"?board():page==="opportunities"?opportunities():page==="contacts"?contacts():page==="tasks"?tasks():page==="search"?searchNaturalPage():page==="reporting"?reportingPage():settings()}</div></div></div>`;
@@ -225,7 +226,7 @@ return `<section class="panel"><div class="row"><h2>Tâches <span class="badge">
 <div class="stack" style="margin-top:12px">${all.length?all.map(t=>`<div data-search="${esc((t.title+" "+t.notes+" "+taskRelation(t)).toLowerCase())}">${taskRow(t)}</div>`).join(""):`<div class="empty"><strong>Aucune tâche dans cette vue</strong><p>Les nouvelles tâches apparaîtront ici immédiatement après leur enregistrement.</p><button class="btn primary" data-action="new-task">Nouvelle tâche</button></div>`}</div></section>`;
 }
 function settings(){
-return `<section class="panel"><h2>Sauvegardes et données</h2><p class="subtle">Les données de MOON sont enregistrées dans ce navigateur. Exportez régulièrement une copie JSON. La sauvegarde Supabase est facultative. Vous pouvez activer la synchronisation automatique après une première sauvegarde manuelle.</p>
+return `<section class="panel"><h2>Sauvegardes et données</h2><p class="subtle">Les données de MOON sont enregistrées dans ce navigateur. Exportez régulièrement une copie JSON. Les données sont liées à votre compte Supabase et synchronisées entre appareils. Conservez une sauvegarde JSON de précaution.</p>
 <div class="actions" style="margin-top:18px"><button class="btn primary" data-action="export-json">Télécharger une sauvegarde complète (.json)</button><button class="btn" data-action="import-json">Restaurer une sauvegarde JSON</button><button class="btn" data-action="export-csv">Exporter les opportunités CSV</button><button class="btn" data-action="import-csv">Importer des opportunités CSV</button></div>
 <div class="help">⚠️ La version GitHub Pages est publique et ne comporte ni authentification ni stockage serveur sécurisé. Utilisez uniquement des données fictives tant que l'usage de données ESPI réelles n'a pas été validé par la DSI.</div>
 <div class="kpi-line"><span>Contacts</span><strong>${data.contacts.length}</strong></div><div class="kpi-line"><span>Opportunités</span><strong>${data.opportunities.length}</strong></div><div class="kpi-line"><span>Tâches</span><strong>${data.tasks.length}</strong></div></section><div id="cloud-live">${window.MOON_CLOUD?.settingsHtml()||""}</div>`;
@@ -497,6 +498,8 @@ $("modal").addEventListener("click",e=>{if(e.target===$("modal"))closeModal()});
 
 /* Optional Supabase bridge: never uploads without confirmation in cloud.js. */
 window.MOON_CLOUD_BRIDGE={
+ clearSession:()=>{data={version:2,contacts:[],opportunities:[],tasks:[]};try{localStorage.removeItem(KEY)}catch(e){console.error(e)}render()},
+ show:()=>render(),
  snapshot:()=>JSON.parse(JSON.stringify(data)),
  restore:record=>{
   if(!record||!Array.isArray(record.contacts)||!Array.isArray(record.opportunities)||!Array.isArray(record.tasks))return false;
