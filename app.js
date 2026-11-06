@@ -394,41 +394,87 @@ for(let i=0;i<text.length;i++){const ch=text[i];if(ch==='"'){if(quote&&text[i+1]
 row.push(cell);if(row.some(x=>x!==""))rows.push(row);if(!rows.length)return [];
 const head=rows.shift().map(x=>x.trim().toLowerCase().replace(/\s+/g,"_"));return rows.map(r=>Object.fromEntries(head.map((h,i)=>[h,r[i]||""])));
 }
+
+const importNorm=v=>String(v??"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim().toLowerCase().replace(/\s+/g," ");
+const importEmail=v=>String(v??"").trim().toLowerCase();
+const importPhone=v=>{let x=String(v??"").replace(/\D/g,"");return x.startsWith("0033")&&x.length===13?"0"+x.slice(4):x.startsWith("33")&&x.length===11?"0"+x.slice(2):x.length===9?"0"+x:x};
+const importField=(r,...keys)=>keys.map(k=>r[k]).find(v=>v!==undefined&&v!==null&&String(v).trim()!=="")||"";
+function importMatchContact(person,contacts){
+ const email=importEmail(person.email),phone=importPhone(person.phone);
+ const em=email?contacts.filter(c=>importEmail(c.email)===email):[];
+ const ph=phone?contacts.filter(c=>importPhone(c.phone)===phone):[];
+ if(em.length>1||ph.length>1||(em.length&&ph.length&&em[0]!==ph[0]))return {ambiguous:true};
+ const match=em[0]||ph[0];
+ if(match)return email&&importEmail(match.email)&&importEmail(match.email)!==email?{ambiguous:true}:{contact:match};
+ const full=importNorm(person.first+" "+person.last),org=importNorm(person.company);
+ const byName=full?contacts.filter(c=>importNorm(c.first+" "+c.last)===full&&(!org||!importNorm(c.company)||importNorm(c.company)===org)):[];
+ if(byName.length>1)return {ambiguous:true};
+ if(byName.length){
+  const c=byName[0];
+  if((email&&importEmail(c.email)&&importEmail(c.email)!==email)||(phone&&importPhone(c.phone)&&importPhone(c.phone)!==phone))return {ambiguous:true};
+  return {contact:c};
+ }
+ if(!full&&org){
+  const byCompany=contacts.filter(c=>!importNorm(c.first)&&importNorm(c.company)===org);
+  if(byCompany.length>1)return {ambiguous:true};
+  if(byCompany.length)return {contact:byCompany[0]};
+ }
+ return {contact:null};
+}
+function planCSVImport(rows){
+ const contacts=data.contacts.slice(),ops=data.opportunities.slice(),ids=new Set(ops.map(o=>o.id));
+ const accepted=[];let duplicates=0,ambiguous=0,invalid=0;
+ for(const r of rows){
+  const training=importField(r,"formation","training");
+  const p={first:importField(r,"prenom","first"),last:importField(r,"nom","last"),company:importField(r,"entreprise","company"),email:importField(r,"email"),phone:importField(r,"telephone","phone")};
+  if(!training||!Object.values(p).some(Boolean)){invalid++;continue}
+  if(r.id&&ids.has(r.id)){duplicates++;continue}
+  const match=importMatchContact(p,contacts);
+  if(match.ambiguous){ambiguous++;continue}
+  let c=match.contact;
+  if(!c){c={...p,id:"pending-"+contacts.length,created:today(),profile:"Salarié",notes:""};contacts.push(c)}
+  // Re-importing the same training for the same person does not create another deal.
+  if(ops.some(o=>o.contactId===c.id&&importNorm(o.training)===importNorm(training))){duplicates++;continue}
+  accepted.push({r,c,training});ops.push({contactId:c.id,training});
+ }
+ const newContacts=new Set(accepted.filter(x=>String(x.c.id).startsWith("pending-")).map(x=>x.c.id)).size;
+ return {accepted,duplicates,ambiguous,invalid,newContacts};
+}
 async function importFile(file,kind){
-try{
-const txt=await file.text();
-if(kind==="json"){const imported=JSON.parse(txt);if(!imported||!Array.isArray(imported.contacts)||!Array.isArray(imported.opportunities)||!Array.isArray(imported.tasks))throw Error("Sauvegarde MOON v2 invalide");
-if(!confirm(`Remplacer les données actuelles par ${imported.contacts.length} contacts, ${imported.opportunities.length} opportunités et ${imported.tasks.length} tâches ?`))return;
-const backup=data;data=imported;normalize();if(!save()){data=backup;return}
-}
-else{
-const rows=parseCSV(txt).filter(r=>r.formation||r.training);
-if(!rows.length)throw Error("Fichier CSV sans colonne formation et opportunités");
-const signature=(email,first,last,company,training,forecast,ht)=>[
-(email||"").trim().toLowerCase()||[first,last,company].join("|").trim().toLowerCase(),
-(training||"").trim().toLowerCase(),forecast||"",(ht||"").replace(",",".")
-].join("::");
-const existingIds=new Set(data.opportunities.map(o=>o.id));
-const seen=new Set(data.opportunities.map(o=>{const c=linkedContact(o)||{};return signature(c.email,c.first,c.last,c.company,o.training,o.forecast,String(o.ht??""))}));
-const unique=[];let duplicateCount=0;
-for(const r of rows){
- const key=signature(r.email,r.prenom||r.first,r.nom||r.last,r.entreprise||r.company,r.formation||r.training,r.cloture_prevue,r.montant_ht||"");
- if((r.id&&existingIds.has(r.id))||seen.has(key)){duplicateCount++;continue}
- seen.add(key);unique.push(r);
-}
-if(!unique.length){toast("Import ignoré : toutes les opportunités sont déjà présentes.");return}
-const columns=Object.keys(rows[0]).join(", ");
-if(!confirm("Colonnes détectées : "+columns+"\\n\\nImporter "+unique.length+" opportunité(s) ? "+duplicateCount+" doublon(s) ignoré(s). Les données actuelles seront conservées."))return;
-let n=0;
-for(const r of unique){const email=r.email||"",last=r.nom||r.last||"",first=r.prenom||r.first||"",company=r.entreprise||r.company||"";
-let c=data.contacts.find(x=>email&&x.email?.toLowerCase()===email.toLowerCase());
-if(!c)c=data.contacts.find(x=>x.last.toLowerCase()===last.toLowerCase()&&x.first.toLowerCase()===first.toLowerCase()&&x.company.toLowerCase()===company.toLowerCase());
-if(!c){c={id:id(),created:today(),first,last:last||company||"Contact importé",email,phone:r.telephone||"",company,profile:"Salarié",notes:""};data.contacts.push(c)}
-const ht=(r.montant_ht||"").replace(",",".");data.opportunities.push({id:id(),contactId:c.id,created:today(),training:r.formation||r.training,category:TYPES.includes(r.categorie)?r.categorie:"Autre",stage:STAGES.includes(r.statut)?r.statut:"Nouveau",maturity:MATURITIES.includes(r.maturite||r.maturity)?(r.maturite||r.maturity):"",ht:ht!==""&&!isNaN(Number(ht))?ht:"",vat:r.tva||"0",follow:r.relance||"",forecast:r.cloture_prevue||"",closed:r.cloture_reelle||"",source:r.origine||"",owner:r.responsable||"",notes:r.notes||"",lostReason:"",events:[]});n++}
-if(!save())return;toast(n+" opportunité(s) importée(s) · "+duplicateCount+" doublon(s) ignoré(s)");
-}
-render();if(kind==="json")toast("Sauvegarde restaurée");else toast("Import CSV terminé");
-}catch(e){alert("Import impossible : "+e.message)}
+ try{
+  const txt=await file.text();
+  if(kind==="json"){
+   const imported=JSON.parse(txt);
+   if(!imported||!Array.isArray(imported.contacts)||!Array.isArray(imported.opportunities)||!Array.isArray(imported.tasks))throw Error("Sauvegarde MOON v2 invalide");
+   if(!confirm("Remplacer les données actuelles par "+imported.contacts.length+" contacts, "+imported.opportunities.length+" opportunités et "+imported.tasks.length+" tâches ?"))return;
+   const backup=data;data=imported;normalize();if(!save()){data=backup;return}
+   render();toast("Sauvegarde restaurée");return;
+  }
+  const rows=parseCSV(txt);
+  if(!rows.length||!Object.keys(rows[0]).some(k=>k==="formation"||k==="training"))throw Error("CSV incompatible : colonne formation manquante");
+  const plan=planCSVImport(rows);
+  const recap="Import CSV :\n"+plan.accepted.length+" nouvelle(s) opportunité(s)\n"+plan.newContacts+" nouveau(x) contact(s)\n"+plan.duplicates+" doublon(s) ignoré(s)\n"+plan.ambiguous+" fiche(s) ambiguë(s) à vérifier\n"+plan.invalid+" ligne(s) incomplète(s)\n\nAucune fiche existante ne sera modifiée.";
+  if(!plan.accepted.length){alert(recap+"\n\nAucune donnée ajoutée.");return}
+  if(!confirm(recap+"\n\nImporter uniquement les nouveaux dossiers ?"))return;
+  const backup=JSON.stringify(data),created=new Map();
+  for(const {r,c,training} of plan.accepted){
+   let contactId=c.id;
+   if(String(contactId).startsWith("pending-")){
+    if(!created.has(contactId)){const fresh={...c,id:id(),last:c.last||c.company||"Contact importé"};data.contacts.push(fresh);created.set(contactId,fresh.id)}
+    contactId=created.get(contactId);
+   }
+   const ht=String(importField(r,"montant_ht")).replace(/\s/g,"").replace(",",".");
+   const stage=importField(r,"statut"),maturity=importField(r,"maturite","maturity");
+   data.opportunities.push({id:id(),contactId,created:today(),training,
+    category:TYPES.includes(r.categorie)?r.categorie:"Autre",stage:STAGES.includes(stage)?stage:"Nouveau",
+    maturity:MATURITIES.includes(maturity)?maturity:"",ht:ht!==""&&Number.isFinite(Number(ht))?ht:"",
+    vat:importField(r,"tva")||"0",follow:importField(r,"relance"),forecast:importField(r,"cloture_prevue"),
+    closed:importField(r,"cloture_reelle"),source:importField(r,"origine"),owner:importField(r,"responsable"),
+    notes:importField(r,"notes"),lostReason:"",events:[]});
+  }
+  if(!save()){data=JSON.parse(backup);normalize();return}
+  render();toast(plan.accepted.length+" opportunité(s) ajoutée(s) · "+plan.duplicates+" doublon(s) ignoré(s)");
+ }catch(e){alert("Import impossible : "+e.message)}
 }
 function onClick(e){
 const btn=e.target.closest("[data-action]");if(!btn||btn.matches("input[type=checkbox]"))return;
