@@ -120,3 +120,23 @@ body.moon-locked #app,body.moon-locked #modal,body.moon-locked #voice-modal,body
 #sidebar-sync-state{font-size:11px;color:#b9e2d2}
 @media(max-width:1100px){.account-layout,.settings-layout{grid-template-columns:1fr}}
 @media(max-width:720px){.nav-divider{width:1px;height:26px;margin:0 8px;flex:0 0 1px}.nav-group-label{display:none}.account-identity{flex-wrap:wrap}.account-connected{margin-left:58px}.account-primary-actions .btn{flex:1}.section-heading h2{font-size:17px}}
+
+/* Financial KPI drill-down: readable, keyboard-accessible and responsive. */
+button.metric-action{appearance:none;width:100%;color:inherit;font:inherit;text-align:left;cursor:pointer;transition:border-color .16s ease,background .16s ease,transform .16s ease}
+button.metric-action:hover{background:#1e2944;border-color:#827ae8;transform:translateY(-1px)}
+button.metric-action:focus-visible,.revenue-category-row:focus-visible{outline:3px solid #a69cff;outline-offset:3px}
+button.metric-action:active{transform:none}
+.revenue-category-row{appearance:none;width:100%;font:inherit;color:inherit;text-align:left;cursor:pointer;border:0;border-bottom:1px solid #2b354f;background:transparent;border-radius:7px;padding:13px 9px}
+.revenue-category-row:hover{background:#202c46}
+.revenue-category-row .task-content{flex:1;min-width:0}
+.revenue-category-row>strong{white-space:nowrap}
+.revenue-category-row>strong span{font-weight:500;color:#a99bf9;margin-left:6px}
+.revenue-summary{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:18px;background:#1c2842;border:1px solid #35476b;border-radius:13px}
+.revenue-summary strong{display:block;font-size:clamp(22px,3vw,30px);margin-top:6px;font-variant-numeric:tabular-nums}
+.revenue-explanation{margin:15px 0}
+.revenue-table{max-height:60vh;overflow:auto}
+.revenue-table .data-table{font-size:12px}
+.revenue-table .data-table td,.revenue-table .data-table th{padding:11px 9px}
+.revenue-table .data-table td:nth-last-child(2){white-space:nowrap}
+.revenue-footer{display:flex;justify-content:flex-end;margin-top:20px}
+@media(max-width:720px){.revenue-summary{padding:14px}.revenue-category-row{padding:12px 7px}.revenue-table{max-height:56vh}}

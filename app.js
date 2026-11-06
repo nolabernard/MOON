@@ -89,7 +89,7 @@ function navButton(k,icon,label){return `<button class="nav-button ${page===k?"a
 function toolbar(){
 const filter=`<select class="field" id="period" aria-label="Période">${opts(["all","month","quarter","year","custom"],period).replace(/>all</g,">Toutes périodes<").replace(/>month</g,">Ce mois<").replace(/>quarter</g,">Ce trimestre<").replace(/>year</g,">Cette année<").replace(/>custom</g,">Personnalisée<")}</select>${period==="custom"?`<label class="subtle">Du <input class="field" id="range-from" type="date" value="${esc(rangeFrom)}"></label><label class="subtle">Au <input class="field" id="range-to" type="date" value="${esc(rangeTo)}"></label>`:""}`;
 return `<div class="filters">${page==="dashboard"||page==="board"||page==="opportunities"?filter:""}
-${page==="dashboard"||page==="board"||page==="opportunities"?`<select class="field" id="tax" aria-label="Affichage financier">${opts(["ht","ttc"],tax).replace(/>ht</g,">Montants HT<").replace(/>ttc</g,">Montants TTC<")}</select>`:""}
+${page==="dashboard"||page==="board"||page==="opportunities"||page==="reporting"?`<select class="field" id="tax" aria-label="Affichage financier">${opts(["ht","ttc"],tax).replace(/>ht</g,">Montants HT<").replace(/>ttc</g,">Montants TTC<")}</select>`:""}
 ${page==="contacts"||page==="opportunities"||page==="tasks"?`<input class="field search" id="search" placeholder="Rechercher..." autocomplete="off" aria-label="Rechercher">`:""}
 ${page==="tasks"?`<select id="task-mode" class="field" aria-label="Filtrer les tâches">${opts(["open","all","done"],taskMode).replace(/>open</g,">À faire<").replace(/>all</g,">Toutes<").replace(/>done</g,">Terminées<")}</select>`:""}
 </div>`;
@@ -105,7 +105,11 @@ ${navButton("day","☀","Ma journée")}${navButton("dashboard","◫","Accueil")}
 ${page==="contacts"?`<button class="btn primary" data-action="new-contact">+ Nouveau contact</button>`:page==="tasks"?`<button class="btn primary" data-action="new-task">+ Nouvelle tâche</button>`:page==="settings"||page==="account"?"":`<button class="btn" data-action="new-task">+ Tâche</button><button class="btn primary" data-action="new-opportunity">+ Opportunité</button>`}</div></div>
 ${toolbar()}<div id="view">${page==="day"?dayPage():page==="dashboard"?dashboard():page==="board"?board():page==="opportunities"?opportunities():page==="contacts"?contacts():page==="tasks"?tasks():page==="reporting"?reportingPage():page==="account"?accountPage():settings()}</div></div></div>`;
 }
-function metric(label,value,foot,icon,color=""){return `<div class="metric"><div class="label">${label}<span>${icon}</span></div><div class="number ${color}">${value}</div><div class="foot">${foot}</div></div>`}
+function metric(label,value,foot,icon,color="",revenueKey=""){
+ const active=!!revenueKey,tag=active?"button":"div";
+ const action=active?' type="button" data-action="revenue-breakdown" data-revenue="'+esc(revenueKey)+'" aria-label="'+esc(label)+': '+esc(value)+'. Afficher les opportunités liées"':"";
+ return '<'+tag+' class="metric'+(active?' metric-action':'')+'"'+action+'><div class="label">'+label+'<span>'+icon+'</span></div><div class="number '+color+'">'+value+'</div><div class="foot">'+foot+(active?' · Voir le détail ↗':'')+'</div></'+tag+'>';
+}
 function dueClass(t){if(t.status==="done")return "won";if(t.due&&t.due<today())return "late";if(t.due===today())return "today";return ""}
 function dueLabel(t){if(t.status==="done")return "Terminée";if(!t.due)return "Sans échéance";if(t.due<today())return "En retard · "+dt(t.due);if(t.due===today())return "Aujourd'hui";return dt(t.due)}
 function taskRelation(t){const o=opportunity(t.opportunityId);const c=o?linkedContact(o):contact(t.contactId);return [c?contactName(c):"",o?o.training:""].filter(Boolean).join(" · ")}
@@ -184,14 +188,54 @@ function searchNaturalPage(){
 }
 function reportText(){
  const won=data.opportunities.filter(o=>o.stage==="Gagné"),lost=data.opportunities.filter(o=>o.stage==="Perdu");
- return "MOON — Bilan commercial ("+today()+")\nContacts : "+data.contacts.length+"\nOpportunités : "+data.opportunities.length+"\nGagnées : "+won.length+"\nPerdues : "+lost.length+"\nCA sécurisé HT : "+money(sum(won))+"\nTâches en attente : "+data.tasks.filter(t=>t.status!=="done").length;
+ return "MOON — Bilan commercial ("+today()+")\nContacts : "+data.contacts.length+"\nOpportunités : "+data.opportunities.length+"\nGagnées : "+won.length+"\nPerdues : "+lost.length+"\nCA sécurisé "+tax.toUpperCase()+" : "+money(sum(won))+"\nTâches en attente : "+data.tasks.filter(t=>t.status!=="done").length;
 }
+
+const REPORT_PROBABILITIES={"Nouveau":.1,"Contacté":.2,"En discussion":.4,"RDV / Proposition":.7};
+const weightedOpportunityCents=o=>known(o)?Math.round((amount(o)??0)*(REPORT_PROBABILITIES[o.stage]||0)):0;
+const weightedSum=ops=>ops.reduce((total,o)=>total+weightedOpportunityCents(o),0);
+function revenueSelection(key){
+ const source=page==="reporting"?data.opportunities:scoped();
+ if(key==="secured")return {title:"CA sécurisé",items:source.filter(o=>o.stage==="Gagné"),mode:"total"};
+ if(key==="weighted")return {title:"CA pondéré estimé",items:source.filter(isActive),mode:"weighted"};
+ if(key==="pipeline")return {title:"Pipeline en cours",items:source.filter(isActive),mode:"total"};
+ if(key==="lost")return {title:"Montant perdu",items:source.filter(o=>o.stage==="Perdu"),mode:"total"};
+ if(key==="average")return {title:"Panier moyen",items:source.filter(o=>o.stage==="Gagné"&&known(o)),mode:"average"};
+ if(key.startsWith("category:")){
+  const category=key.slice("category:".length);
+  if(TYPES.includes(category))return {title:"CA gagné · "+category,items:data.opportunities.filter(o=>o.stage==="Gagné"&&o.category===category),mode:"total"};
+ }
+ return null;
+}
+function revenueBreakdown(key){
+ const selection=revenueSelection(key);if(!selection)return;
+ const rows=selection.items.slice().sort((a,b)=>compare(b.closed||b.created,a.closed||a.created));
+ const weighted=selection.mode==="weighted",average=selection.mode==="average";
+ const total=weighted?weightedSum(rows):average?(rows.length?Math.round(sum(rows)/rows.length):0):sum(rows);
+ const details=rows.map(o=>{
+  const c=linkedContact(o),gross=known(o)?money(amount(o)):"Non renseigné",contribution=known(o)?money(weighted?weightedOpportunityCents(o):amount(o)):"Non renseigné";
+  const probability=REPORT_PROBABILITIES[o.stage]||0;
+  return '<tr><td><strong>'+esc(contactName(c))+'</strong><div class="subtle">'+esc(c?.company||"")+'</div></td><td>'+esc(o.training||"—")+'<div class="subtle">'+esc(o.category||"")+'</div></td><td>'+esc(o.stage)+'</td><td>'+esc(dt(o.closed||o.created))+'</td>'+
+  (weighted?'<td>'+esc(Math.round(probability*100))+' %</td><td>'+esc(gross)+'</td>':'')+
+  '<td><strong>'+esc(contribution)+'</strong></td><td><button type="button" class="btn small" data-action="edit-opportunity" data-id="'+esc(o.id)+'">Ouvrir</button></td></tr>';
+ }).join("");
+ const label=average?"Panier moyen":weighted?"Total pondéré":"Total";
+ const explanation=weighted?"Chaque ligne représente le montant de l’opportunité multiplié par la probabilité indicative de son étape.":average?"Le panier moyen est calculé sur les ventes gagnées dont le montant est renseigné.":"Seules les opportunités correspondant à cet indicateur sont affichées.";
+ const header='<th>Contact</th><th>Prestation</th><th>Statut</th><th>Date</th>'+(weighted?'<th>Probabilité</th><th>Montant initial</th>':'')+'<th>'+(weighted?'Montant pondéré':'Montant')+'</th><th></th>';
+ modal("Détail · "+selection.title,
+ '<div class="revenue-summary"><div><div class="subtle">'+esc(label)+' · '+esc(tax.toUpperCase())+'</div><strong>'+esc(money(total))+'</strong></div><span class="badge">'+rows.length+' opportunité(s)</span></div>'+
+ '<p class="subtle revenue-explanation">'+esc(explanation)+'</p>'+
+ (rows.length?'<div class="table-wrap revenue-table"><table class="data-table"><thead><tr>'+header+'</tr></thead><tbody>'+details+'</tbody></table></div>':
+ '<div class="empty"><strong>Aucune opportunité</strong><p>Aucun dossier ne contribue à cet indicateur.</p></div>')+
+ '<div class="revenue-footer"><button type="button" class="btn" data-action="close-modal">Fermer</button></div>');
+}
+
 function reportingPage(){
  const ops=data.opportunities,won=ops.filter(o=>o.stage==="Gagné"),lost=ops.filter(o=>o.stage==="Perdu"),open=ops.filter(isActive);
  const rate=won.length+lost.length?Math.round(won.length/(won.length+lost.length)*100):0;
- const weighted=open.reduce((acc,o)=>acc+(Number(o.ht)||0)*({Nouveau:.1,Contacté:.2,"En discussion":.4,"RDV / Proposition":.7}[o.stage]||0),0);
- return '<section class="grid-metrics">'+metric("CA sécurisé",money(sum(won)),won.length+" dossiers gagnés","€")+metric("CA pondéré estimé",money(Math.round(weighted*100)),"Probabilités indicatives par étape","↗")+metric("Conversion",rate+" %",(won.length+lost.length)+" dossiers clos","%")+metric("Perdus",lost.length+"","Dossiers non convertis","×")+'</section>'+
- '<section class="panel"><h2>Résultats par formation</h2>'+TYPES.map(cat=>{const a=ops.filter(o=>o.category===cat);return '<div class="task-item"><div class="task-content"><strong>'+esc(cat)+'</strong><div class="subtle">'+a.length+' opportunités · '+a.filter(o=>o.stage==="Gagné").length+' gagnées</div></div><strong>'+money(sum(a.filter(o=>o.stage==="Gagné")))+'</strong></div>'}).join("")+'</section>'+
+ const weighted=weightedSum(open);
+ return '<section class="grid-metrics">'+metric("CA sécurisé",money(sum(won)),won.length+" dossiers gagnés","€","","secured")+metric("CA pondéré estimé",money(weighted),"Probabilités indicatives par étape","↗","","weighted")+metric("Conversion",rate+" %",(won.length+lost.length)+" dossiers clos","%")+metric("Perdus",lost.length+"","Dossiers non convertis","×")+'</section>'+
+ '<section class="panel"><h2>Résultats par formation</h2>'+TYPES.map(cat=>{const a=ops.filter(o=>o.category===cat);return '<button type="button" class="task-item revenue-category-row" data-action="revenue-breakdown" data-revenue="category:'+esc(cat)+'" aria-label="Voir les ventes gagnées et le chiffre d’affaires de '+esc(cat)+'"><div class="task-content"><strong>'+esc(cat)+'</strong><div class="subtle">'+a.length+' opportunités · '+a.filter(o=>o.stage==="Gagné").length+' gagnées</div></div><strong>'+money(sum(a.filter(o=>o.stage==="Gagné")))+' <span aria-hidden="true">↗</span></strong></button>'}).join("")+'</section>'+
  '<section class="panel"><h2>Bilan partageable</h2><p class="subtle">Données CRM à cet instant. Le CA pondéré est une estimation.</p><button type="button" class="btn primary" data-action="copy-report">Copier le bilan</button></section>';
 }
 
@@ -203,10 +247,10 @@ const dueOpportunities=data.opportunities.filter(o=>isActive(o)&&o.follow&&o.fol
 const followRows=dueOpportunities.slice(0,5).map(o=>'<div class="task-item"><div class="task-content"><div class="task-title">Relancer '+esc(contactName(linkedContact(o)))+'</div><div class="task-meta">'+esc(o.training)+' · '+esc(dt(o.follow))+'</div></div><span class="badge '+(o.follow<today()?'late':'today')+'">'+(o.follow<today()?'En retard':"Aujourd’hui")+'</span><button class="btn small" data-action="edit-opportunity" data-id="'+esc(o.id)+'">Ouvrir</button></div>').join("");
 const conversion=won.length+lost.length?Math.round(won.length/(won.length+lost.length)*100)+" %":"—";
 return `<section class="grid-metrics">
-${metric("CA sécurisé",money(sum(won)),won.length+" opportunité(s) gagnée(s)","↗","good")}
-${metric("Pipeline en cours",money(sum(open)),open.length+" opportunité(s) active(s)","◉")}
-${metric("Montant perdu",money(sum(lost)),lost.length+" opportunité(s) perdue(s)","↘","bad")}
-${metric("Panier moyen",priced.length?money(Math.round(sum(priced)/priced.length)):"—",priced.length+" vente(s) chiffrée(s)","◈")}
+${metric("CA sécurisé",money(sum(won)),won.length+" opportunité(s) gagnée(s)","↗","good","secured")}
+${metric("Pipeline en cours",money(sum(open)),open.length+" opportunité(s) active(s)","◉","","pipeline")}
+${metric("Montant perdu",money(sum(lost)),lost.length+" opportunité(s) perdue(s)","↘","bad","lost")}
+${metric("Panier moyen",priced.length?money(Math.round(sum(priced)/priced.length)):"—",priced.length+" vente(s) chiffrée(s)","◈","","average")}
 </section><div class="split"><section class="panel"><div class="row"><h2>Relances et tâches prioritaires</h2><button class="btn small" data-action="nav" data-page="tasks">Toutes les tâches</button></div>
 ${due.length||dueOpportunities.length?followRows+due.slice(0,7).map(taskRow).join(""):`<div class="empty"><strong>Tout est à jour</strong><p>Aucune tâche en retard ou prévue aujourd'hui.</p><button class="btn" data-action="new-task">Ajouter une tâche</button></div>`}</section>
 <section class="panel"><h2>Indicateurs complémentaires</h2><div class="kpi-line"><span>Taux de conversion</span><strong>${conversion}</strong></div><div class="kpi-line"><span>Contacts enregistrés</span><strong>${data.contacts.length}</strong></div><div class="kpi-line"><span>Relances d’opportunités en retard</span><strong>${dueOpportunities.filter(o=>o.follow<today()).length}</strong></div><div class="kpi-line"><span>Tâches en retard</span><strong>${due.filter(t=>t.due<today()).length}</strong></div><div class="kpi-line"><span>Tâches du jour</span><strong>${due.filter(t=>t.due===today()).length}</strong></div><div class="kpi-line"><span>Tâches à venir</span><strong>${future.length}</strong></div><div class="kpi-line"><span>Rendez-vous à venir</span><strong>${future.filter(t=>t.type==="Rendez-vous").length}</strong></div></section></div>`;
@@ -241,7 +285,7 @@ return `<div class="settings-layout"><section class="panel"><div class="section-
 <div class="help">MOON utilise une authentification Supabase et des règles de confidentialité par compte. L’utilisation de données professionnelles réelles reste soumise à la validation et aux règles de sécurité de votre organisation.</div>
 </section><section class="panel"><div class="section-heading"><div><div class="eyebrow">VOTRE ESPACE</div><h2>Contenu actuel</h2></div><span class="settings-icon">▤</span></div><div class="kpi-line"><span>Contacts</span><strong>${data.contacts.length}</strong></div><div class="kpi-line"><span>Opportunités</span><strong>${data.opportunities.length}</strong></div><div class="kpi-line"><span>Tâches</span><strong>${data.tasks.length}</strong></div><div class="settings-tip">La synchronisation et la déconnexion se gèrent dans <button type="button" class="inline-link" data-action="nav" data-page="account">Mon compte</button>.</div></section></div>`;
 }
-function modal(title,body){$("modal").innerHTML=`<div class="dialog-head"><h2>${esc(title)}</h2><button type="button" class="btn small ghost" data-action="close-modal" aria-label="Fermer">✕</button></div><div class="dialog-body">${body}</div>`;$("modal").showModal()}
+function modal(title,body){const dialog=$("modal");dialog.innerHTML=`<div class="dialog-head"><h2>${esc(title)}</h2><button type="button" class="btn small ghost" data-action="close-modal" aria-label="Fermer">✕</button></div><div class="dialog-body">${body}</div>`;if(!dialog.open)dialog.showModal()}
 function input(name,label,value="",type="text",required=false,extra=""){return `<label>${esc(label)}<input class="field" name="${name}" type="${type}" value="${esc(value)}" ${required?"required":""} ${extra}></label>`}
 function select(name,label,values,value){return `<label>${esc(label)}<select class="field" name="${name}">${opts(values,value)}</select></label>`}
 function textarea(name,label,value=""){return `<label class="wide">${esc(label)}<textarea class="field" name="${name}">${esc(value)}</textarea></label>`}
@@ -505,6 +549,7 @@ if(["save-contact-direct","save-opportunity-direct","save-task-direct","save-int
  }catch(err){console.error("MOON direct save failure",kind,err);alert("Enregistrement interrompu : "+(err?.message||err))}
  return;
 }
+if(a==="revenue-breakdown"){revenueBreakdown(btn.dataset.revenue||"");return}
 if(a==="day-jump"){document.getElementById(btn.dataset.target)?.scrollIntoView({behavior:"smooth",block:"start"});return}
 if(a==="natural-search"){naturalQuery=$("natural-query")?.value?.trim()||"";render();return}
 if(a==="copy-report"){if(typeof navigator!=="undefined"&&navigator.clipboard?.writeText)navigator.clipboard.writeText(reportText()).then(()=>toast("Bilan copié")).catch(()=>alert(reportText()));else alert(reportText());return}
