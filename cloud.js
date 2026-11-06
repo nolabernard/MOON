@@ -221,7 +221,7 @@
      const email=String(new FormData(form).get("email")||"").trim();
      if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw Error("Adresse email invalide.");
      const redirect=location.origin+location.pathname;
-     const r=await client.auth.signInWithOtp({email,options:{emailRedirectTo:redirect}});
+     const r=await client.auth.signInWithOtp({email,options:{emailRedirectTo:redirect,shouldCreateUser:false}});
      if(r.error)throw r.error;
      pendingEmail=email;notice="Un code à 6 chiffres a été demandé. Vérifiez votre boîte email.";
    }catch(e){errorMessage=error(e)}finally{busy=false;refresh()}
