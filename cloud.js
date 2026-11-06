@@ -6,7 +6,7 @@
  const configured=/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(config.url||"")
    && /^(sb_publishable_|eyJ)/.test(config.publishableKey||"");
  const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
- let client=null,user=null,remote=null,busy=false,errorMessage="",notice="",pendingEmail="",accountReady=false;
+ let client=null,user=null,remote=null,busy=false,errorMessage="",notice="",pendingEmail="",accountReady=false,otpRequestedAt=0,otpAttempts=0;
  const SYNC_KEY="moon.crm.v2.autosync", BASE_KEY="moon.crm.v2.syncbase";
  let syncTimer=null,syncRunning=false,conflicted=false;
  const enabled=()=>localStorage.getItem(SYNC_KEY)==="yes";
@@ -146,12 +146,15 @@
   root.innerHTML='<div class="auth-card"><div class="auth-brand"><span class="brand-symbol">☾</span><strong>MOON</strong></div><h1>Votre espace commercial.</h1><p>Connectez-vous pour retrouver vos contacts, dossiers et relances sur tous vos appareils.</p>'+form+(busy?'<p role="status">Veuillez patienter…</p>':'')+(notice?'<p class="auth-notice" role="status">'+esc(notice)+'</p>':'')+(errorMessage?'<p class="auth-error" role="alert">'+esc(errorMessage)+'</p>':'')+'<small>Connexion sécurisée par code unique à 6 chiffres. Aucun mot de passe.</small></div>';
   root.querySelector("#otp-email-form")?.addEventListener("submit",async e=>{e.preventDefault();await login(e.target)});
   root.querySelector("#otp-verify-form")?.addEventListener("submit",async e=>{e.preventDefault();await verifyCode(e.target)});
-  root.querySelector("#otp-back")?.addEventListener("click",()=>{pendingEmail="";notice="";errorMessage="";authScreen()});
+  root.querySelector("#otp-back")?.addEventListener("click",()=>{pendingEmail="";otpRequestedAt=0;otpAttempts=0;notice="";errorMessage="";authScreen()});
  }
  async function verifyCode(form){
   if(!client||busy||!pendingEmail)return;
   const token=String(new FormData(form).get("token")||"").trim();
-  if(!/^\\d{6}$/.test(token)){errorMessage="Saisissez les 6 chiffres du code.";authScreen();return}
+  if(!/^[0-9]{6}$/.test(token)){errorMessage="Saisissez les 6 chiffres du code.";authScreen();return}
+  if(otpRequestedAt&&Date.now()-otpRequestedAt>600000){pendingEmail="";errorMessage="Le code a expiré. Demandez un nouveau code.";authScreen();return}
+  if(otpAttempts>=5){pendingEmail="";errorMessage="Trop de tentatives. Demandez un nouveau code.";authScreen();return}
+  otpAttempts++;
   busy=true;errorMessage="";notice="";authScreen();
   try{const r=await client.auth.verifyOtp({email:pendingEmail,token,type:"email"});if(r.error)throw r.error;if(!r.data?.user)throw Error("Connexion non confirmée.");pendingEmail="";user=r.data.user;await initializeAccount();accountReady=true;authScreen()}
   catch(e){errorMessage=error(e)}
@@ -218,12 +221,12 @@
    if(busy)return;
    busy=true;errorMessage="";notice="";
    try{
-     const email=String(new FormData(form).get("email")||"").trim();
+     const email=String(new FormData(form).get("email")||"").trim().toLowerCase();
      if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw Error("Adresse email invalide.");
      const redirect=location.origin+location.pathname;
      const r=await client.auth.signInWithOtp({email,options:{emailRedirectTo:redirect,shouldCreateUser:false}});
-     if(r.error)throw r.error;
-     pendingEmail=email;notice="Un code à 6 chiffres a été demandé. Vérifiez votre boîte email.";
+     if(r.error && !/user not found|signups not allowed|signup disabled|email not confirmed/i.test(error(r.error)))throw r.error;
+     pendingEmail=email;otpRequestedAt=Date.now();otpAttempts=0;notice="Si ce compte existe, un code de connexion sera envoyé. Vérifiez votre boîte email.";
    }catch(e){errorMessage=error(e)}finally{busy=false;refresh()}
  }
  window.MOON_CLOUD={settingsHtml,act,login,verifyCode,init,configured,onLocalSave:scheduleSync,isAuthenticated:()=>!!user&&accountReady};
