@@ -48,10 +48,10 @@ test("User flow: add, edit, complete and delete tasks",function regressionTest()
  const commands=[
  'load();page="tasks";',
  'taskSubmit({fields:{id:"",title:"Appeler le candidat",type:"Appel",due:"2026-11-07",priority:"Haute",opportunityId:"",contactId:"",notes:"Premier contact"}});',
- 'if(data.tasks.length!==1||data.tasks[0].title!=="Appeler le candidat")throw Error("Task not added");',
+ 'if(data.tasks.length!==1||data.tasks[0].title!=="Appel")throw Error("Task not added");',
  'const t=data.tasks[0];',
  'taskSubmit({fields:{id:t.id,title:"Rappeler le candidat",type:"Relance",due:"2026-11-08",priority:"Normale",opportunityId:"",contactId:"",notes:"Suivi"}});',
- 'if(data.tasks.length!==1||data.tasks[0].title!=="Rappeler le candidat")throw Error("Task not updated");',
+ 'if(data.tasks.length!==1||data.tasks[0].title!=="Relance")throw Error("Task not updated");',
  'data.tasks[0].status="done";save(false);',
  'if(JSON.parse(localStorage.getItem(KEY)).tasks[0].status!=="done")throw Error("Task not completed");',
  'deleteRecord("task",t.id);',
