@@ -225,7 +225,7 @@
      if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw Error("Adresse email invalide.");
      const redirect=location.origin+location.pathname;
      const r=await client.auth.signInWithOtp({email,options:{emailRedirectTo:redirect,shouldCreateUser:false}});
-     if(r.error)throw r.error;
+     if(r.error && !/user not found|signups not allowed|signup disabled|email not confirmed/i.test(error(r.error)))throw r.error;
      pendingEmail=email;otpRequestedAt=Date.now();otpAttempts=0;notice="Si ce compte existe, un code de connexion sera envoyé. Vérifiez votre boîte email.";
    }catch(e){errorMessage=error(e)}finally{busy=false;refresh()}
  }
