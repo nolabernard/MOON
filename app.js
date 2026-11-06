@@ -518,9 +518,7 @@ window.MOON_CLOUD_BRIDGE={
   data=emptyCRM();activeOwner=null;
   if(discardSynced&&key){try{
    localStorage.removeItem(key);
-   // All per-account restore checkpoints also contain CRM data.
-   const prefix=key+".precloud.";
-   for(let i=localStorage.length-1;i>=0;i--){const k=localStorage.key(i);if(k?.startsWith(prefix))localStorage.removeItem(k)}
+   // Historical recovery checkpoints are preserved to avoid data loss.
   }catch(e){console.error("MOON account cleanup",e)}}
   const dlg=document.getElementById("modal");if(dlg?.open)dlg.close();
   const voice=document.getElementById("voice-modal");if(voice?.open)voice.close();
