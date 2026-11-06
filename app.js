@@ -499,6 +499,7 @@ $("modal").addEventListener("click",e=>{if(e.target===$("modal"))closeModal()});
 /* Optional Supabase bridge: never uploads without confirmation in cloud.js. */
 window.MOON_CLOUD_BRIDGE={
  clearSession:()=>{data={version:2,contacts:[],opportunities:[],tasks:[]};try{localStorage.removeItem(KEY)}catch(e){console.error(e)}render()},
+ show:()=>render(),
  snapshot:()=>JSON.parse(JSON.stringify(data)),
  restore:record=>{
   if(!record||!Array.isArray(record.contacts)||!Array.isArray(record.opportunities)||!Array.isArray(record.tasks))return false;
