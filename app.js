@@ -6,6 +6,7 @@ let activeOwner=null;
 const scopedKey=()=>activeOwner?KEY+".user."+activeOwner:KEY;
 const emptyCRM=()=>({version:2,contacts:[],opportunities:[],tasks:[]});
 const STAGES=["Nouveau","Contacté","En discussion","RDV / Proposition","Gagné","Perdu"];
+const MATURITIES=["","Froid","Tiède","Chaud"];
 const TYPES=["VAE","Formation courte","Autre"];
 const CHANNELS=["Appel","Email","SMS","Visioconférence","Rendez-vous","Note"];
 let data={version:2,contacts:[],opportunities:[],tasks:[]};
@@ -34,7 +35,7 @@ if(!Array.isArray(data.contacts))data.contacts=[];
 if(!Array.isArray(data.opportunities))data.opportunities=[];
 if(!Array.isArray(data.tasks))data.tasks=[];
 data.contacts=data.contacts.filter(c=>c&&c.id).map(c=>({...c,first:c.first||"",last:c.last||"",company:c.company||""}));
-data.opportunities=data.opportunities.filter(o=>o&&o.id).map(o=>({...o,stage:STAGES.includes(o.stage)?o.stage:"Nouveau",events:Array.isArray(o.events)?o.events:[],category:o.category||"Autre",vat:o.vat??"0"}));
+data.opportunities=data.opportunities.filter(o=>o&&o.id).map(o=>({...o,stage:STAGES.includes(o.stage)?o.stage:"Nouveau",maturity:MATURITIES.includes(o.maturity)?o.maturity:"",events:Array.isArray(o.events)?o.events:[],category:o.category||"Autre",vat:o.vat??"0"}));
 data.tasks=data.tasks.filter(t=>t&&t.id).map(t=>({...t,status:t.status==="done"?"done":"open",type:t.type||"Relance"}));
 }
 function migrateOld(){
@@ -270,6 +271,7 @@ modal(o?"Modifier l'opportunité":"Nouvelle opportunité",`${o&&suggestedStage(o
 ${input("training","Formation / prestation *",o?.training,"text",true)}
 ${select("category","Catégorie",TYPES,o?.category||"VAE")}
 ${select("stage","Étape commerciale",STAGES,o?.stage||"Nouveau")}
+<label>Niveau de maturité<select class="field" name="maturity"><option value="">Non renseigné</option>${MATURITIES.filter(Boolean).map(m=>`<option value="${m}" ${o?.maturity===m?"selected":""}>${m}</option>`).join("")}</select></label>
 ${input("ht","Montant HT (€)",moneyInput,"number",false,'min="0" step="0.01" placeholder="Non renseigné"')}
 <label>TVA<select class="field" name="vat">${vatOptions}</select></label>
 ${input("customVat","Taux personnalisé (%)",customVat,"number",false,'min="0" max="100" step="0.01"')}
@@ -330,7 +332,7 @@ if(!v.training||!contact(v.contactId)){alert("Choisissez un contact et renseigne
 if(v.ht!==""&&(!Number.isFinite(Number(v.ht))||Number(v.ht)<0)){alert("Montant HT invalide.");return}
 if(v.vat==="custom"){v.vat=v.customVat;if(v.vat===""||!Number.isFinite(Number(v.vat))||Number(v.vat)<0||Number(v.vat)>100){alert("Taux de TVA personnalisé invalide.");return}}
 const stage=v.stage,existing=opportunity(v.id);
-const record={contactId:v.contactId,training:v.training,category:v.category,ht:v.ht,vat:v.vat,follow:v.follow,forecast:v.forecast,closed:v.closed,lostReason:v.lostReason,source:v.source,owner:v.owner,notes:v.notes};let o;
+const record={contactId:v.contactId,training:v.training,category:v.category,maturity:MATURITIES.includes(v.maturity)?v.maturity:"",ht:v.ht,vat:v.vat,follow:v.follow,forecast:v.forecast,closed:v.closed,lostReason:v.lostReason,source:v.source,owner:v.owner,notes:v.notes};let o;
 if(existing){o=existing;Object.assign(o,record);if(o.stage!==stage){if(!markStage(o,stage,v.lostReason))return}}
 else{o={id:id(),created:today(),events:[],stage:"Nouveau",...record};data.opportunities.push(o);if(stage!=="Nouveau"){if(!markStage(o,stage,v.lostReason)){data.opportunities.pop();return}}}
 if(!isActive(o))o.follow="";if((o.stage==="Gagné"||o.stage==="Perdu")&&!o.closed)o.closed=today();
@@ -381,8 +383,8 @@ a.href=url;a.download=filename;document.body.append(a);a.click();a.remove();setT
 function exportJson(){download("moon-sauvegarde-"+today()+".json",JSON.stringify({...data,exportedAt:new Date().toISOString()},null,2),"application/json")}
 function csvCell(x){const s=String(x??"");return /[",;\r\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s}
 function exportCsv(){
-const header=["id","prenom","nom","email","telephone","entreprise","formation","categorie","statut","montant_ht","tva","montant_ttc","relance","cloture_prevue","cloture_reelle","origine","responsable","notes"];
-const rows=data.opportunities.map(o=>{const c=linkedContact(o)||{};const rate=o.vat==="exempt"?0:Number(o.vat||0);return [o.id,c.first,c.last,c.email,c.phone,c.company,o.training,o.category,o.stage,o.ht,o.vat,known(o)?(Math.round(Math.round(Number(o.ht)*100)*(1+rate/100))/100).toFixed(2):"",o.follow,o.forecast,o.closed,o.source,o.owner,o.notes]});
+const header=["id","prenom","nom","email","telephone","entreprise","formation","categorie","statut","maturite","montant_ht","tva","montant_ttc","relance","cloture_prevue","cloture_reelle","origine","responsable","notes"];
+const rows=data.opportunities.map(o=>{const c=linkedContact(o)||{};const rate=o.vat==="exempt"?0:Number(o.vat||0);return [o.id,c.first,c.last,c.email,c.phone,c.company,o.training,o.category,o.stage,o.maturity||"",o.ht,o.vat,known(o)?(Math.round(Math.round(Number(o.ht)*100)*(1+rate/100))/100).toFixed(2):"",o.follow,o.forecast,o.closed,o.source,o.owner,o.notes]});
 download("moon-opportunites-"+today()+".csv","\ufeff"+[header,...rows].map(r=>r.map(csvCell).join(";")).join("\r\n"),"text/csv;charset=utf-8");
 }
 function parseCSV(raw){
@@ -422,7 +424,7 @@ for(const r of unique){const email=r.email||"",last=r.nom||r.last||"",first=r.pr
 let c=data.contacts.find(x=>email&&x.email?.toLowerCase()===email.toLowerCase());
 if(!c)c=data.contacts.find(x=>x.last.toLowerCase()===last.toLowerCase()&&x.first.toLowerCase()===first.toLowerCase()&&x.company.toLowerCase()===company.toLowerCase());
 if(!c){c={id:id(),created:today(),first,last:last||company||"Contact importé",email,phone:r.telephone||"",company,profile:"Salarié",notes:""};data.contacts.push(c)}
-const ht=(r.montant_ht||"").replace(",",".");data.opportunities.push({id:id(),contactId:c.id,created:today(),training:r.formation||r.training,category:TYPES.includes(r.categorie)?r.categorie:"Autre",stage:STAGES.includes(r.statut)?r.statut:"Nouveau",ht:ht!==""&&!isNaN(Number(ht))?ht:"",vat:r.tva||"0",follow:r.relance||"",forecast:r.cloture_prevue||"",closed:r.cloture_reelle||"",source:r.origine||"",owner:r.responsable||"",notes:r.notes||"",lostReason:"",events:[]});n++}
+const ht=(r.montant_ht||"").replace(",",".");data.opportunities.push({id:id(),contactId:c.id,created:today(),training:r.formation||r.training,category:TYPES.includes(r.categorie)?r.categorie:"Autre",stage:STAGES.includes(r.statut)?r.statut:"Nouveau",maturity:MATURITIES.includes(r.maturite||r.maturity)?(r.maturite||r.maturity):"",ht:ht!==""&&!isNaN(Number(ht))?ht:"",vat:r.tva||"0",follow:r.relance||"",forecast:r.cloture_prevue||"",closed:r.cloture_reelle||"",source:r.origine||"",owner:r.responsable||"",notes:r.notes||"",lostReason:"",events:[]});n++}
 if(!save())return;toast(n+" opportunité(s) importée(s) · "+duplicateCount+" doublon(s) ignoré(s)");
 }
 render();if(kind==="json")toast("Sauvegarde restaurée");else toast("Import CSV terminé");
