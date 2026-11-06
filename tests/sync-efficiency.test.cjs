@@ -16,7 +16,7 @@ test("Routine checks fetch revision only and full content on actual change",()=>
  assert.match(cloud,/select\("revision,updated_at"\)/);
  assert.match(cloud,/if\(changed\)\{/);
  assert.match(cloud,/select\("content,revision,updated_at"\)/);
- assert.match(cloud,/\.eq\("owner_id",owner\)\.eq\("revision",base\.revision\)/);
+ assert.match(cloud,/\.eq\("owner_id",user\.id\)\.eq\("revision",base\.revision\)/);
 });
 test("Network failures back off and retain local changes",()=>{
  assert.match(cloud,/Math\.min\(60000,3000\*Math\.pow/);
