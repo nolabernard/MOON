@@ -508,20 +508,23 @@ window.MOON_CLOUD_BRIDGE={
  activate:ownerId=>{
   if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(ownerId||"")))return false;
   if(activeOwner===ownerId)return true;
-  data=emptyCRM();activeOwner=ownerId;
+  data=emptyCRM();activeOwner=ownerId;page="day";naturalQuery="";
   try{const saved=JSON.parse(localStorage.getItem(scopedKey())||"null");if(saved&&Array.isArray(saved.contacts)&&Array.isArray(saved.opportunities)&&Array.isArray(saved.tasks))data=saved}catch(e){console.error("MOON scoped loading",e)}
   normalize();render();return true;
  },
  ownerId:()=>activeOwner,
  clearSession:(discardSynced=false)=>{
   const key=activeOwner?scopedKey():null;
-  data=emptyCRM();activeOwner=null;
+  data=emptyCRM();activeOwner=null;page="day";naturalQuery="";
   if(discardSynced&&key){try{
    localStorage.removeItem(key);
    // Historical recovery checkpoints are preserved to avoid data loss.
   }catch(e){console.error("MOON account cleanup",e)}}
-  const dlg=document.getElementById("modal");if(dlg?.open)dlg.close();
-  const voice=document.getElementById("voice-modal");if(voice?.open)voice.close();
+  const dlg=document.getElementById("modal");if(dlg?.open)dlg.close();if(dlg)dlg.innerHTML="";
+  window.MOON_VOICE?.close?.();
+  const voice=document.getElementById("voice-modal");if(voice?.open)voice.close();if(voice)voice.innerHTML="";
+  const toastNode=document.getElementById("toast");if(toastNode){toastNode.textContent="";toastNode.hidden=true}
+  const file=document.getElementById("file-import");if(file)file.value="";
   render();
  },
  show:()=>render(),
