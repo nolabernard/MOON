@@ -33,7 +33,9 @@ test("Contact, opportunity and task create buttons remain wired",()=>{
  assert.match(ctx2.document.getElementById("app").innerHTML,/data-action="new-contact"/);
  const {ctx:ctx3}=runApp('page="opportunities";render();');
  assert.match(ctx3.document.getElementById("app").innerHTML,/data-action="new-opportunity"/);
- for(const name of ["contact","opportunity","task"])assert.match(app,new RegExp('data-action="save-'+name+'-direct"'));
+ assert.match(app,/data-action="save-contact-direct"/);
+ assert.match(app,/data-action="save-\\$\\{kind\\}-direct"/);
+ assert.match(app,/if\\(kind==="task"\\)taskSubmit\\(form\\)/);
 });
 test("Cloud sync is connected to local save and account-scoped snapshot writes",()=>{
  assert.match(app,/window\.MOON_CLOUD\?\.onLocalSave\?\.\(\)/);
