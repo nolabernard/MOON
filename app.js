@@ -11,6 +11,7 @@ const TYPES=["VAE","Formation courte","Autre"];
 const CHANNELS=["Appel","Email","SMS","Visioconférence","Rendez-vous","Note"];
 let data={version:2,contacts:[],opportunities:[],tasks:[]};
 let naturalQuery="";
+let reportingPeriod="all",reportingAnchor="",reportingFrom="",reportingTo="";
 let page="day",period="all",rangeFrom="",rangeTo="",tax="ht",taskMode="open",afterContact=false;
 const $=id=>document.getElementById(id);
 const today=()=>{const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)};
@@ -85,10 +86,29 @@ if(period==="custom")return (!rangeFrom||date>=rangeFrom)&&(!rangeTo||date<=rang
 return true;
 }
 function scoped(){return data.opportunities.filter(o=>monthMatch(isActive(o)?o.forecast:o.closed||o.created))}
+function reportingBounds(){
+ const a=reportingAnchor||today();
+ if(reportingPeriod==="all")return ["",""];
+ if(reportingPeriod==="custom")return [reportingFrom,reportingTo];
+ if(reportingPeriod==="year")return [a.slice(0,4)+"-01-01",a.slice(0,4)+"-12-31"];
+ if(reportingPeriod==="month")return [a.slice(0,7)+"-01",a.slice(0,7)+"-"+String(new Date(Number(a.slice(0,4)),Number(a.slice(5,7)),0).getDate()).padStart(2,"0")];
+ const d=new Date(a+"T12:00:00");d.setDate(d.getDate()-(d.getDay()+6)%7);const start=d.toISOString().slice(0,10);d.setDate(d.getDate()+6);return [start,d.toISOString().slice(0,10)];
+}
+function reportingOpportunities(){
+ const [from,to]=reportingBounds();if(from&&to&&from>to)return [];
+ return data.opportunities.filter(o=>{if(!from&&!to)return true;const d=String(isActive(o)?o.forecast||o.created:o.closed||o.created||"").slice(0,10);return !!d&&(!from||d>=from)&&(!to||d<=to)});
+}
+function reportingPeriodLabel(){const [from,to]=reportingBounds();return reportingPeriod==="all"?"Toutes périodes":(from?dt(from):"Début")+" – "+(to?dt(to):"Sans fin")}
 function navButton(k,icon,label){return `<button class="nav-button ${page===k?"active":""}" data-action="nav" data-page="${k}" type="button"><span class="nav-ico">${icon}</span><span>${label}</span></button>`}
+function reportingFilters(){
+ const select='<label class="subtle">Période<select class="field" id="reporting-period" aria-label="Période du reporting">'+opts(["all","week","month","year","custom"],reportingPeriod).replace(/>all</g,">Toutes périodes<").replace(/>week</g,">Semaine<").replace(/>month</g,">Mois<").replace(/>year</g,">Année<").replace(/>custom</g,">Personnalisée<")+'</select></label>';
+ if(reportingPeriod==="custom")return select+'<label class="subtle">Du <input class="field" type="date" id="reporting-from" value="'+esc(reportingFrom)+'"></label><label class="subtle">Au <input class="field" type="date" id="reporting-to" value="'+esc(reportingTo)+'"></label>';
+ if(reportingPeriod==="all")return select;
+ return select+'<label class="subtle">Date de référence<input class="field" type="date" id="reporting-anchor" value="'+esc(reportingAnchor||today())+'"></label>';
+}
 function toolbar(){
 const filter=`<select class="field" id="period" aria-label="Période">${opts(["all","month","quarter","year","custom"],period).replace(/>all</g,">Toutes périodes<").replace(/>month</g,">Ce mois<").replace(/>quarter</g,">Ce trimestre<").replace(/>year</g,">Cette année<").replace(/>custom</g,">Personnalisée<")}</select>${period==="custom"?`<label class="subtle">Du <input class="field" id="range-from" type="date" value="${esc(rangeFrom)}"></label><label class="subtle">Au <input class="field" id="range-to" type="date" value="${esc(rangeTo)}"></label>`:""}`;
-return `<div class="filters">${page==="dashboard"||page==="board"||page==="opportunities"?filter:""}
+return `<div class="filters">${page==="dashboard"||page==="board"||page==="opportunities"?filter:""}${page==="reporting"?reportingFilters():""}
 ${page==="dashboard"||page==="board"||page==="opportunities"||page==="reporting"?`<select class="field" id="tax" aria-label="Affichage financier">${opts(["ht","ttc"],tax).replace(/>ht</g,">Montants HT<").replace(/>ttc</g,">Montants TTC<")}</select>`:""}
 ${page==="contacts"||page==="opportunities"||page==="tasks"?`<input class="field search" id="search" placeholder="Rechercher..." autocomplete="off" aria-label="Rechercher">`:""}
 ${page==="tasks"?`<select id="task-mode" class="field" aria-label="Filtrer les tâches">${opts(["open","all","done"],taskMode).replace(/>open</g,">À faire<").replace(/>all</g,">Toutes<").replace(/>done</g,">Terminées<")}</select>`:""}
@@ -187,15 +207,15 @@ function searchNaturalPage(){
  (q?'<p class="subtle">'+found.length+' dossier(s) trouvé(s)</p>'+found.map(o=>'<div class="task-item"><div class="task-content"><strong>'+esc(contactName(linkedContact(o)))+' · '+esc(o.training)+'</strong><div class="subtle">'+esc(o.stage)+' · '+esc(amountText(o))+'</div></div><button type="button" class="btn small" data-action="edit-opportunity" data-id="'+esc(o.id)+'">Ouvrir</button></div>').join(""):'')+'</section>';
 }
 function reportText(){
- const won=data.opportunities.filter(o=>o.stage==="Gagné"),lost=data.opportunities.filter(o=>o.stage==="Perdu");
- return "MOON — Bilan commercial ("+today()+")\nContacts : "+data.contacts.length+"\nOpportunités : "+data.opportunities.length+"\nGagnées : "+won.length+"\nPerdues : "+lost.length+"\nCA sécurisé "+tax.toUpperCase()+" : "+money(sum(won))+"\nTâches en attente : "+data.tasks.filter(t=>t.status!=="done").length;
+ const selected=reportingOpportunities(),won=selected.filter(o=>o.stage==="Gagné"),lost=selected.filter(o=>o.stage==="Perdu");
+ return "MOON — Bilan commercial ("+reportingPeriodLabel()+")\nContacts : "+data.contacts.length+"\nOpportunités : "+selected.length+"\nGagnées : "+won.length+"\nPerdues : "+lost.length+"\nCA sécurisé "+tax.toUpperCase()+" : "+money(sum(won))+"\nTâches en attente : "+data.tasks.filter(t=>t.status!=="done").length;
 }
 
 const REPORT_PROBABILITIES={"Nouveau":.1,"Contacté":.2,"En discussion":.4,"RDV / Proposition":.7};
 const weightedOpportunityCents=o=>known(o)?Math.round((amount(o)??0)*(REPORT_PROBABILITIES[o.stage]||0)):0;
 const weightedSum=ops=>ops.reduce((total,o)=>total+weightedOpportunityCents(o),0);
 function revenueSelection(key){
- const source=page==="reporting"?data.opportunities:scoped();
+ const source=page==="reporting"?reportingOpportunities():scoped();
  if(key==="secured")return {title:"CA sécurisé",items:source.filter(o=>o.stage==="Gagné"),mode:"total"};
  if(key==="weighted")return {title:"CA pondéré estimé",items:source.filter(isActive),mode:"weighted"};
  if(key==="pipeline")return {title:"Pipeline en cours",items:source.filter(isActive),mode:"total"};
@@ -203,7 +223,7 @@ function revenueSelection(key){
  if(key==="average")return {title:"Panier moyen",items:source.filter(o=>o.stage==="Gagné"&&known(o)),mode:"average"};
  if(key.startsWith("category:")){
   const category=key.slice("category:".length);
-  if(TYPES.includes(category))return {title:"CA gagné · "+category,items:data.opportunities.filter(o=>o.stage==="Gagné"&&o.category===category),mode:"total"};
+  if(TYPES.includes(category))return {title:"CA gagné · "+category,items:reportingOpportunities().filter(o=>o.stage==="Gagné"&&o.category===category),mode:"total"};
  }
  return null;
 }
@@ -231,10 +251,10 @@ function revenueBreakdown(key){
 }
 
 function reportingPage(){
- const ops=data.opportunities,won=ops.filter(o=>o.stage==="Gagné"),lost=ops.filter(o=>o.stage==="Perdu"),open=ops.filter(isActive);
+ const ops=reportingOpportunities(),won=ops.filter(o=>o.stage==="Gagné"),lost=ops.filter(o=>o.stage==="Perdu"),open=ops.filter(isActive);
  const rate=won.length+lost.length?Math.round(won.length/(won.length+lost.length)*100):0;
  const weighted=weightedSum(open);
- return '<section class="grid-metrics">'+metric("CA sécurisé",money(sum(won)),won.length+" dossiers gagnés","€","","secured")+metric("CA pondéré estimé",money(weighted),"Probabilités indicatives par étape","↗","","weighted")+metric("Conversion",rate+" %",(won.length+lost.length)+" dossiers clos","%")+metric("Perdus",lost.length+"","Dossiers non convertis","×")+'</section>'+
+ return '<p class="subtle">Période analysée : '+esc(reportingPeriodLabel())+' · Date de clôture pour les ventes, date prévisionnelle pour les opportunités actives.</p><section class="grid-metrics">'+metric("CA sécurisé",money(sum(won)),won.length+" dossiers gagnés","€","","secured")+metric("CA pondéré estimé",money(weighted),"Probabilités indicatives par étape","↗","","weighted")+metric("Conversion",rate+" %",(won.length+lost.length)+" dossiers clos","%")+metric("Perdus",lost.length+"","Dossiers non convertis","×")+'</section>'+
  '<section class="panel"><h2>Résultats par formation</h2>'+TYPES.map(cat=>{const a=ops.filter(o=>o.category===cat);return '<button type="button" class="task-item revenue-category-row" data-action="revenue-breakdown" data-revenue="category:'+esc(cat)+'" aria-label="Voir les ventes gagnées et le chiffre d’affaires de '+esc(cat)+'"><div class="task-content"><strong>'+esc(cat)+'</strong><div class="subtle">'+a.length+' opportunités · '+a.filter(o=>o.stage==="Gagné").length+' gagnées</div></div><strong>'+money(sum(a.filter(o=>o.stage==="Gagné")))+' <span aria-hidden="true">↗</span></strong></button>'}).join("")+'</section>'+
  '<section class="panel"><h2>Bilan partageable</h2><p class="subtle">Données CRM à cet instant. Le CA pondéré est une estimation.</p><button type="button" class="btn primary" data-action="copy-report">Copier le bilan</button></section>';
 }
@@ -595,6 +615,10 @@ document.addEventListener("click",onClick);
 document.addEventListener("change",e=>{
 const t=e.target;
 if(t.id==="period"){period=t.value;render()}
+ else if(t.id==="reporting-period"){reportingPeriod=t.value;render()}
+ else if(t.id==="reporting-anchor"){reportingAnchor=t.value||today();render()}
+ else if(t.id==="reporting-from"){reportingFrom=t.value;render()}
+ else if(t.id==="reporting-to"){reportingTo=t.value;render()}
 else if(t.id==="range-from"){rangeFrom=t.value;render()}
 else if(t.id==="range-to"){rangeTo=t.value;render()}
 else if(t.id==="tax"){tax=t.value;render()}

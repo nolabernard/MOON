@@ -17,7 +17,7 @@ function makeContext(page="reporting",tax="ht"){
  let result;
  const context={
   page,tax,data:{contacts:[c],opportunities:ops},TYPES:["VAE","Formation courte","Autre"],
-  scoped:()=>ops.filter(x=>x.id!=="w2"),isActive:o=>o.stage!=="Gagné"&&o.stage!=="Perdu",
+  scoped:()=>ops.filter(x=>x.id!=="w2"),reportingOpportunities:()=>ops,isActive:o=>o.stage!=="Gagné"&&o.stage!=="Perdu",
   known:o=>o.ht!==""&&o.ht!==null&&o.ht!==undefined&&Number.isFinite(Number(o.ht)),
   amount:o=>Math.round(Number(o.ht)*100)*(tax==="ttc"?1+Number(o.vat||0)/100:1),
   sum:list=>list.reduce((total,o)=>total+Math.round(Number(o.ht||0)*100)*(tax==="ttc"?1+Number(o.vat||0)/100:1),0),
