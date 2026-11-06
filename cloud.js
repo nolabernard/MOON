@@ -1,6 +1,6 @@
 "use strict";
-/* MOON cloud sync: explicit backup/restore only; opt-in, never silently uploads
-   local CRM data. The publishable key is safe in client JS ONLY with RLS. */
+/* MOON cloud sync: account-owned snapshots, automatic sync and conflict protection.
+   The publishable key is safe in client JS ONLY with RLS. */
 (function(){
  const config=window.MOON_SUPABASE_CONFIG||{};
  const configured=/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(config.url||"")
@@ -9,22 +9,38 @@
  let client=null,user=null,remote=null,busy=false,errorMessage="",notice="",pendingEmail="",accountReady=false,otpRequestedAt=0,otpAttempts=0;
  let explicitLogout=false,initPromise=null,initOwner=null;
  const SYNC_KEY="moon.crm.v2.autosync", BASE_KEY="moon.crm.v2.syncbase";
- let syncTimer=null,syncRunning=false,conflicted=false;
+ let syncTimer=null,syncRunning=false,conflicted=false,syncState="loading",syncError="",syncQueued=false;
  const syncKey=()=>SYNC_KEY+"."+(user?.id||"anon");
  const baseKey=()=>BASE_KEY+"."+(user?.id||"anon");
  const enabled=()=>!!user&&localStorage.getItem(syncKey())==="yes";
  const serialize=x=>JSON.stringify(x);
  const local=()=>bridge()?.snapshot();
- function stopSync(message){localStorage.removeItem(syncKey());conflicted=true;clearTimeout(syncTimer);syncTimer=null;notice=message||"Synchronisation arrêtée pour éviter une perte de données.";refresh()}
- function scheduleSync(){if(!enabled()||!user||conflicted)return;clearTimeout(syncTimer);syncTimer=setTimeout(()=>syncOnce().catch(e=>{errorMessage=error(e);refresh()}),1400)}
+ const valid=x=>!!x&&Array.isArray(x.contacts)&&Array.isArray(x.opportunities)&&Array.isArray(x.tasks);
+ const setState=(state,message="")=>{syncState=state;syncError=message;refreshStatus()};
+ function refreshStatus(){
+  const label=syncState==="synced"?"Synchronisé":syncState==="saving"?"Synchronisation…":syncState==="pending"?"À synchroniser":syncState==="error"?"Synchronisation en erreur":syncState==="conflict"?"Conflit à résoudre":syncState==="paused"?"Synchronisation en pause":"Connexion…";
+  const node=$("sidebar-sync-state");if(node)node.textContent="☁ "+label;
+  const top=$("topbar-sync-label");if(top)top.textContent=label;
+  for(const item of document.querySelectorAll("[data-sync-indicator]")){item.textContent=label;item.dataset.state=syncState}
+  const detail=$("cloud-sync-detail");if(detail)detail.textContent=syncError||"Les changements sont envoyés automatiquement à votre compte.";
+ }
+ const hasUnsynced=()=>{if(!user||!bridge()?.ownerId?.())return false;const base=JSON.parse(localStorage.getItem(baseKey())||"null");return !base||base.user!==user.id||serialize(local())!==base.content};
+ function stopSync(message){localStorage.removeItem(syncKey());conflicted=true;clearTimeout(syncTimer);syncTimer=null;notice=message||"Synchronisation arrêtée pour éviter une perte de données.";setState("conflict",notice);refresh()}
+ function scheduleSync(){if(!user||!bridge()?.ownerId?.())return;
+  if(!enabled()||conflicted){setState("paused");return}
+  if(syncRunning){syncQueued=true;setState("pending");return}
+  clearTimeout(syncTimer);setState("pending");syncTimer=setTimeout(()=>syncOnce().catch(e=>{setState("error",error(e));errorMessage="La synchronisation a échoué. Vos données sont conservées sur cet appareil. Une nouvelle tentative sera effectuée.";refresh()}),350)
+ }
  async function syncOnce(){
   if(syncRunning||busy||!enabled()||!client||!user||conflicted)return;
   syncRunning=true;
+  setState("saving");
   const owner=user.id;
   try{
    const base=JSON.parse(localStorage.getItem(baseKey())||"null");
    if(!base||base.user!==user.id){stopSync("Synchronisation désactivée : appareil non initialisé.");return}
    const current=serialize(local());
+   if(!valid(JSON.parse(current)))throw Error("Données CRM invalides : synchronisation interrompue.");
    const response=await client.from("moon_snapshots").select("content,revision,updated_at").eq("owner_id",user.id).maybeSingle();
    if(response.error)throw response.error;
    if(user?.id!==owner||bridge()?.ownerId?.()!==owner)return;
@@ -37,7 +53,7 @@
      if(serialize(local())!==base.content){stopSync("Modification locale détectée pendant la récupération : synchronisation arrêtée.");return}
      if(!bridge()?.restore(latest.content)){stopSync("Restauration automatique impossible : données locales conservées.");return}
      localStorage.setItem(baseKey(),serialize({user:user.id,revision:latest.revision,content:serialize(local())}));
-     remote=latest;notice="Modifications récupérées depuis le cloud.";refresh();return;
+     remote=latest;notice="Modifications récupérées depuis le cloud.";setState("synced");refresh();return;
    }
    if(dirty){
      const outgoing=local();
@@ -47,10 +63,11 @@
      if(!result.data){stopSync("Conflit de synchronisation : données locales conservées.");return}
      remote={content:outgoing,revision:result.data.revision,updated_at:result.data.updated_at};
      localStorage.setItem(baseKey(),serialize({user:user.id,revision:result.data.revision,content:serialize(outgoing)}));
-     if(serialize(local())!==serialize(outgoing))scheduleSync();
-     notice="Synchronisation automatique effectuée.";refresh();
+     if(serialize(local())!==serialize(outgoing))syncQueued=true;
+     notice="Synchronisation automatique effectuée.";setState(syncQueued?"pending":"synced");refresh();
    }
-  }finally{syncRunning=false}
+   if(!dirty&&!changed)setState("synced");
+  }finally{syncRunning=false;if(syncQueued){syncQueued=false;setTimeout(scheduleSync,0)}}
  }
  function hasRecords(snapshot){return !!snapshot&&(snapshot.contacts?.length>0||snapshot.opportunities?.length>0||snapshot.tasks?.length>0)}
  async function initializeAccount(){
@@ -74,7 +91,7 @@
   if(latest){
     if(serialize(current)===serialize(latest.content)){
       remote=latest;conflicted=false;setBaseline();localStorage.setItem(syncKey(),"yes");
-      notice="Compte synchronisé. Vos données sont à jour.";refresh();return;
+      notice="Compte synchronisé. Vos données sont à jour.";setState("synced");refresh();return;
     }
     if(hasRecords(current)){
       localStorage.removeItem(syncKey());
@@ -83,7 +100,7 @@
     }
     if(!bridge()?.restore(latest.content))throw Error("Impossible de charger les données du compte.");
     remote=latest;conflicted=false;setBaseline();localStorage.setItem(syncKey(),"yes");
-    notice="Vos données MOON ont été chargées automatiquement depuis votre compte.";refresh();return;
+    notice="Vos données MOON ont été chargées automatiquement depuis votre compte.";setState("synced");refresh();return;
   }
   if(hasRecords(current)){
     localStorage.removeItem(syncKey());
@@ -98,10 +115,10 @@
   }
   remote={content:current,revision:result.data.revision,updated_at:result.data.updated_at};
   conflicted=false;setBaseline();localStorage.setItem(syncKey(),"yes");
-  notice="Votre espace MOON est prêt. La synchronisation est activée.";refresh();
+  notice="Votre espace MOON est prêt. La synchronisation est activée.";setState("synced");refresh();
  }
  function setBaseline(){if(!user||!remote)return;localStorage.setItem(baseKey(),serialize({user:user.id,revision:remote.revision,content:serialize(local())}))}
- function startPolling(){setInterval(()=>{if(enabled()&&user&&document.visibilityState!=="hidden")scheduleSync()},15000);window.addEventListener("focus",scheduleSync)}
+ function startPolling(){setInterval(()=>{if(enabled()&&user&&document.visibilityState!=="hidden")scheduleSync()},6000);window.addEventListener("focus",scheduleSync);document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")scheduleSync()})}
  const $=id=>document.getElementById(id);
  const bridge=()=>window.MOON_CLOUD_BRIDGE;
  function error(e){return String(e?.message||e||"Erreur inconnue")}
@@ -151,20 +168,21 @@
  }
  function settingsHtml(){
    if(!configured)return '<section class="panel cloud-panel"><h2>☁️ Sauvegarde cloud Supabase</h2><p class="subtle">Intégration prête à configurer. MOON reste en mode local et aucune donnée n’est envoyée en ligne.</p><div class="help">Un projet Supabase gratuit doit être créé et sa clé publique configurée. Les données ESPI réelles restent interdites sans validation DSI.</div></section>';
-   let html='<section class="panel cloud-panel"><h2>☁️ Mon compte et mes appareils</h2><p class="subtle">Connectez-vous avec votre email sur n’importe quel ordinateur : vos données sont récupérées automatiquement et les modifications sont synchronisées. Aucun mot de passe à mémoriser.</p>';
+   let html='<section class="panel cloud-panel"><div class="section-heading"><div><div class="eyebrow">IDENTITÉ ET SYNCHRONISATION</div><h2>Votre compte MOON</h2></div><span class="settings-icon">☁</span></div><p class="subtle">Un compte unique pour retrouver vos contacts, dossiers et tâches sur tous vos appareils.</p>';
    if(!client){html+='<div class="help">Connexion à Supabase en cours…</div>';}
    else if(!user){
      html+='<form id="cloud-login-form"><div class="help">1. Saisissez votre email pour vous connecter. 2. Entrez le code reçu. 3. Vos données se chargent automatiquement sur un nouvel appareil vide.</div><label>Votre email de connexion<input class="field" type="email" name="email" id="cloud-email" autocomplete="email" required placeholder="vous@exemple.fr"></label><div class="actions" style="margin-top:12px"><button class="btn primary" type="submit">Me connecter</button></div></form><p class="subtle">Seuls les comptes autorisés peuvent se connecter.</p>';
    }else{
      const ts=remote?.updated_at?new Date(remote.updated_at).toLocaleString("fr-FR"):"";
-     html+='<p class="subtle">✓ Compte connecté : <strong>'+esc(user.email||user.id)+'</strong></p><p class="subtle">Copie distante : '+(remote?'existante · dernière modification '+esc(ts):"aucune sauvegarde détectée")+'</p>';
-     html+='<div class="actions"><button class="btn primary" type="button" data-action="cloud-upload">Sauvegarder ce navigateur dans Supabase</button><button class="btn" type="button" data-action="cloud-download" '+(remote?"":"disabled")+'>Restaurer depuis Supabase</button><button class="btn" type="button" data-action="cloud-refresh">Actualiser l’état</button><button class="btn" type="button" data-action="cloud-logout">Se déconnecter</button></div>';
-     html+='<div class="actions" style="margin-top:12px"><button class="btn" type="button" data-action="cloud-auto-toggle">'+(enabled()?"Désactiver la synchronisation automatique":"Activer la synchronisation automatique")+'</button></div><p class="subtle">Synchronisation sur cet appareil : <strong>'+(enabled()?"activée":"désactivée")+'</strong>. Elle s’active automatiquement lorsque les données locales et celles du compte sont compatibles. En cas de divergence, choisissez une version.</p>';
+     html+='<div class="account-identity"><span class="account-avatar">✦</span><div><span class="subtle">Adresse de connexion</span><strong>'+esc(user.email||user.id)+'</strong></div><span class="account-connected">● Connecté</span></div>';
+     html+='<div class="sync-overview"><span>État de la synchronisation</span><strong data-sync-indicator data-state="'+esc(syncState)+'">'+esc(syncState==="synced"?"Synchronisé":syncState==="saving"?"Synchronisation…":syncState==="pending"?"À synchroniser":syncState==="conflict"?"Conflit à résoudre":syncState==="error"?"Synchronisation en erreur":"Connexion…")+'</strong><small id="cloud-sync-detail">'+esc(syncError||"Vos modifications sont envoyées automatiquement.")+'</small></div><p class="subtle">Dernière sauvegarde distante : '+(remote?esc(ts):"en attente")+'</p>';
+     html+='<div class="actions account-primary-actions"><button class="btn primary" type="button" data-action="cloud-sync-now">Synchroniser maintenant</button><button class="btn" type="button" data-action="cloud-refresh">Vérifier le cloud</button><button class="btn danger" type="button" data-action="cloud-logout">Se déconnecter</button></div><details class="account-advanced"><summary>Options avancées et récupération</summary><div class="actions"><button class="btn" type="button" data-action="cloud-upload">Remplacer la sauvegarde distante</button><button class="btn" type="button" data-action="cloud-download" '+(remote?"":"disabled")+' >Restaurer la sauvegarde distante</button></div><p class="subtle">Ces opérations peuvent remplacer des données. Une confirmation est demandée avant toute modification.</p></details>';
+     html+='<p class="subtle">Synchronisation automatique : <strong>'+(enabled()?"activée":"en pause")+'</strong>. '+(enabled()?"Chaque création ou modification est envoyée automatiquement.":"Réactivez-la après avoir résolu un éventuel conflit.")+'</p>';
      html+='<div class="help">Un téléchargement crée d’abord une copie locale de secours. Une sauvegarde distante existante doit être confirmée avant tout remplacement. Évitez de modifier les mêmes dossiers simultanément sur deux appareils : les conflits sont bloqués, pas fusionnés.</div>';
    }
    if(notice)html+='<p class="subtle" role="status">'+esc(notice)+'</p>';
    if(errorMessage)html+='<div class="help" role="alert">'+esc(errorMessage)+'</div>';
-   html+='<div class="help">Les données de votre compte sont privées grâce aux règles d’accès Supabase. Sur un ordinateur partagé, déconnectez-vous et effacez les données locales du navigateur avant de le quitter.</div></section>';
+   html+='<div class="help">Vos données sont isolées par compte. Sur un ordinateur partagé, déconnectez-vous avant de partir. Les sauvegardes de récupération locales historiques restent dans le navigateur jusqu’à leur suppression manuelle.</div></section>';
    return html;
  }
  function authScreen(){
@@ -189,7 +207,7 @@
   catch(e){errorMessage=error(e)}
   finally{busy=false;authScreen()}
  }
- function refresh(){authScreen();if(document.getElementById("cloud-live"))$("cloud-live").innerHTML=settingsHtml();}
+ function refresh(){authScreen();if(document.getElementById("cloud-live"))$("cloud-live").innerHTML=settingsHtml();refreshStatus()}
  async function fetchRemote(){
    if(!client||!user)return;
    const owner=user.id;
@@ -211,8 +229,9 @@
      if(!confirm("Activer la synchronisation automatique sur CET appareil ? Les modifications seront envoyées à Supabase et les changements d’autres appareils seront récupérés. En cas de conflit, la synchronisation s’arrête sans écraser vos données."))return;
      conflicted=false;remote=latest;setBaseline();localStorage.setItem(syncKey(),"yes");notice="Synchronisation automatique activée.";refresh();return;
    }
-   if(action==="cloud-refresh"){try{await fetchRemote();notice="État actualisé.";errorMessage="";}catch(e){errorMessage=error(e)}refresh();return}
-   if(action==="cloud-logout"){const baseline=JSON.parse(localStorage.getItem(baseKey())||"null");if(!baseline||serialize(local())!==baseline.content){errorMessage="Des modifications ne sont pas encore confirmées dans le cloud. Vérifiez la synchronisation ou exportez une sauvegarde JSON avant de vous déconnecter.";refresh();return}busy=true;explicitLogout=true;const owner=user.id;let loggedOut=false;try{const r=await client.auth.signOut();if(r.error)throw r.error;loggedOut=true;user=null;remote=null;notice="Déconnecté.";errorMessage="";}catch(e){errorMessage=error(e)}finally{if(loggedOut&&bridge()?.ownerId?.()===owner)bridge()?.clearSession?.(true);explicitLogout=false;busy=false;refresh()}return}
+   if(action==="cloud-sync-now"){if(!enabled()){errorMessage="La synchronisation est en pause. Résolvez le conflit ou restaurez la sauvegarde distante.";refresh();return}try{clearTimeout(syncTimer);await syncOnce();notice=syncState==="synced"?"Tout est synchronisé.":"Synchronisation demandée.";errorMessage="";}catch(e){setState("error",error(e));errorMessage=error(e)}refresh();return}
+   if(action==="cloud-refresh"){try{await syncOnce();notice="État actualisé.";errorMessage="";}catch(e){setState("error",error(e));errorMessage=error(e)}refresh();return}
+   if(action==="cloud-logout"){if(hasUnsynced()&&enabled()){try{clearTimeout(syncTimer);await syncOnce()}catch(e){setState("error",error(e))}}const baseline=JSON.parse(localStorage.getItem(baseKey())||"null");if(!baseline||serialize(local())!==baseline.content){errorMessage="Des modifications ne sont pas encore confirmées dans le cloud. Attendez la synchronisation ou exportez une sauvegarde JSON avant de vous déconnecter.";refresh();return}busy=true;explicitLogout=true;const owner=user.id;let loggedOut=false;try{const r=await client.auth.signOut();if(r.error)throw r.error;loggedOut=true;user=null;remote=null;notice="Déconnecté.";errorMessage="";}catch(e){errorMessage=error(e)}finally{if(loggedOut&&bridge()?.ownerId?.()===owner)bridge()?.clearSession?.(true);explicitLogout=false;busy=false;refresh()}return}
    if(!client||!user)return;
    const ui=bridge();if(!ui)return;
    const actionOwner=user.id;
@@ -237,7 +256,7 @@
        if(!result.data)throw Error("Conflit : une autre copie a été sauvegardée entretemps. Actualisez et recommencez.");
        remote={content,revision:result.data.revision,updated_at:result.data.updated_at};
        conflicted=false;setBaseline();localStorage.setItem(syncKey(),"yes");scheduleSync();
-       notice="Sauvegarde cloud effectuée. Synchronisation automatique activée.";
+       setState("synced");notice="Sauvegarde cloud effectuée. Synchronisation automatique activée.";
      }else if(action==="cloud-download"){
        const latest=await fetchRemote();
        if(!latest)throw Error("Aucune sauvegarde distante trouvée.");
@@ -246,7 +265,7 @@
        if(user?.id!==actionOwner||ui.ownerId?.()!==actionOwner)throw Error("Le compte a changé. Recommencez la restauration.");
      if(!ui.restore(latest.content))throw Error("Impossible de restaurer les données du serveur.");
        conflicted=false;setBaseline();localStorage.setItem(syncKey(),"yes");
-       notice="Données du compte chargées. Synchronisation automatique activée. Copie locale précédente conservée en secours.";
+       setState("synced");notice="Données du compte chargées. Synchronisation automatique activée. Copie locale précédente conservée en secours.";
      }
    }catch(e){errorMessage=error(e);if(/duplicate key/i.test(errorMessage))errorMessage="Une sauvegarde distante existe déjà. Actualisez avant de recommencer."}
    finally{busy=false;refresh()}
@@ -264,7 +283,7 @@
      pendingEmail=email;otpRequestedAt=Date.now();otpAttempts=0;notice="Si ce compte existe, un code de connexion sera envoyé. Vérifiez votre boîte email.";
    }catch(e){errorMessage=error(e)}finally{busy=false;refresh()}
  }
- window.MOON_CLOUD={settingsHtml,act,login,verifyCode,init,configured,onLocalSave:scheduleSync,isAuthenticated:()=>!!user&&accountReady};
+ window.MOON_CLOUD={settingsHtml,act,login,verifyCode,init,configured,onLocalSave:scheduleSync,refreshStatus,isAuthenticated:()=>!!user&&accountReady};
  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);
  else init();
 })();
