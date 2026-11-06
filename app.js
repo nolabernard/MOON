@@ -398,45 +398,55 @@ row.push(cell);if(row.some(x=>x!==""))rows.push(row);if(!rows.length)return [];
 const head=rows.shift().map(x=>x.trim().toLowerCase().replace(/\s+/g,"_"));return rows.map(r=>Object.fromEntries(head.map((h,i)=>[h,r[i]||""])));
 }
 
-const importNorm=v=>String(v??"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim().toLowerCase().replace(/\s+/g," ");
+const importNorm=v=>String(v??"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim().replace(/\s+/g," ");
 const importEmail=v=>String(v??"").trim().toLowerCase();
 const importPhone=v=>{let x=String(v??"").replace(/\D/g,"");return x.startsWith("0033")&&x.length===13?"0"+x.slice(4):x.startsWith("33")&&x.length===11?"0"+x.slice(2):x.length===9?"0"+x:x};
 const importField=(r,...keys)=>keys.map(k=>r[k]).find(v=>v!==undefined&&v!==null&&String(v).trim()!=="")||"";
+const importPersonName=p=>importNorm([p.first,p.last].filter(Boolean).join(" ")).split(" ").filter(Boolean).sort().join(" ");
+const importSameName=(a,b)=>!!importPersonName(a)&&importPersonName(a)===importPersonName(b);
 function importMatchContact(person,contacts){
  const email=importEmail(person.email),phone=importPhone(person.phone);
  const em=email?contacts.filter(c=>importEmail(c.email)===email):[];
  const ph=phone?contacts.filter(c=>importPhone(c.phone)===phone):[];
  if(em.length>1||ph.length>1||(em.length&&ph.length&&em[0]!==ph[0]))return {ambiguous:true};
  const match=em[0]||ph[0];
- if(match)return email&&importEmail(match.email)&&importEmail(match.email)!==email?{ambiguous:true}:{contact:match};
- const full=importNorm(person.first+" "+person.last),org=importNorm(person.company);
- const byName=full?contacts.filter(c=>importNorm(c.first+" "+c.last)===full&&(!org||!importNorm(c.company)||importNorm(c.company)===org)):[];
+ if(match){
+  if((email&&importEmail(match.email)&&importEmail(match.email)!==email)||
+     (phone&&importPhone(match.phone)&&importPhone(match.phone)!==phone))return {ambiguous:true};
+  // A recycled telephone number or generic mailbox must not silently merge two people.
+  if(importPersonName(person)&&importPersonName(match)&&!importSameName(person,match))return {ambiguous:true};
+  return {contact:match};
+ }
+ const org=importNorm(person.company);
+ const byName=importPersonName(person)?contacts.filter(c=>importSameName(person,c)&&(!org||!importNorm(c.company)||importNorm(c.company)===org)):[];
  if(byName.length>1)return {ambiguous:true};
  if(byName.length){
   const c=byName[0];
-  if((email&&importEmail(c.email)&&importEmail(c.email)!==email)||(phone&&importPhone(c.phone)&&importPhone(c.phone)!==phone))return {ambiguous:true};
+  if((email&&importEmail(c.email)&&importEmail(c.email)!==email)||
+     (phone&&importPhone(c.phone)&&importPhone(c.phone)!==phone))return {ambiguous:true};
   return {contact:c};
  }
- if(!full&&org){
-  const byCompany=contacts.filter(c=>!importNorm(c.first)&&importNorm(c.company)===org);
+ if(!importPersonName(person)&&org){
+  const byCompany=contacts.filter(c=>!importPersonName(c)&&importNorm(c.company)===org);
   if(byCompany.length>1)return {ambiguous:true};
   if(byCompany.length)return {contact:byCompany[0]};
  }
  return {contact:null};
 }
 function planCSVImport(rows){
- const contacts=data.contacts.slice(),ops=data.opportunities.slice(),ids=new Set(ops.map(o=>o.id));
+ const contacts=data.contacts.slice(),ops=data.opportunities.slice(),ids=new Set(ops.map(o=>String(o.id)));
  const accepted=[];let duplicates=0,ambiguous=0,invalid=0;
  for(const r of rows){
   const training=importField(r,"formation","training");
   const p={first:importField(r,"prenom","first"),last:importField(r,"nom","last"),company:importField(r,"entreprise","company"),email:importField(r,"email"),phone:importField(r,"telephone","phone")};
   if(!training||!Object.values(p).some(Boolean)){invalid++;continue}
-  if(r.id&&ids.has(r.id)){duplicates++;continue}
+  if(r.id&&ids.has(String(r.id))){duplicates++;continue}
   const match=importMatchContact(p,contacts);
   if(match.ambiguous){ambiguous++;continue}
   let c=match.contact;
   if(!c){c={...p,id:"pending-"+contacts.length,created:today(),profile:"Salarié",notes:""};contacts.push(c)}
-  // Re-importing the same training for the same person does not create another deal.
+  // A person + a training is the default identity of a deal, regardless of amount,
+  // stage, spelling accents, column ordering or CSV re-import.
   if(ops.some(o=>o.contactId===c.id&&importNorm(o.training)===importNorm(training))){duplicates++;continue}
   accepted.push({r,c,training});ops.push({contactId:c.id,training});
  }
