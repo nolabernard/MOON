@@ -100,9 +100,15 @@ function reportingOpportunities(){
 }
 function reportingPeriodLabel(){const [from,to]=reportingBounds();return reportingPeriod==="all"?"Toutes périodes":(from?dt(from):"Début")+" – "+(to?dt(to):"Sans fin")}
 function navButton(k,icon,label){return `<button class="nav-button ${page===k?"active":""}" data-action="nav" data-page="${k}" type="button"><span class="nav-ico">${icon}</span><span>${label}</span></button>`}
+function reportingFilters(){
+ const select='<label class="subtle">Période<select class="field" id="reporting-period" aria-label="Période du reporting">'+opts(["all","week","month","year","custom"],reportingPeriod).replace(/>all</g,">Toutes périodes<").replace(/>week</g,">Semaine<").replace(/>month</g,">Mois<").replace(/>year</g,">Année<").replace(/>custom</g,">Personnalisée<")+'</select></label>';
+ if(reportingPeriod==="custom")return select+'<label class="subtle">Du <input class="field" type="date" id="reporting-from" value="'+esc(reportingFrom)+'"></label><label class="subtle">Au <input class="field" type="date" id="reporting-to" value="'+esc(reportingTo)+'"></label>';
+ if(reportingPeriod==="all")return select;
+ return select+'<label class="subtle">Date de référence<input class="field" type="date" id="reporting-anchor" value="'+esc(reportingAnchor||today())+'"></label>';
+}
 function toolbar(){
 const filter=`<select class="field" id="period" aria-label="Période">${opts(["all","month","quarter","year","custom"],period).replace(/>all</g,">Toutes périodes<").replace(/>month</g,">Ce mois<").replace(/>quarter</g,">Ce trimestre<").replace(/>year</g,">Cette année<").replace(/>custom</g,">Personnalisée<")}</select>${period==="custom"?`<label class="subtle">Du <input class="field" id="range-from" type="date" value="${esc(rangeFrom)}"></label><label class="subtle">Au <input class="field" id="range-to" type="date" value="${esc(rangeTo)}"></label>`:""}`;
-return `<div class="filters">${page==="dashboard"||page==="board"||page==="opportunities"?filter:""}
+return `<div class="filters">${page==="dashboard"||page==="board"||page==="opportunities"?filter:""}${page==="reporting"?reportingFilters():""}
 ${page==="dashboard"||page==="board"||page==="opportunities"||page==="reporting"?`<select class="field" id="tax" aria-label="Affichage financier">${opts(["ht","ttc"],tax).replace(/>ht</g,">Montants HT<").replace(/>ttc</g,">Montants TTC<")}</select>`:""}
 ${page==="contacts"||page==="opportunities"||page==="tasks"?`<input class="field search" id="search" placeholder="Rechercher..." autocomplete="off" aria-label="Rechercher">`:""}
 ${page==="tasks"?`<select id="task-mode" class="field" aria-label="Filtrer les tâches">${opts(["open","all","done"],taskMode).replace(/>open</g,">À faire<").replace(/>all</g,">Toutes<").replace(/>done</g,">Terminées<")}</select>`:""}
