@@ -142,8 +142,8 @@
   const root=document.getElementById("auth-root");if(!root)return;
   if(user&&accountReady){root.hidden=true;document.body.classList.remove("moon-locked");if(!document.querySelector(".shell"))bridge()?.show?.();return}
   document.body.classList.add("moon-locked");root.hidden=false;
-  const form=pendingEmail?'<form id="otp-verify-form"><label>Code reçu sur '+esc(pendingEmail)+'<input class="field otp-code" name="token" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="000000" required></label><button class="btn primary" type="submit">Se connecter à MOON</button><button class="btn ghost" type="button" id="otp-back">Changer d’adresse</button></form>':'<form id="otp-email-form"><label>Adresse email<input class="field" name="email" type="email" autocomplete="email" placeholder="vous@exemple.fr" required></label><button class="btn primary" type="submit">Recevoir mon code</button></form>';
-  root.innerHTML='<div class="auth-card"><div class="auth-brand"><span class="brand-symbol">☾</span><strong>MOON</strong></div><h1>Votre espace commercial.</h1><p>Connectez-vous pour retrouver vos contacts, dossiers et relances sur tous vos appareils.</p>'+form+(busy?'<p role="status">Veuillez patienter…</p>':'')+(notice?'<p class="auth-notice" role="status">'+esc(notice)+'</p>':'')+(errorMessage?'<p class="auth-error" role="alert">'+esc(errorMessage)+'</p>':'')+'<small>Connexion sécurisée par code unique à 6 chiffres. Aucun mot de passe.</small></div>';
+  const form=pendingEmail?'<form id="otp-verify-form"><label>Code reçu sur '+esc(pendingEmail)+'<input class="field otp-code" name="token" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{8}" maxlength="8" placeholder="00000000" required></label><button class="btn primary" type="submit">Se connecter à MOON</button><button class="btn ghost" type="button" id="otp-back">Changer d’adresse</button></form>':'<form id="otp-email-form"><label>Adresse email<input class="field" name="email" type="email" autocomplete="email" placeholder="vous@exemple.fr" required></label><button class="btn primary" type="submit">Recevoir mon code</button></form>';
+  root.innerHTML='<div class="auth-card"><div class="auth-brand"><span class="brand-symbol">☾</span><strong>MOON</strong></div><h1>Votre espace commercial.</h1><p>Connectez-vous pour retrouver vos contacts, dossiers et relances sur tous vos appareils.</p>'+form+(busy?'<p role="status">Veuillez patienter…</p>':'')+(notice?'<p class="auth-notice" role="status">'+esc(notice)+'</p>':'')+(errorMessage?'<p class="auth-error" role="alert">'+esc(errorMessage)+'</p>':'')+'<small>Connexion sécurisée par code unique à 8 chiffres. Aucun mot de passe.</small></div>';
   root.querySelector("#otp-email-form")?.addEventListener("submit",async e=>{e.preventDefault();await login(e.target)});
   root.querySelector("#otp-verify-form")?.addEventListener("submit",async e=>{e.preventDefault();await verifyCode(e.target)});
   root.querySelector("#otp-back")?.addEventListener("click",()=>{pendingEmail="";otpRequestedAt=0;otpAttempts=0;notice="";errorMessage="";authScreen()});
@@ -151,7 +151,7 @@
  async function verifyCode(form){
   if(!client||busy||!pendingEmail)return;
   const token=String(new FormData(form).get("token")||"").trim();
-  if(!/^[0-9]{6}$/.test(token)){errorMessage="Saisissez les 6 chiffres du code.";authScreen();return}
+  if(!/^[0-9]{8}$/.test(token)){errorMessage="Saisissez les 8 chiffres du code.";authScreen();return}
   if(otpRequestedAt&&Date.now()-otpRequestedAt>600000){pendingEmail="";errorMessage="Le code a expiré. Demandez un nouveau code.";authScreen();return}
   if(otpAttempts>=5){pendingEmail="";errorMessage="Trop de tentatives. Demandez un nouveau code.";authScreen();return}
   otpAttempts++;
