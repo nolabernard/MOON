@@ -96,14 +96,14 @@ ${page==="tasks"?`<select id="task-mode" class="field" aria-label="Filtrer les t
 }
 function render(){
 if(window.MOON_CLOUD&&!window.MOON_CLOUD.isAuthenticated?.()){const root=$("app");if(root)root.innerHTML="";return}
-const titles={day:["Ma journée","Vos relances, dossiers à suivre et priorités du jour"],dashboard:["Tableau de bord","Une vision claire de vos résultats et priorités"],board:["Pipeline commercial","Déplacez les opportunités pour suivre leur progression"],opportunities:["Opportunités","Les projets commerciaux et leurs montants"],contacts:["Contacts","Un contact peut avoir plusieurs opportunités"],tasks:["Tâches & relances","Ajoutez, terminez, modifiez ou supprimez vos actions"],search:["Recherche intelligente","Retrouvez vos dossiers avec des mots simples"],reporting:["Reporting commercial","Vos indicateurs et votre bilan partageable"],settings:["Paramètres","Personnalisation, importations et sauvegardes"],account:["Mon compte","Connexion sécurisée, synchronisation et appareils"]};
+const titles={day:["Ma journée","Vos relances, dossiers à suivre et priorités du jour"],dashboard:["Tableau de bord","Une vision claire de vos résultats et priorités"],board:["Pipeline commercial","Déplacez les opportunités pour suivre leur progression"],opportunities:["Opportunités","Les projets commerciaux et leurs montants"],contacts:["Contacts","Un contact peut avoir plusieurs opportunités"],tasks:["Tâches & relances","Ajoutez, terminez, modifiez ou supprimez vos actions"],reporting:["Reporting commercial","Vos indicateurs et votre bilan partageable"],settings:["Paramètres","Personnalisation, importations et sauvegardes"],account:["Mon compte","Connexion sécurisée, synchronisation et appareils"]};
 const [title,subtitle]=titles[page];
 $("app").innerHTML=`<div class="shell"><aside class="sidebar"><div class="brand"><div class="brand-symbol">☾</div><div><strong>MOON</strong><small>ESPI EXECUTIVE</small></div></div><nav aria-label="Navigation principale">
-${navButton("day","☀","Ma journée")}${navButton("dashboard","◫","Accueil")}${navButton("board","▥","Pipeline")}${navButton("opportunities","◇","Opportunités")}${navButton("contacts","♙","Contacts")}${navButton("tasks","☑","Tâches")}${navButton("search","⌕","Recherche")}${navButton("reporting","▤","Reporting")}<div class="nav-divider" aria-hidden="true"></div><div class="nav-group-label">ESPACE PERSONNEL</div>${navButton("account","☁","Mon compte")}${navButton("settings","⚙","Paramètres")}
+${navButton("day","☀","Ma journée")}${navButton("dashboard","◫","Accueil")}${navButton("board","▥","Pipeline")}${navButton("opportunities","◇","Opportunités")}${navButton("contacts","♙","Contacts")}${navButton("tasks","☑","Tâches")}${navButton("reporting","▤","Reporting")}<div class="nav-divider" aria-hidden="true"></div><div class="nav-group-label">ESPACE PERSONNEL</div>${navButton("account","☁","Mon compte")}${navButton("settings","⚙","Paramètres")}
 </nav><div class="sidebar-bottom"><span id="sidebar-sync-state">☁ Vérification de la synchronisation…</span><br>MOON · Votre espace sécurisé</div></aside>
 <div class="main"><div class="topbar"><div><div class="eyebrow">MOON / ${esc(page)}</div><h1>${title}</h1><div class="subtle">${subtitle}</div></div><div class="actions"><button class="btn" type="button" data-action="nav" data-page="account" title="Compte et synchronisation entre ordinateurs">☁ <span id="topbar-sync-label">Mon compte</span></button><button class="btn" data-action="voice-open" type="button">🎙 Dicter</button>
 ${page==="contacts"?`<button class="btn primary" data-action="new-contact">+ Nouveau contact</button>`:page==="tasks"?`<button class="btn primary" data-action="new-task">+ Nouvelle tâche</button>`:page==="settings"||page==="account"?"":`<button class="btn" data-action="new-task">+ Tâche</button><button class="btn primary" data-action="new-opportunity">+ Opportunité</button>`}</div></div>
-${toolbar()}<div id="view">${page==="day"?dayPage():page==="dashboard"?dashboard():page==="board"?board():page==="opportunities"?opportunities():page==="contacts"?contacts():page==="tasks"?tasks():page==="search"?searchNaturalPage():page==="reporting"?reportingPage():page==="account"?accountPage():settings()}</div></div></div>`;
+${toolbar()}<div id="view">${page==="day"?dayPage():page==="dashboard"?dashboard():page==="board"?board():page==="opportunities"?opportunities():page==="contacts"?contacts():page==="tasks"?tasks():page==="reporting"?reportingPage():page==="account"?accountPage():settings()}</div></div></div>`;
 }
 function metric(label,value,foot,icon,color=""){return `<div class="metric"><div class="label">${label}<span>${icon}</span></div><div class="number ${color}">${value}</div><div class="foot">${foot}</div></div>`}
 function dueClass(t){if(t.status==="done")return "won";if(t.due&&t.due<today())return "late";if(t.due===today())return "today";return ""}
@@ -254,7 +254,7 @@ ${input("company","Entreprise",c?.company)}${select("profile","Profil",["Salari�
 ${textarea("notes","Notes sur le contact",c?.notes)}
 </div><div class="form-footer"><div>${c?`<button type="button" class="btn danger" data-action="delete-contact" data-id="${esc(c.id)}">Supprimer</button>`:""}</div><div class="actions"><button type="button" class="btn" data-action="close-modal">Annuler</button><button type="button" class="btn primary" data-action="save-contact-direct">Enregistrer le contact</button></div></div></form>
 ${c?contactTimeline(c):""}
-${c?`<div class="row" style="margin-top:25px"><h3>Opportunités liées (${data.opportunities.filter(o=>o.contactId===c.id).length})</h3><button class="btn small" data-action="new-opportunity" data-contact-id="${esc(c.id)}">+ Opportunité</button></div>
+${c?`<div class="row" style="margin-top:25px"><h3>Opportunités liées (${data.opportunities.filter(o=>o.contactId===c.id).length})</h3><button class="btn small" data-action="new-task" data-contact-id="${esc(c.id)}">+ Tâche liée</button><button class="btn small" data-action="new-opportunity" data-contact-id="${esc(c.id)}">+ Opportunité</button></div>
 ${data.opportunities.filter(o=>o.contactId===c.id).map(o=>`<div class="task-item"><div class="task-content"><strong>${esc(o.training)}</strong><div class="subtle">${esc(o.stage)} · ${amountText(o)}</div></div><button class="btn small" data-action="edit-opportunity" data-id="${esc(o.id)}">Ouvrir</button></div>`).join("")}`:""}`);
 }
 function opportunityModal(o=null,contactId=""){
@@ -287,16 +287,18 @@ ${o?`<div class="row" style="margin-top:24px"><h3>Historique des échanges</h3><
 <form id="interaction-form" data-id="${esc(o.id)}"><div class="form-grid">${select("channel","Canal",CHANNELS,"Appel")}${input("date","Date / heure",new Date().toISOString().slice(0,16),"datetime-local",true)}${textarea("text","Commentaire *","")}</div><div class="form-footer"><span></span><button type="button" data-action="save-interaction-direct" class="btn primary">+ Ajouter un échange</button></div></form>
 <div class="timeline">${events.length?events.map(e=>`<div class="timeline-item"><div class="timeline-meta">${esc(e.channel)} · ${fmtDateTime(e.at)}</div><p>${esc(e.text)}</p></div>`).join(""):'<p class="subtle">Aucun échange enregistré.</p>'}</div>`:'<p class="subtle">Enregistrez l’opportunité pour ajouter des échanges et des tâches liées.</p>'}`);
 }
-function taskModal(t=null,opId=""){
-const opChoices=['<option value="">Aucune opportunité</option>',...data.opportunities.map(o=>`<option value="${esc(o.id)}" ${String(t?.opportunityId||opId)===String(o.id)?"selected":""}>${esc(o.training)} · ${esc(contactName(linkedContact(o)))}</option>`)].join("");
-const cChoices=['<option value="">Aucun contact</option>',...data.contacts.map(c=>`<option value="${esc(c.id)}" ${String(t?.contactId||"")===String(c.id)?"selected":""}>${esc(contactName(c))}</option>`)].join("");
+function taskLabel(type,opId,contactId){const o=opportunity(opId),c=o?linkedContact(o):contact(contactId);return [type||"Tâche",o?.training||(c?contactName(c):"")].filter(Boolean).join(" - ")}
+function taskModal(t=null,opId="",contactId=""){
+ const selectedOp=opportunity(t?.opportunityId||opId),selectedContact=selectedOp?.contactId||t?.contactId||contactId;
+ const lockedOp=!t&&!!selectedOp,lockedContact=!t&&!lockedOp&&!!selectedContact;
+const opChoices=['<option value="">Aucune opportunité</option>',...data.opportunities.map(o=>`<option value="${esc(o.id)}" ${String(selectedOp?.id||"")===String(o.id)?"selected":""}>${esc(o.training)} · ${esc(contactName(linkedContact(o)))}</option>`)].join("");
+const cChoices=['<option value="">Aucun contact</option>',...data.contacts.map(c=>`<option value="${esc(c.id)}" ${String(selectedContact||"")===String(c.id)?"selected":""}>${esc(contactName(c))}</option>`)].join("");
 modal(t?"Modifier la tâche":"Nouvelle tâche",`<form id="task-form"><input type="hidden" name="id" value="${esc(t?.id||"")}"><div class="form-grid">
-${input("title","Intitulé de la tâche *",t?.title,"text",true)}
+<label class="wide">Nom généré automatiquement<output class="field" id="task-auto-title" style="display:block">${esc(taskLabel(t?.type||"Relance",selectedOp?.id||"",selectedContact))}</output></label>
 ${select("type","Type",["Relance","Appel","Email","Rendez-vous","Administratif","Autre"],t?.type||"Relance")}
 ${input("due","Date d'échéance *",t?.due||today(),"date",true)}
 ${select("priority","Priorité",["Normale","Haute","Basse"],t?.priority||"Normale")}
-<label>Opportunité liée<select class="field" name="opportunityId">${opChoices}</select></label>
-<label>Contact lié<select class="field" name="contactId">${cChoices}</select></label>
+${lockedOp?`<input type="hidden" name="opportunityId" value="${esc(selectedOp.id)}"><input type="hidden" name="contactId" value="${esc(selectedContact)}"><div class="help">Opportunité : ${esc(selectedOp.training)} · Contact : ${esc(contactName(contact(selectedContact)))}</div>`:lockedContact?`<input type="hidden" name="contactId" value="${esc(selectedContact)}"><div class="help">Contact : ${esc(contactName(contact(selectedContact)))}</div><label>Opportunité liée<select class="field" name="opportunityId">${opChoices}</select></label>`:`<label>Opportunité liée<select class="field" name="opportunityId">${opChoices}</select></label><label>Contact lié<select class="field" name="contactId">${cChoices}</select></label>`}
 ${textarea("notes","Commentaire / détails",t?.notes)}
 </div>${formFooter(t,"task")}</form>`);
 }
@@ -343,10 +345,11 @@ if(save()){
 }
 }
 function taskSubmit(f){
-const v=Object.fromEntries(new FormData(f));v.title=v.title.trim();
-if(!v.title||!v.due){alert("Intitulé et échéance obligatoires.");return}
+const v=Object.fromEntries(new FormData(f));
+if(!v.due){alert("La date d’échéance est obligatoire.");return}
 const existing=task(v.id);const op=v.opportunityId?opportunity(v.opportunityId):null;
-const values={title:v.title,type:v.type,due:v.due,priority:v.priority,opportunityId:op?.id||"",contactId:op?.contactId||v.contactId,notes:v.notes};
+const contactId=op?.contactId||v.contactId||"";
+const values={title:taskLabel(v.type,op?.id||"",contactId),type:v.type,due:v.due,priority:v.priority,opportunityId:op?.id||"",contactId,notes:v.notes};
 if(existing)Object.assign(existing,values);else data.tasks.push({id:id(),created:new Date().toISOString(),status:"open",...values});
 if(save()){
  const savedId=existing?.id||data.tasks[data.tasks.length-1]?.id;
@@ -497,11 +500,11 @@ if(a==="natural-search"){naturalQuery=$("natural-query")?.value?.trim()||"";rend
 if(a==="copy-report"){if(typeof navigator!=="undefined"&&navigator.clipboard?.writeText)navigator.clipboard.writeText(reportText()).then(()=>toast("Bilan copié")).catch(()=>alert(reportText()));else alert(reportText());return}
 if(a==="apply-stage-suggestion"){const o=opportunity(x);if(!o)return;const next=suggestedStage(o);if(!next)return;if(!confirm("Passer cette opportunité à « "+next+" » ?"))return;if(markStage(o,next)&&save()){opportunityModal(o);toast("Étape mise à jour et historisée")}return}
 if(a.startsWith("cloud-")){window.MOON_CLOUD?.act(a);return}
-if(a==="nav"){page=btn.dataset.page;render();window.MOON_CLOUD?.refreshStatus?.()}
+if(a==="nav"){page=btn.dataset.page==="search"?"opportunities":btn.dataset.page;render();window.MOON_CLOUD?.refreshStatus?.()}
 else if(a==="voice-open")window.MOON_VOICE?.open();
 else if(a==="new-contact"||a==="new-contact-from-op"){afterContact=a==="new-contact-from-op";contactModal()}
 else if(a==="new-opportunity")opportunityModal(null,btn.dataset.contactId||"");
-else if(a==="new-task")taskModal(null,btn.dataset.opportunityId||"");
+else if(a==="new-task")taskModal(null,btn.dataset.opportunityId||"",btn.dataset.contactId||"");
 else if(a==="edit-contact")contactModal(contact(x));
 else if(a==="edit-opportunity")opportunityModal(opportunity(x));
 else if(a==="edit-task")taskModal(task(x));
@@ -541,6 +544,7 @@ else if(t.id==="range-from"){rangeFrom=t.value;render()}
 else if(t.id==="range-to"){rangeTo=t.value;render()}
 else if(t.id==="tax"){tax=t.value;render()}
 else if(t.id==="task-mode"){taskMode=t.value;render()}
+else if(t.closest?.("#task-form")&&["type","opportunityId","contactId"].includes(t.name)){const f=t.closest("#task-form"),o=opportunity(f.elements.opportunityId?.value),c=o?.contactId||f.elements.contactId?.value||"";const out=f.querySelector("#task-auto-title");if(out)out.textContent=taskLabel(f.elements.type?.value,o?.id||"",c)}
 else if(t.dataset.action==="toggle-task"){const item=task(t.dataset.id);if(item){item.status=t.checked?"done":"open";item.completed=item.status==="done"?new Date().toISOString():"";if(save())render()}}
 else if(t.id==="file-import"){const f=t.files?.[0];if(f)importFile(f,t.dataset.kind);t.value=""}
 });
