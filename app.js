@@ -1,6 +1,10 @@
 
 "use strict";
 const KEY="moon.crm.v2",OLD="moon.crm.v1";
+// Browser data are scoped to the authenticated Supabase user, never shared between accounts.
+let activeOwner=null;
+const scopedKey=()=>activeOwner?KEY+".user."+activeOwner:KEY;
+const emptyCRM=()=>({version:2,contacts:[],opportunities:[],tasks:[]});
 const STAGES=["Nouveau","Contacté","En discussion","RDV / Proposition","Gagné","Perdu"];
 const TYPES=["VAE","Formation courte","Autre"];
 const CHANNELS=["Appel","Email","SMS","Visioconférence","Rendez-vous","Note"];
@@ -49,15 +53,17 @@ data.opportunities.push({id:o.id,contactId:c.id,training:o.training||"Projet san
 return true;
 }
 function load(){
+if(window.MOON_CLOUD&&!activeOwner)return;
 let loaded=false;
-try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s&&Array.isArray(s.contacts)&&Array.isArray(s.opportunities)&&Array.isArray(s.tasks)){data=s;loaded=true}}catch(e){console.error("MOON loading",e)}
-if(!loaded){migrateOld();save(false)}normalize();
+try{const s=JSON.parse(localStorage.getItem(scopedKey())||"null");if(s&&Array.isArray(s.contacts)&&Array.isArray(s.opportunities)&&Array.isArray(s.tasks)){data=s;loaded=true}}catch(e){console.error("MOON loading",e)}
+if(!loaded){if(!activeOwner)migrateOld();save(false)}normalize();
 }
 function save(show=true){
+ if(window.MOON_CLOUD&&!activeOwner)return false;
  try{
   const serialized=JSON.stringify(data);
-  localStorage.setItem(KEY,serialized);
-  if(localStorage.getItem(KEY)!==serialized)throw Error("Vérification du stockage local échouée.");
+  localStorage.setItem(scopedKey(),serialized);
+  if(localStorage.getItem(scopedKey())!==serialized)throw Error("Vérification du stockage local échouée.");
  }catch(e){alert("Impossible d'enregistrer dans ce navigateur : "+e.message);return false}
  if(show){
   try{window.MOON_CLOUD?.onLocalSave?.()}catch(e){console.error("MOON cloud notification",e)}
@@ -307,7 +313,7 @@ if(existing){Object.assign(existing,{first:v.first.trim(),last:v.last,email:v.em
 else{const c={id:id(),created:today(),first:v.first.trim(),last:v.last,email:v.email.trim(),phone:v.phone.trim(),company:v.company.trim(),profile:v.profile,notes:v.notes};data.contacts.push(c)}
 if(save()){
  const savedId=existing?.id||data.contacts[data.contacts.length-1]?.id;
- const verified=JSON.parse(localStorage.getItem(KEY)||"null")?.contacts?.some(c=>c.id===savedId);
+ const verified=JSON.parse(localStorage.getItem(scopedKey())||"null")?.contacts?.some(c=>c.id===savedId);
  if(!verified){alert("Le contact n'a pas été confirmé dans le stockage local. Le formulaire reste ouvert.");return}
  const openOpportunity=afterContact;afterContact=false;
  page="contacts";closeModal();render();
@@ -326,7 +332,7 @@ if(existing){o=existing;Object.assign(o,record);if(o.stage!==stage){if(!markStag
 else{o={id:id(),created:today(),events:[],stage:"Nouveau",...record};data.opportunities.push(o);if(stage!=="Nouveau"){if(!markStage(o,stage,v.lostReason)){data.opportunities.pop();return}}}
 if(!isActive(o))o.follow="";if((o.stage==="Gagné"||o.stage==="Perdu")&&!o.closed)o.closed=today();
 if(save()){
- const verified=JSON.parse(localStorage.getItem(KEY)||"null")?.opportunities?.some(x=>x.id===o.id);
+ const verified=JSON.parse(localStorage.getItem(scopedKey())||"null")?.opportunities?.some(x=>x.id===o.id);
  if(!verified){alert("Opportunité non confirmée dans le stockage.");return}
  closeModal();page="opportunities";render();toast("Opportunité enregistrée et vérifiée");
 }
@@ -339,7 +345,7 @@ const values={title:v.title,type:v.type,due:v.due,priority:v.priority,opportunit
 if(existing)Object.assign(existing,values);else data.tasks.push({id:id(),created:new Date().toISOString(),status:"open",...values});
 if(save()){
  const savedId=existing?.id||data.tasks[data.tasks.length-1]?.id;
- const verified=JSON.parse(localStorage.getItem(KEY)||"null")?.tasks?.some(x=>x.id===savedId);
+ const verified=JSON.parse(localStorage.getItem(scopedKey())||"null")?.tasks?.some(x=>x.id===savedId);
  if(!verified){alert("Tâche non confirmée dans le stockage.");return}
  closeModal();page="tasks";taskMode="all";render();toast("Tâche enregistrée et vérifiée");
 }
@@ -350,7 +356,7 @@ const v=Object.fromEntries(new FormData(f));if(!v.text.trim()){alert("Saisissez 
 o.events??=[];o.events.push({at:new Date(v.date).toISOString(),channel:v.channel,text:v.text.trim()});
 if(save()){
  const last=o.events[o.events.length-1];
- const verified=JSON.parse(localStorage.getItem(KEY)||"null")?.opportunities?.find(x=>x.id===o.id)?.events?.some(x=>x.at===last.at&&x.text===last.text);
+ const verified=JSON.parse(localStorage.getItem(scopedKey())||"null")?.opportunities?.find(x=>x.id===o.id)?.events?.some(x=>x.at===last.at&&x.text===last.text);
  if(!verified){alert("Échange non confirmé dans le stockage.");return}
  opportunityModal(o);toast(suggestedStage(o)?"Échange enregistré · suggestion de statut disponible en haut de la fiche":"Échange enregistré et vérifié");
 }
@@ -474,7 +480,8 @@ function handleFormSubmit(e){
  }
 }
 function init(){
-load();render();
+// Do not load unscoped legacy CRM data before authentication.
+if(!window.MOON_CLOUD)load();render();
 document.addEventListener("click",onClick);
 document.addEventListener("change",e=>{
 const t=e.target;
@@ -498,12 +505,32 @@ $("modal").addEventListener("click",e=>{if(e.target===$("modal"))closeModal()});
 
 /* Optional Supabase bridge: never uploads without confirmation in cloud.js. */
 window.MOON_CLOUD_BRIDGE={
- clearSession:()=>{data={version:2,contacts:[],opportunities:[],tasks:[]};try{localStorage.removeItem(KEY)}catch(e){console.error(e)}render()},
+ activate:ownerId=>{
+  if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(ownerId||"")))return false;
+  if(activeOwner===ownerId)return true;
+  data=emptyCRM();activeOwner=ownerId;
+  try{const saved=JSON.parse(localStorage.getItem(scopedKey())||"null");if(saved&&Array.isArray(saved.contacts)&&Array.isArray(saved.opportunities)&&Array.isArray(saved.tasks))data=saved}catch(e){console.error("MOON scoped loading",e)}
+  normalize();render();return true;
+ },
+ ownerId:()=>activeOwner,
+ clearSession:(discardSynced=false)=>{
+  const key=activeOwner?scopedKey():null;
+  data=emptyCRM();activeOwner=null;
+  if(discardSynced&&key){try{
+   localStorage.removeItem(key);
+   // All per-account restore checkpoints also contain CRM data.
+   const prefix=key+".precloud.";
+   for(let i=localStorage.length-1;i>=0;i--){const k=localStorage.key(i);if(k?.startsWith(prefix))localStorage.removeItem(k)}
+  }catch(e){console.error("MOON account cleanup",e)}}
+  const dlg=document.getElementById("modal");if(dlg?.open)dlg.close();
+  const voice=document.getElementById("voice-modal");if(voice?.open)voice.close();
+  render();
+ },
  show:()=>render(),
  snapshot:()=>JSON.parse(JSON.stringify(data)),
  restore:record=>{
   if(!record||!Array.isArray(record.contacts)||!Array.isArray(record.opportunities)||!Array.isArray(record.tasks))return false;
-  const current=JSON.stringify(data),checkpoint=KEY+".precloud."+Date.now();
+  const current=JSON.stringify(data),checkpoint=scopedKey()+".precloud."+Date.now();
   try{
    // Stop rather than overwriting without a recovery point.
    localStorage.setItem(checkpoint,current);
@@ -514,7 +541,7 @@ window.MOON_CLOUD_BRIDGE={
    return true;
   }catch(e){
    data=JSON.parse(current);
-   try{localStorage.setItem(KEY,current)}catch{}
+   try{localStorage.setItem(scopedKey(),current)}catch{}
    console.error("MOON cloud restore",e);
    return false;
   }
@@ -560,7 +587,7 @@ function saveVoiceConversation(v){
    if(!duplicate)data.tasks.push({id:id(),created:new Date().toISOString(),status:"open",title:"Relancer "+contactName(c),type:"Relance",due:v.due,priority:"Normale",opportunityId:o.id,contactId:c.id,notes:"Suite au compte rendu vocal"});
   }
   if(!save()){data=JSON.parse(snapshot);return {ok:false,error:"Enregistrement local impossible."}}
-  const verified=JSON.parse(localStorage.getItem(KEY)||"null");
+  const verified=JSON.parse(localStorage.getItem(scopedKey())||"null");
   if(!verified?.contacts?.some(x=>x.id===c.id)||!verified?.opportunities?.some(x=>x.id===o.id)){data=JSON.parse(snapshot);return {ok:false,error:"Vérification de sauvegarde échouée."}}
   page="contacts";
   return {ok:true,message:"Échange enregistré : contact, opportunité, historique"+(v.due?" et relance":"")};
