@@ -41,3 +41,38 @@ dialog textarea{min-height:83px;resize:vertical}.form-footer{display:flex;align-
 .help{padding:13px;background:#292742;color:#d6d0ff;border-radius:10px;font-size:12px;margin:12px 0;line-height:1.55}
 @media(max-width:1080px){.grid-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.split{grid-template-columns:1fr}}
 @media(max-width:720px){.shell{display:block}.sidebar{position:sticky;top:0;z-index:4;padding:9px 12px;display:flex;flex-direction:row;align-items:center;gap:8px;overflow-x:auto}.brand{padding:0;border:0;flex-shrink:0}.brand-symbol{width:31px;height:31px;font-size:20px}.brand strong{font-size:16px}.brand small,.sidebar-bottom{display:none}.sidebar nav{display:flex;white-space:nowrap;gap:2px}.nav-button{padding:9px;font-size:11px;gap:5px;width:auto}.nav-ico{font-size:13px;width:auto}.main{padding:18px 14px 55px}.topbar{display:block}.topbar .actions{margin-top:14px}.grid-metrics{gap:8px}.metric{padding:13px}.metric .number{font-size:19px}.filters{gap:6px}.field.search{min-width:100%;width:100%}dialog .dialog-body{padding:15px}dialog .dialog-head{padding:16px}dialog form .form-grid{grid-template-columns:1fr}.task-item{align-items:flex-start}.task-actions{flex-direction:column}}
+
+
+/* Commercial daily workspace */
+.day-workspace{display:grid;gap:18px}
+.day-hero{display:flex;justify-content:space-between;align-items:center;gap:22px;background:linear-gradient(115deg,#242447,#1a2441 65%,#17253d);border:1px solid #414569;border-radius:19px;padding:27px 30px}
+.day-kicker{text-transform:uppercase;letter-spacing:1.5px;color:#aaa9df;font-size:10px;font-weight:800}
+.day-hero h2{font-size:24px;letter-spacing:-.6px;margin:8px 0}
+.day-hero p{font-size:13px;color:#b9c4df;margin:0;max-width:560px}
+.day-hero-actions{display:flex;gap:8px;flex-wrap:wrap}
+.day-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.day-stat{text-align:left;background:#151c30;border:1px solid #303952;border-radius:14px;padding:18px 20px;color:inherit;display:grid;gap:6px;transition:border-color .15s,transform .15s}
+.day-stat:hover{border-color:#8d7bec;transform:translateY(-1px)}
+.day-stat span{font-size:12px;color:#b5bfd8;font-weight:700}
+.day-stat strong{font-size:29px;letter-spacing:-.7px}
+.day-stat small{font-size:11px;color:#8495b8}
+.day-columns{display:grid;grid-template-columns:minmax(0,1.8fr) minmax(265px,1fr);gap:16px;align-items:start}
+.day-primary,.day-secondary{min-width:0}.day-secondary{display:grid;gap:16px}
+.day-panel{background:#151c30;border:1px solid #303952;border-radius:17px;padding:21px;min-width:0}
+.day-panel-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:17px}
+.day-panel-head h2{font-size:17px;margin-top:5px}
+.day-pill,.day-count{background:#292b4c;color:#d5ceff;padding:5px 9px;border-radius:20px;font-size:11px;font-weight:800}
+.day-section+.day-section,.day-section:not(:first-child){border-top:1px solid #303952}
+.day-section{padding:8px 0 14px}.day-section-head{margin:0 0 8px}.day-section-head h3{display:flex;align-items:center;gap:9px;font-size:13px}
+.day-action{display:flex;align-items:center;gap:12px;padding:14px 4px;border-bottom:1px solid #29334a}
+.day-action:last-child{border-bottom:0}.day-action-main{min-width:0;flex:1}
+.day-action-main strong{font-size:13px;display:block;overflow-wrap:anywhere}
+.day-action-meta{font-size:11px;color:#99a9c8;margin-top:5px;line-height:1.5}
+.day-avatar{display:grid;place-items:center;flex:0 0 34px;height:34px;border-radius:11px;background:#35315e;color:#d9d2ff;font-weight:800}
+.day-empty{font-size:12px;color:#9faccc;padding:10px 0 16px;margin:0}
+.day-next{display:grid;gap:5px;width:100%;text-align:left;background:transparent;border:0;border-bottom:1px solid #2b3550;color:#f0f2fa;padding:12px 2px}
+.day-next:hover{color:#b9adff}.day-next span,.day-next small{font-size:11px;color:#9eacc9}.day-next strong{font-size:13px}
+.day-text-link{background:none;border:0;color:#b6a8ff;font-size:12px;font-weight:700;margin-top:14px;padding:4px 0}
+#day-overdue,#day-today,#day-dormant{scroll-margin-top:90px}
+@media(max-width:1080px){.day-columns{grid-template-columns:1fr}.day-secondary{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:720px){.day-hero{display:block;padding:20px}.day-hero h2{font-size:20px}.day-hero-actions{margin-top:18px}.day-summary{gap:7px}.day-stat{padding:12px 10px}.day-stat strong{font-size:23px}.day-stat span{font-size:11px}.day-stat small{font-size:10px}.day-secondary{grid-template-columns:1fr}.day-panel{padding:16px}.day-action{gap:8px}.day-action .btn{padding:7px 9px}.day-hero-actions .btn{flex:1}}

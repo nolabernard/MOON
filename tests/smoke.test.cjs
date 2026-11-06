@@ -155,3 +155,7 @@ test("Four commercial intelligence features: contact timeline, suggestions, natu
 test("Pipeline suggestions recognize accented French, feminine and do not regress stages",()=>{
  run('load();const o={id:"o",stage:"Nouveau",notes:"",events:[{text:"La candidate est intéressée par la VAE"}]};if(suggestedStage(o)!=="En discussion")throw Error("Feminine interested missed");o.events=[{text:"Proposition envoyée à la candidate"}];if(suggestedStage(o)!=="RDV / Proposition")throw Error("Accented proposal missed");o.stage="RDV / Proposition";if(suggestedStage(o)!=="")throw Error("Must not regress advanced stage");o.stage="Gagné";if(suggestedStage(o)!=="")throw Error("Must not suggest on won deal");');
 });
+
+test("Ma journée: prioritize overdue and today without modifying data",()=>{
+ run('load();data.contacts=[{id:"c1",first:"Alice",last:"Martin"}];data.opportunities=[{id:"o1",contactId:"c1",training:"VAE",stage:"Nouveau",follow:"2020-01-01",created:"2020-01-01",events:[]}];data.tasks=[{id:"t1",title:"Appeler Alice",due:"2020-01-01",status:"open",contactId:"c1"},{id:"t2",title:"Préparer un dossier",due:"2099-01-01",status:"open"}];const before=JSON.stringify(data);const html=dayPage();if(!html.includes("À traiter maintenant")||!html.includes("Appeler Alice")||!html.includes("À réactiver")||!html.includes("Prochaines actions")||!html.includes("day-jump"))throw Error("Daily workspace incomplete");if(JSON.stringify(data)!==before)throw Error("Day view mutated data");');
+});

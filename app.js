@@ -93,7 +93,7 @@ const [title,subtitle]=titles[page];
 $("app").innerHTML=`<div class="shell"><aside class="sidebar"><div class="brand"><div class="brand-symbol">☾</div><div><strong>MOON</strong><small>ESPI EXECUTIVE</small></div></div><nav aria-label="Navigation principale">
 ${navButton("day","☀","Ma journée")}${navButton("dashboard","◫","Accueil")}${navButton("board","▥","Pipeline")}${navButton("opportunities","◇","Opportunités")}${navButton("contacts","♙","Contacts")}${navButton("tasks","☑","Tâches")}${navButton("search","⌕","Recherche")}${navButton("reporting","▤","Reporting")}${navButton("settings","⚙","Réglages")}
 </nav><div class="sidebar-bottom">MOON · Version 3<br>Stockage local avec synchronisation cloud facultative</div></aside>
-<div class="main"><div class="topbar"><div><div class="eyebrow">MOON / ${esc(page)}</div><h1>${title}</h1><div class="subtle">${subtitle}</div></div><div class="actions"><button class="btn" data-action="voice-open" type="button">🎙 Dicter</button>
+<div class="main"><div class="topbar"><div><div class="eyebrow">MOON / ${esc(page)}</div><h1>${title}</h1><div class="subtle">${subtitle}</div></div><div class="actions"><button class="btn" type="button" data-action="nav" data-page="settings" title="Connexion et synchronisation entre ordinateurs">☁ Mon compte</button><button class="btn" data-action="voice-open" type="button">🎙 Dicter</button>
 ${page==="contacts"?`<button class="btn primary" data-action="new-contact">+ Nouveau contact</button>`:page==="tasks"?`<button class="btn primary" data-action="new-task">+ Nouvelle tâche</button>`:page==="settings"?"":`<button class="btn" data-action="new-task">+ Tâche</button><button class="btn primary" data-action="new-opportunity">+ Opportunité</button>`}</div></div>
 ${toolbar()}<div id="view">${page==="day"?dayPage():page==="dashboard"?dashboard():page==="board"?board():page==="opportunities"?opportunities():page==="contacts"?contacts():page==="tasks"?tasks():page==="search"?searchNaturalPage():page==="reporting"?reportingPage():settings()}</div></div></div>`;
 }
@@ -118,17 +118,29 @@ function priorityScore(o){
  if(o.stage==="RDV / Proposition")score+=10;
  return Math.min(100,score);
 }
+
 function dayPage(){
- const active=data.opportunities.filter(isActive),due=data.tasks.filter(t=>t.status==="open"&&t.due&&t.due<=today()).sort((a,b)=>compare(a.due,b.due));
- const overdue=active.filter(o=>o.follow&&o.follow<=today()).sort((a,b)=>compare(a.follow,b.follow));
- const dormant=active.filter(o=>!o.follow&&daysSince(lastActivity(o))>=7).sort((a,b)=>priorityScore(b)-priorityScore(a));
- const urgent=active.slice().sort((a,b)=>priorityScore(b)-priorityScore(a)).slice(0,6);
- const oppRow=o=>'<div class="task-item"><div class="task-content"><div class="task-title">'+esc(contactName(linkedContact(o)))+' · '+esc(o.training)+'</div><div class="task-meta">'+esc(o.stage)+' · Priorité '+priorityScore(o)+'/100'+(o.follow?' · Relance '+esc(dt(o.follow)):' · Dernier mouvement il y a '+(daysSince(lastActivity(o))??"—")+' j')+'</div></div><button type="button" class="btn small" data-action="edit-opportunity" data-id="'+esc(o.id)+'">Ouvrir</button></div>';
- return '<section class="grid-metrics">'+metric("Tâches à traiter",String(due.length),"Échéance aujourd’hui ou dépassée","☑")+metric("Relances prévues",String(overdue.length),"Dossiers actifs à rappeler","↗")+metric("Sans nouvelles",String(dormant.length),"Aucune activité depuis 7 jours","◷")+'</section>'+
- '<section class="panel"><h2>À faire aujourd’hui</h2>'+(due.length?due.map(taskRow).join(""):'<p class="subtle">Aucune tâche en retard ou prévue aujourd’hui.</p>')+'</section>'+
- '<section class="panel"><h2>Contacts à relancer</h2>'+(overdue.length?overdue.map(oppRow).join(""):'<p class="subtle">Aucune relance en attente.</p>')+'</section>'+
- '<section class="panel"><h2>Dossiers sans nouvelles depuis 7 jours</h2><p class="subtle">Suggestion fondée sur le dernier événement enregistré, sans envoi automatique.</p>'+(dormant.length?dormant.map(oppRow).join(""):'<p class="subtle">Aucun dossier détecté.</p>')+'</section>'+
- '<section class="panel"><h2>Priorités commerciales</h2><p class="subtle">Score sur 100 : retard de relance, inactivité, montant et avancement.</p>'+(urgent.length?urgent.map(oppRow).join(""):'<p class="subtle">Aucune opportunité active.</p>')+'</section>';
+ const active=data.opportunities.filter(isActive);
+ const openTasks=data.tasks.filter(t=>t.status==="open");
+ const overdueTasks=openTasks.filter(t=>t.due&&t.due<today()).sort((a,b)=>compare(a.due,b.due));
+ const todayTasks=openTasks.filter(t=>t.due===today()).sort((a,b)=>String(b.priority).localeCompare(String(a.priority)));
+ const laterTasks=openTasks.filter(t=>!t.due||t.due>today()).sort((a,b)=>compare(a.due||"9999",b.due||"9999"));
+ const overdueOps=active.filter(o=>o.follow&&o.follow<today()).sort((a,b)=>compare(a.follow,b.follow));
+ const todayOps=active.filter(o=>o.follow===today()).sort((a,b)=>priorityScore(b)-priorityScore(a));
+ const dormant=active.filter(o=>!o.follow&&(daysSince(lastActivity(o))??0)>=7).sort((a,b)=>priorityScore(b)-priorityScore(a));
+ const pending=overdueTasks.length+todayTasks.length+overdueOps.length+todayOps.length;
+ const firstName=overdueTasks[0]||todayTasks[0]||overdueOps[0]||todayOps[0];
+ const taskCard=(t,late)=>'<div class="day-action"><input class="task-check" type="checkbox" data-action="toggle-task" data-id="'+esc(t.id)+'" aria-label="Terminer '+esc(t.title)+'"><div class="day-action-main"><strong>'+esc(t.title)+'</strong><div class="day-action-meta">'+esc(taskRelation(t)||t.type||"Tâche")+' · '+esc(late?"En retard depuis "+dt(t.due):"Aujourd’hui")+'</div></div><button class="btn small" type="button" data-action="edit-task" data-id="'+esc(t.id)+'">Ouvrir</button></div>';
+ const oppCard=(o,late)=>{const c=linkedContact(o);return '<div class="day-action"><span class="day-avatar" aria-hidden="true">'+esc((contactName(c)||"?").slice(0,1).toUpperCase())+'</span><div class="day-action-main"><strong>'+esc(contactName(c))+'</strong><div class="day-action-meta">'+esc(o.training||"Dossier")+' · '+esc(o.stage)+(late?' · En retard depuis '+esc(dt(o.follow)):' · À relancer aujourd’hui')+'</div></div><button class="btn small" type="button" data-action="edit-opportunity" data-id="'+esc(o.id)+'">Ouvrir</button></div>'};
+ const section=(title,count,content,empty)=>'<section class="day-section"><div class="day-section-head"><h3>'+title+' <span class="day-count">'+count+'</span></h3></div>'+(count?content:'<p class="day-empty">'+empty+'</p>')+'</section>';
+ const formatted=new Date(today()+"T12:00:00").toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"});
+ return '<div class="day-workspace"><div class="day-hero"><div><div class="day-kicker">'+esc(formatted)+'</div><h2>'+ (pending?'Votre journée, en un coup d’œil':'Tout est à jour pour aujourd’hui')+'</h2><p>'+ (pending?pending+' action(s) à traiter aujourd’hui ou en retard. Commencez par les plus urgentes.':'Aucune échéance immédiate. Profitez-en pour préparer vos prochaines relances.')+'</p></div><div class="day-hero-actions"><button type="button" class="btn primary" data-action="new-task">+ Planifier une action</button><button type="button" class="btn" data-action="new-opportunity">+ Opportunité</button></div></div>'+
+ '<div class="day-summary"><button class="day-stat" type="button" data-action="day-jump" data-target="day-overdue"><span>En retard</span><strong>'+ (overdueTasks.length+overdueOps.length)+'</strong><small>À régulariser</small></button><button class="day-stat" type="button" data-action="day-jump" data-target="day-today"><span>À faire aujourd’hui</span><strong>'+(todayTasks.length+todayOps.length)+'</strong><small>Actions planifiées</small></button><button class="day-stat" type="button" data-action="day-jump" data-target="day-dormant"><span>À réactiver</span><strong>'+dormant.length+'</strong><small>Dossiers sans suivi</small></button></div>'+
+ '<div class="day-columns"><div class="day-primary"><div class="day-panel"><div class="day-panel-head"><div><span class="day-kicker">FILE D’ACTIONS</span><h2>À traiter maintenant</h2></div><span class="day-pill">'+pending+' à traiter</span></div>'+
+ '<div id="day-overdue">'+section("En retard",overdueTasks.length+overdueOps.length,overdueTasks.map(t=>taskCard(t,true)).join("")+overdueOps.map(o=>oppCard(o,true)).join(""),"Aucune action en retard. Bien joué !")+'</div>'+
+ '<div id="day-today">'+section("Aujourd’hui",todayTasks.length+todayOps.length,todayTasks.map(t=>taskCard(t,false)).join("")+todayOps.map(o=>oppCard(o,false)).join(""),"Rien de prévu pour aujourd’hui.")+'</div></div></div>'+
+ '<aside class="day-secondary"><div class="day-panel"><div class="day-panel-head"><div><span class="day-kicker">ANTICIPER</span><h2>Prochaines actions</h2></div></div>'+(laterTasks.length?laterTasks.slice(0,5).map(t=>'<button type="button" class="day-next" data-action="edit-task" data-id="'+esc(t.id)+'"><span>'+esc(dt(t.due)||"À planifier")+'</span><strong>'+esc(t.title)+'</strong></button>').join(""):'<p class="day-empty">Aucune tâche à venir.</p>')+'<button type="button" class="day-text-link" data-action="nav" data-page="tasks">Voir toutes les tâches →</button></div>'+
+ '<div class="day-panel" id="day-dormant"><div class="day-panel-head"><div><span class="day-kicker">OPPORTUNITÉS</span><h2>À réactiver</h2></div><span class="day-count">'+dormant.length+'</span></div>'+(dormant.length?dormant.slice(0,5).map(o=>'<button type="button" class="day-next" data-action="edit-opportunity" data-id="'+esc(o.id)+'"><span>'+esc((daysSince(lastActivity(o))??0)+' jours sans échange')+'</span><strong>'+esc(contactName(linkedContact(o)))+'</strong><small>'+esc(o.training)+'</small></button>').join(""):'<p class="day-empty">Tous les dossiers actifs ont un suivi récent ou une relance planifiée.</p>')+'</div></aside></div></div>';
 }
 
 function contactTimeline(c){
@@ -422,6 +434,7 @@ if(["save-contact-direct","save-opportunity-direct","save-task-direct","save-int
  }catch(err){console.error("MOON direct save failure",kind,err);alert("Enregistrement interrompu : "+(err?.message||err))}
  return;
 }
+if(a==="day-jump"){document.getElementById(btn.dataset.target)?.scrollIntoView({behavior:"smooth",block:"start"});return}
 if(a==="natural-search"){naturalQuery=$("natural-query")?.value?.trim()||"";render();return}
 if(a==="copy-report"){if(typeof navigator!=="undefined"&&navigator.clipboard?.writeText)navigator.clipboard.writeText(reportText()).then(()=>toast("Bilan copié")).catch(()=>alert(reportText()));else alert(reportText());return}
 if(a==="apply-stage-suggestion"){const o=opportunity(x);if(!o)return;const next=suggestedStage(o);if(!next)return;if(!confirm("Passer cette opportunité à « "+next+" » ?"))return;if(markStage(o,next)&&save()){opportunityModal(o);toast("Étape mise à jour et historisée")}return}
