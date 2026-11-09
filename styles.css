@@ -336,3 +336,11 @@ html[data-theme="light"] .status-filter-options{background:#fff;border-color:#cb
 html[data-theme="light"] .status-filter-option:hover{background:#e9eef9}
 @media(prefers-color-scheme:light){html[data-theme="system"] .voice-section{background:#f4f6fc;border-color:#cbd5e4}html[data-theme="system"] .status-filter-options{background:#fff;border-color:#cbd5e4;box-shadow:0 16px 36px #14253b33}html[data-theme="system"] .status-filter-option:hover{background:#e9eef9}}
 @media(max-width:640px){.voice-form-grid{grid-template-columns:1fr}.voice-section{padding:12px}.form-grid{grid-template-columns:1fr}.status-filter-options{left:auto;right:0}#voice-modal .dialog-body{padding:14px}}
+
+/* Discreet, keyboard-accessible exchange editing */
+.event-edit-btn{display:inline-flex;align-items:center;justify-content:center;margin-left:9px;width:27px;height:27px;padding:0;border:1px solid transparent;border-radius:7px;background:transparent;color:#aeb9d5;font-size:17px;cursor:pointer;vertical-align:middle}
+.event-edit-btn:hover,.event-edit-btn:focus-visible{color:#fff;background:#38446a;border-color:#6c77a0}
+.event-edit-btn:focus-visible{outline:2px solid #a18bff;outline-offset:2px}
+html[data-theme="light"] .event-edit-btn{color:#53617a}
+html[data-theme="light"] .event-edit-btn:hover,html[data-theme="light"] .event-edit-btn:focus-visible{color:#25345b;background:#e4e9fa}
+@media(prefers-color-scheme:light){html[data-theme="system"] .event-edit-btn{color:#53617a}html[data-theme="system"] .event-edit-btn:hover{color:#25345b;background:#e4e9fa}}
