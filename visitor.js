@@ -86,12 +86,12 @@
  function adminHtml(){
   const rows=links.map(l=>{
    const active=!l.revoked_at&&(!l.expires_at||new Date(l.expires_at)>new Date());
-   return '<div class="visitor-link-row"><div><strong>'+esc(l.label)+'</strong><small>'+esc(new Date(l.created_at).toLocaleDateString("fr-FR"))+' · '+(active?"Actif":"Désactivé")+'</small></div>'+(active?'<button type="button" class="btn small danger" data-action="visitor-revoke" data-id="'+esc(l.id)+'">Désactiver</button>':'<span class="subtle">Accès coupé</span>')+'</div>';
+   return '<div class="visitor-link-row"><div><strong>'+esc(l.label)+'</strong><small>'+esc(new Date(l.created_at).toLocaleDateString("fr-FR"))+' · '+(active?"Actif":"Désactivé")+'</small></div>'+(active?'<div class="actions"><button type="button" class="btn small" data-action="visitor-recover" data-id="'+esc(l.id)+'" data-legacy="'+(!l.recoverable)+'">'+(l.recoverable?"Copier":"Renouveler et copier")+'</button><button type="button" class="btn small danger" data-action="visitor-revoke" data-id="'+esc(l.id)+'">Désactiver</button></div>':'<span class="subtle">Accès coupé</span>')+'</div>';
   }).join("");
   return '<section id="visitor-management" class="panel visitor-management"><div class="section-heading"><div><div class="eyebrow">PARTAGE SÉCURISÉ</div><h2>Accès visiteurs</h2></div><span class="settings-icon">◉</span></div>'+
   '<p class="subtle">Créez un lien privé pour consulter toutes les données de MOON, sauf Mon compte et Paramètres. Accès sans connexion, lecture seule, mise à jour automatique toutes les 15 secondes.</p>'+
   '<div class="visitor-create"><label>Nom du lien (pour vous repérer)<input id="visitor-link-label" class="field" maxlength="100" autocomplete="off" placeholder="Ex. Direction, collaborateur, partenaire"></label><button type="button" class="btn primary" data-action="visitor-create" '+(adminBusy?"disabled":"")+'>Générer un lien privé</button></div>'+
-  (createdLink?'<div class="visitor-created"><strong>Lien créé — copiez-le maintenant</strong><p class="subtle">Par sécurité, le lien complet ne sera plus récupérable après rechargement de cette page. Vous pourrez toujours le désactiver et en générer un autre.</p><div class="visitor-url"><input id="visitor-created-url" class="field" readonly aria-label="Nouveau lien visiteur" value="'+esc(createdLink)+'"><button class="btn primary" type="button" data-action="visitor-copy">Copier</button></div></div>':"")+
+  (createdLink?'<div class="visitor-created"><strong>Lien visiteur prêt à partager</strong><p class="subtle">Vous pourrez retrouver ce lien à tout moment avec le bouton Copier de la liste.</p><div class="visitor-url"><input id="visitor-created-url" class="field" readonly aria-label="Nouveau lien visiteur" value="'+esc(createdLink)+'"><button class="btn primary" type="button" data-action="visitor-copy">Copier</button></div></div>':"")+
   (adminError?'<p role="alert" class="auth-error">'+esc(adminError)+'</p>':"")+
   (adminMessage?'<p role="status" class="subtle">'+esc(adminMessage)+'</p>':"")+
   '<div class="row"><h3>Liens générés</h3><button class="btn small" type="button" data-action="visitor-list" '+(adminBusy?"disabled":"")+'>Actualiser</button></div>'+
@@ -125,6 +125,7 @@
    catch(e){const inp=$("visitor-created-url");inp?.focus();inp?.select();adminMessage="Sélectionnez et copiez le lien affiché."}
    updateAdmin();return;
   }
+  if(action==="visitor-recover"&&btn.dataset.legacy==="true"&&!confirm("Ce lien ancien ne peut pas être récupéré. Le renouveler désactivera son ancienne adresse. Continuer ?"))return;
   if(action==="visitor-list"){await maybeLoadAdminLinks(true);return}
   const label=String($("visitor-link-label")?.value||"").trim();
   if(action==="visitor-create"&&(!label||label.length>100)){adminError="Indiquez un nom pour identifier ce lien.";updateAdmin();return}
@@ -137,6 +138,16 @@
     const base=location.origin+location.pathname;
     createdLink=base+"#visit="+encodeURIComponent(response.token);
     adminMessage="Lien actif. Copiez-le et transmettez-le à votre visiteur.";
+   }else if(action==="visitor-recover"){
+    const response=await call("recover",{id:btn.dataset.id},jwt);
+    const base=location.origin+location.pathname;
+    createdLink=base+"#visit="+encodeURIComponent(response.token);
+    try{
+     await navigator.clipboard.writeText(createdLink);
+     adminMessage=response.rotated?"Nouveau lien copié. L'ancien lien n'est plus valide.":"Lien visiteur copié dans le presse-papiers.";
+    }catch(e){
+     adminMessage=response.rotated?"Nouveau lien généré : copiez-le ci-dessous. L'ancien lien n'est plus valide.":"Lien retrouvé : sélectionnez-le et copiez-le ci-dessous.";
+    }
    }else if(action==="visitor-revoke"){
     await call("revoke",{id:btn.dataset.id},jwt);
     adminMessage="Lien désactivé. Le visiteur n'aura plus accès aux données.";
