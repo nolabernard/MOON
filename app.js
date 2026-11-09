@@ -288,7 +288,7 @@ const PIPELINE_VISIBLE_LIMIT=10;
 const pipelineExpandedStages=new Set();
 function board(){
 const all=scoped();
-return `<div class="board">${STAGES.map(stage=>{const list=all.filter(o=>o.stage===stage),total=sum(list),expanded=pipelineExpandedStages.has(stage),visible=expanded?list:list.slice(0,PIPELINE_VISIBLE_LIMIT),remaining=list.length-PIPELINE_VISIBLE_LIMIT;return `<section class="lane" data-stage="${esc(stage)}"><div class="lane-header"><span class="lane-title">${esc(stage)}</span><span class="badge">${list.length}</span></div><div class="amount">${money(total)}</div><div class="lane-cards">${visible.map(o=>`<article class="op-card" draggable="true" data-id="${esc(o.id)}" data-action="open-opportunity" tabindex="0" role="button" aria-label="Ouvrir la fiche de ${esc(contactName(linkedContact(o)))} — ${esc(o.training)}"><div class="head">${esc(contactName(linkedContact(o)))}</div><p>${esc(o.training)} · ${esc(o.category)}</p><div class="bottom"><strong>${amountText(o)}</strong><span>${o.follow?"↻ "+dt(o.follow):""}</span></div></article>`).join("")}</div>${remaining>0?`<button type="button" class="btn small lane-more" data-action="toggle-pipeline-stage" data-stage="${esc(stage)}" aria-expanded="${expanded}">${expanded?"Réduire à 10 opportunités":"Afficher les "+remaining+" autres opportunités"} ${expanded?"↑":"↓"}</button>`:""}</section>`}).join("")}</div>`;
+return `<div class="board">${STAGES.map(stage=>{const list=all.filter(o=>o.stage===stage),total=sum(list),visible=list;return `<section class="lane" data-stage="${esc(stage)}"><div class="lane-header"><span class="lane-title">${esc(stage)}</span><span class="badge">${list.length}</span></div><div class="amount">${money(total)}</div><div class="lane-cards">${visible.map(o=>`<article class="op-card" draggable="true" data-id="${esc(o.id)}" data-action="open-opportunity" tabindex="0" role="button" aria-label="Ouvrir la fiche de ${esc(contactName(linkedContact(o)))} — ${esc(o.training)}"><div class="head">${esc(contactName(linkedContact(o)))}</div><p>${esc(o.training)} · ${esc(o.category)}</p><div class="bottom"><strong>${amountText(o)}</strong><span>${o.follow?"↻ "+dt(o.follow):""}</span></div></article>`).join("")}</div></section>`}).join("")}</div>`;
 }
 function opportunitySortValue(o,key){
  if(key==="amount")return amount(o);
@@ -671,7 +671,7 @@ function handleFormSubmit(e){
  }
 }
 
-const MOON_APP_VERSION="28.0";
+const MOON_APP_VERSION="29.0";
 let moonUpdateReady=false,moonUpdateChecking=false,moonFormDirty=false;
 function showMoonUpdate(){
  const node=$("moon-update");if(!node)return;
