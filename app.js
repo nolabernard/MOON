@@ -401,16 +401,15 @@ function taskLabel(type,opId,contactId){const o=opportunity(opId),c=o?linkedCont
 function taskModal(t=null,opId="",contactId=""){
  const selectedOp=opportunity(t?.opportunityId||opId),selectedContact=selectedOp?.contactId||t?.contactId||contactId;
  const lockedOp=!t&&!!selectedOp,lockedContact=!t&&!lockedOp&&!!selectedContact;
-const opChoices=['<option value="">Aucune opportunité</option>',...data.opportunities.map(o=>`<option value="${esc(o.id)}" ${String(selectedOp?.id||"")===String(o.id)?"selected":""}>${esc(o.training)} · ${esc(contactName(linkedContact(o)))}</option>`)].join("");
-const cChoices=['<option value="">Aucun contact</option>',...data.contacts.map(c=>`<option value="${esc(c.id)}" ${String(selectedContact||"")===String(c.id)?"selected":""}>${esc(contactName(c))}</option>`)].join("");
-modal(t?"Modifier la tâche":"Nouvelle tâche",`<form id="task-form"><input type="hidden" name="id" value="${esc(t?.id||"")}"><div class="form-grid">
-<label class="wide">Nom généré automatiquement<output class="field" id="task-auto-title" style="display:block">${esc(taskLabel(t?.type||"Relance",selectedOp?.id||"",selectedContact))}</output></label>
-${select("type","Type",["Relance","Appel","Email","Rendez-vous","Administratif","Autre"],t?.type||"Relance")}
-${input("due","Date d'échéance *",t?.due||today(),"date",true)}
-${select("priority","Priorité",["Normale","Haute","Basse"],t?.priority||"Normale")}
-${lockedOp?`<input type="hidden" name="opportunityId" value="${esc(selectedOp.id)}"><input type="hidden" name="contactId" value="${esc(selectedContact)}"><div class="help">Opportunité : ${esc(selectedOp.training)} · Contact : ${esc(contactName(contact(selectedContact)))}</div>`:lockedContact?`<input type="hidden" name="contactId" value="${esc(selectedContact)}"><div class="help">Contact : ${esc(contactName(contact(selectedContact)))}</div><label>Opportunité liée<select class="field" name="opportunityId">${opChoices}</select></label>`:`<label>Opportunité liée<select class="field" name="opportunityId">${opChoices}</select></label><label>Contact lié<select class="field" name="contactId">${cChoices}</select></label>`}
-${textarea("notes","Commentaire / détails",t?.notes)}
-</div>${formFooter(t,"task")}</form>`);
+ const opChoices=['<option value="">Aucune opportunité</option>',...data.opportunities.map(o=>`<option value="${esc(o.id)}" ${String(selectedOp?.id||"")===String(o.id)?"selected":""}>${esc(o.training)} · ${esc(contactName(linkedContact(o)))}</option>`)].join("");
+ const cChoices=['<option value="">Aucun contact</option>',...data.contacts.map(c=>`<option value="${esc(c.id)}" ${String(selectedContact||"")===String(c.id)?"selected":""}>${esc(contactName(c))}</option>`)].join("");
+ const relation=lockedOp?`<input type="hidden" name="opportunityId" value="${esc(selectedOp.id)}"><input type="hidden" name="contactId" value="${esc(selectedContact)}"><div class="task-linked-summary"><strong>${esc(selectedOp.training)}</strong><span>${esc(contactName(linkedContact(selectedOp)))}</span></div>`:
+ `<div class="task-relation-grid"><label>Opportunité liée<select class="field" name="opportunityId">${opChoices}</select></label>${lockedContact?`<input type="hidden" name="contactId" value="${esc(selectedContact)}"><div class="task-linked-summary"><span>Contact associé</span><strong>${esc(contactName(contact(selectedContact)))}</strong></div>`:`<label>Contact lié<select class="field" name="contactId" ${selectedOp?"disabled":""}>${cChoices}</select></label>`}</div><p class="subtle task-relation-help" id="task-relation-help">${selectedOp?"Le contact est automatiquement associé à l’opportunité sélectionnée.":"Sélectionnez une opportunité pour retrouver automatiquement son contact, ou choisissez un contact seul."}</p>`;
+ modal(t?"Modifier la tâche":"Nouvelle tâche",`<form id="task-form" class="task-form"><input type="hidden" name="id" value="${esc(t?.id||"")}">
+ <section class="task-form-section"><h3>À faire</h3><div class="form-grid">${select("type","Type d’action",["Relance","Appel","Email","Rendez-vous","Administratif","Autre"],t?.type||"Relance")}${input("due","Date d’échéance *",t?.due||today(),"date",true)}${select("priority","Priorité",["Normale","Haute","Basse"],t?.priority||"Normale")}</div></section>
+ <section class="task-form-section"><h3>Associer la tâche</h3>${relation}</section>
+ <section class="task-form-section"><label class="task-title-label">Intitulé automatique<output class="task-title-preview" id="task-auto-title" aria-live="polite">${esc(taskLabel(t?.type||"Relance",selectedOp?.id||"",selectedContact))}</output></label>${textarea("notes","Commentaire / détails",t?.notes)}</section>
+ ${formFooter(t,"task")}</form>`);
 }
 function closeModal(){$("modal").close()}
 function markStage(o,newStage,reason=""){
@@ -708,7 +707,7 @@ else if(t.id==="tax"){tax=t.value;render()}
 else if(t.id==="task-mode"){taskMode=t.value;render()}
 else if(t.id==="opportunity-stage-filter"){opportunityStageFilter=t.value;render()}
 else if(t.id==="opportunity-sort"){opportunitySort=t.value;opportunitySortDir=t.value==="created"?"desc":"asc";render()}
-else if(t.closest?.("#task-form")&&["type","opportunityId","contactId"].includes(t.name)){const f=t.closest("#task-form"),o=opportunity(f.elements.opportunityId?.value),c=o?.contactId||f.elements.contactId?.value||"";const out=f.querySelector("#task-auto-title");if(out)out.textContent=taskLabel(f.elements.type?.value,o?.id||"",c)}
+else if(t.closest?.("#task-form")&&["type","opportunityId","contactId"].includes(t.name)){const f=t.closest("#task-form"),o=opportunity(f.elements.opportunityId?.value),contactSelect=f.querySelector('select[name="contactId"]');if(contactSelect){contactSelect.disabled=!!o;if(o)contactSelect.value=o.contactId||""}const c=o?.contactId||f.elements.contactId?.value||"";const out=f.querySelector("#task-auto-title");if(out)out.textContent=taskLabel(f.elements.type?.value,o?.id||"",c);const help=f.querySelector("#task-relation-help");if(help)help.textContent=o?"Le contact est automatiquement associé à l’opportunité sélectionnée.":"Sélectionnez une opportunité pour retrouver automatiquement son contact, ou choisissez un contact seul."}
 else if(t.dataset.action==="toggle-task"){const item=task(t.dataset.id);if(item){item.status=t.checked?"done":"open";item.completed=item.status==="done"?new Date().toISOString():"";if(save())render()}}
 else if(t.id==="file-import"){const f=t.files?.[0];if(f)importFile(f,t.dataset.kind);t.value=""}
 });
