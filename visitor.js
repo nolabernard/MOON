@@ -56,7 +56,7 @@
      throw new Error("Le contenu reçu est invalide.");
     revision=result.revision;
     ready=true;unlockScreen();
-    if(!window.MOON_CLOUD_BRIDGE?.visitorLoad?.(c))throw new Error("Impossible d'afficher les données.");
+    if(!window.MOON_CLOUD_BRIDGE?.visitorLoad?.(c)){ready=false;throw new Error("Impossible d'afficher les données.");}
    }else if(!ready){
     // Never show stale data when the server unexpectedly returns unchanged before first load.
     revision=null;throw new Error("Chargement incomplet.");
