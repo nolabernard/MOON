@@ -110,7 +110,7 @@ function reportingOpportunities(){
  return data.opportunities.filter(o=>{if(!from&&!to)return true;const d=String(isActive(o)?o.forecast||o.created:o.closed||o.created||"").slice(0,10);return !!d&&(!from||d>=from)&&(!to||d<=to)});
 }
 function reportingPeriodLabel(){const [from,to]=reportingBounds();return reportingPeriod==="all"?"Toutes périodes":(from?dt(from):"Début")+" – "+(to?dt(to):"Sans fin")}
-function navButton(k,icon,label){return `<button class="nav-button ${page===k?"active":""}" data-action="nav" data-page="${k}" type="button" title="${esc(label)}" aria-label="${esc(label)}"><span class="nav-ico">${icon}</span><span class="nav-label">${label}</span></button>`}
+function navButton(k,icon,label){if(isReadOnly()&&!window.MOON_VISITOR?.pageAllowed?.(k))return "";return `<button class="nav-button ${page===k?"active":""}" data-action="nav" data-page="${k}" type="button" title="${esc(label)}" aria-label="${esc(label)}"><span class="nav-ico">${icon}</span><span class="nav-label">${label}</span></button>`}
 function reportingFilters(){
  const select='<label class="subtle">Période<select class="field" id="reporting-period" aria-label="Période du reporting">'+opts(["all","week","month","year","custom"],reportingPeriod).replace(/>all</g,">Toutes périodes<").replace(/>week</g,">Semaine<").replace(/>month</g,">Mois<").replace(/>year</g,">Année<").replace(/>custom</g,">Personnalisée<")+'</select></label>';
  if(reportingPeriod==="custom")return select+'<label class="subtle">Du <input class="field" type="date" id="reporting-from" value="'+esc(reportingFrom)+'"></label><label class="subtle">Au <input class="field" type="date" id="reporting-to" value="'+esc(reportingTo)+'"></label>';
@@ -127,6 +127,7 @@ ${page==="tasks"?`<select id="task-mode" class="field" aria-label="Filtrer les t
 }
 function render(){
 moonFormDirty=false;
+if(isReadOnly()&&!window.MOON_VISITOR?.pageAllowed?.(page)){page=["day","dashboard","board","opportunities","contacts","tasks","reporting"].find(k=>window.MOON_VISITOR?.pageAllowed?.(k))||"day"}
 if(window.MOON_CLOUD&&!window.MOON_CLOUD.isAuthenticated?.()&&!window.MOON_VISITOR?.isVisitorReady?.()){const root=$("app");if(root)root.innerHTML="";return}
 const titles={day:["Ma journée","Vos relances, dossiers à suivre et priorités du jour"],dashboard:["Tableau de bord","Une vision claire de vos résultats et priorités"],board:["Pipeline commercial","Déplacez les opportunités pour suivre leur progression"],opportunities:["Opportunités","Les projets commerciaux et leurs montants"],contacts:["Contacts","Un contact peut avoir plusieurs opportunités"],tasks:["Tâches & relances","Ajoutez, terminez, modifiez ou supprimez vos actions"],"opportunity-detail":["Fiche opportunité","Contact, suivi des échanges et prochaines actions"],reporting:["Reporting commercial","Vos indicateurs et votre bilan partageable"],settings:["Paramètres","Personnalisation, importations et sauvegardes"],account:["Mon compte","Connexion sécurisée, synchronisation et appareils"]};
 const [title,subtitle]=titles[page];
@@ -135,7 +136,7 @@ ${navButton("day","☀","Ma journée")}${navButton("dashboard","◫","Accueil")}
 </nav><div class="sidebar-bottom"><span id="sidebar-sync-state">☁ Vérification de la synchronisation…</span><br>MOON · Votre espace sécurisé</div></aside>
 <div class="main ${["opportunities","contacts","tasks","reporting"].includes(page)?"workspace-main":""}"><div class="topbar"><div><div class="eyebrow">MOON / ${esc(page)}</div><h1>${title}</h1><div class="subtle">${subtitle}</div></div><div class="actions">${isReadOnly()?'<span class="visitor-pill" aria-label="Mode visiteur, lecture seule">◉ Lecture seule</span><button type="button" class="btn small" data-action="visitor-refresh">Actualiser</button>':(["day","contacts","opportunities","opportunity-detail","tasks"].includes(page)?`<button class="btn" data-action="voice-open" type="button" title="Dicter un contact, une opportunité, un échange ou une tâche">🎙 Dicter</button>`:"")}
 ${isReadOnly()?"":(page==="contacts"?`<button class="btn primary" data-action="new-contact">+ Nouveau contact</button>`:page==="tasks"?`<button class="btn primary" data-action="new-task">+ Nouvelle tâche</button>`:page==="settings"||page==="account"?"":`<button class="btn" data-action="new-task">+ Tâche</button><button class="btn primary" data-action="new-opportunity">+ Opportunité</button>`)}</div></div>
-${isReadOnly()?'<div class="visitor-status-bar" role="status"><span id="visitor-live-status">Lecture seule · actualisation automatique</span><span>Les modifications enregistrées sont vérifiées toutes les 15 secondes.</span></div>':""}${toolbar()}<div id="view" class="${["opportunities","contacts","tasks","reporting"].includes(page)?"workspace-view workspace-"+page:""}">${page==="day"?dayPage():page==="dashboard"?dashboard():page==="board"?board():page==="opportunities"?opportunities():page==="opportunity-detail"?opportunityDetailPage():page==="contacts"?contacts():page==="tasks"?tasks():page==="reporting"?reportingPage():page==="account"?accountPage():settings()}</div></div></div>`;
+${isReadOnly()?'<div class="visitor-status-bar" role="status"><span id="visitor-live-status">Lecture seule · actualisation automatique</span><span>Les modifications enregistrées sont vérifiées toutes les 60 secondes.</span></div>':""}${toolbar()}<div id="view" class="${["opportunities","contacts","tasks","reporting"].includes(page)?"workspace-view workspace-"+page:""}">${page==="day"?dayPage():page==="dashboard"?dashboard():page==="board"?board():page==="opportunities"?opportunities():page==="opportunity-detail"?opportunityDetailPage():page==="contacts"?contacts():page==="tasks"?tasks():page==="reporting"?reportingPage():page==="account"?accountPage():settings()}</div></div></div>`;
 if(isReadOnly()){
  document.querySelectorAll("#app .task-check").forEach(el=>{el.disabled=true;el.setAttribute("aria-label","Statut de tâche en lecture seule")});
  document.querySelectorAll('#app [data-action="edit-contact"],#app [data-action="edit-task"],#app [data-action="edit-opportunity"]').forEach(el=>{el.textContent="Voir";el.setAttribute("title","Consulter les détails en lecture seule")});
@@ -779,6 +780,8 @@ $("modal").addEventListener("click",e=>{if(e.target===$("modal"))closeModal()});
 
 /* Optional Supabase bridge: never uploads without confirmation in cloud.js. */
 window.MOON_CLOUD_BRIDGE={
+ visitorPage:()=>page,
+ visitorNavigate:key=>{if(isReadOnly()&&window.MOON_VISITOR?.pageAllowed?.(key)){page=key;render()}},
  visitorLoad:record=>{
   if(!isReadOnly()||!record||!Array.isArray(record.contacts)||!Array.isArray(record.opportunities)||!Array.isArray(record.tasks))return false;
   const scroll=Array.from(document.querySelectorAll(".lane-cards,.table-wrap,.workspace-view,.stack")).map((el,i)=>({i,top:el.scrollTop,left:el.scrollLeft}));
