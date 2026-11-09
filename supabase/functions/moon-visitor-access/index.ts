@@ -59,16 +59,41 @@ async function authenticatedOwner(req: Request) {
 
 const SECTIONS=["day","dashboard","board","opportunities","contacts","tasks","reporting"];
 function validSections(value:unknown): value is string[]{return Array.isArray(value)&&value.length>0&&value.length<=7&&value.every(x=>typeof x==="string"&&SECTIONS.includes(x))&&new Set(value).size===value.length}
-function filteredSnapshot(content:any,sections:string[]){
- const broad=sections.includes("day")||sections.includes("dashboard");
- const opp=broad||sections.includes("board")||sections.includes("opportunities");
- const contacts=broad||sections.includes("contacts");
- const tasks=broad||sections.includes("tasks");
- const rawOpp=Array.isArray(content?.opportunities)?content.opportunities:[];
- const opportunities=opp?rawOpp:sections.includes("reporting")?rawOpp.map((o:any)=>({id:o.id,stage:o.stage,amount:o.amount,price:o.price,vat:o.vat,created:o.created,createdAt:o.createdAt,date:o.date,wonAt:o.wonAt,closedAt:o.closedAt,category:o.category,type:o.type,maturity:o.maturity,training:"Opportunité",events:[]})):[];
- const cs=Array.isArray(content?.contacts)?content.contacts:[];
- return {version:content?.version||2,contacts:contacts?cs:opp?cs.map((c:any)=>({id:c.id,first:c.first,last:c.last,company:c.company})):[],opportunities,tasks:tasks&&Array.isArray(content?.tasks)?content.tasks:[]};
+// Explicit per-section field allowlists. Never send complete CRM objects for a partial share.
+function pick(value:any,keys:readonly string[]){
+ const result:Record<string,unknown>={};
+ if(!value||typeof value!=="object")return result;
+ for(const key of keys)if(Object.prototype.hasOwnProperty.call(value,key))result[key]=value[key];
+ return result;
 }
+const CONTACT_NAME=["id","first","last","company"] as const;
+const OPPORTUNITY_SUMMARY=["id","contactId","training","category","stage","ht","vat","follow","forecast","closed","created","maturity"] as const;
+const REPORTING_FIELDS=["id","stage","ht","vat","created","forecast","closed","category"] as const;
+const TASK_SUMMARY=["id","title","status","due","priority","type","contactId","opportunityId","created","notes"] as const;
+function filteredSnapshot(content:any,sections:string[]){
+ const selected=new Set(sections);
+ const fullContacts=selected.has("contacts");
+ const fullOpportunities=selected.has("opportunities");
+ const broad=selected.has("day")||selected.has("dashboard");
+ const board=selected.has("board");
+ const tasks=selected.has("tasks")||broad;
+ const needNames=board||fullOpportunities||broad||tasks;
+ const needOpportunities=board||fullOpportunities||broad;
+ const rawContacts=Array.isArray(content?.contacts)?content.contacts:[];
+ const rawOpportunities=Array.isArray(content?.opportunities)?content.opportunities:[];
+ const rawTasks=Array.isArray(content?.tasks)?content.tasks:[];
+ return {
+  version:content?.version||2,
+  contacts:fullContacts?rawContacts.map((c:any)=>pick(c,["id","first","last","company","email","phone","profile","notes","created"])):
+    needNames?rawContacts.map((c:any)=>pick(c,CONTACT_NAME)):[],
+  opportunities:fullOpportunities?rawOpportunities:
+    needOpportunities?rawOpportunities.map((o:any)=>pick(o,OPPORTUNITY_SUMMARY)):
+    tasks?rawOpportunities.map((o:any)=>pick(o,["id","contactId","training"])):
+    selected.has("reporting")?rawOpportunities.map((o:any)=>pick(o,REPORTING_FIELDS)):[],
+  tasks:tasks?rawTasks.map((t:any)=>pick(t,TASK_SUMMARY)):[],
+ };
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, {status: 204, headers: headers(req)});
   if (req.method !== "POST") return json(req, 405, {error: "Méthode non autorisée."});
