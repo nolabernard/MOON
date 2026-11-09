@@ -441,7 +441,7 @@ if(!isActive(o))o.follow="";if((o.stage==="Gagné"||o.stage==="Perdu")&&!o.close
 if(save()){
  const verified=JSON.parse(localStorage.getItem(scopedKey())||"null")?.opportunities?.some(x=>x.id===o.id);
  if(!verified){alert("Opportunité non confirmée dans le stockage.");return}
- closeModal();page="opportunities";render();toast("Opportunité enregistrée et vérifiée");
+ closeModal();page=selectedOpportunityId===o.id?"opportunity-detail":"opportunities";render();toast("Opportunité enregistrée et vérifiée");
 }
 }
 function taskSubmit(f){
@@ -455,7 +455,7 @@ if(save()){
  const savedId=existing?.id||data.tasks[data.tasks.length-1]?.id;
  const verified=JSON.parse(localStorage.getItem(scopedKey())||"null")?.tasks?.some(x=>x.id===savedId);
  if(!verified){alert("Tâche non confirmée dans le stockage.");return}
- closeModal();page="tasks";taskMode="all";render();toast("Tâche enregistrée et vérifiée");
+ closeModal();if(page!=="opportunity-detail")page="tasks";taskMode="all";render();toast("Tâche enregistrée et vérifiée");
 }
 }
 function interactionSubmit(f){
@@ -466,7 +466,7 @@ if(save()){
  const last=o.events[o.events.length-1];
  const verified=JSON.parse(localStorage.getItem(scopedKey())||"null")?.opportunities?.find(x=>x.id===o.id)?.events?.some(x=>x.at===last.at&&x.text===last.text);
  if(!verified){alert("Échange non confirmé dans le stockage.");return}
- opportunityModal(o);toast(suggestedStage(o)?"Échange enregistré · suggestion de statut disponible en haut de la fiche":"Échange enregistré et vérifié");
+ if(page==="opportunity-detail"&&selectedOpportunityId===o.id){render()}else{opportunityModal(o)}toast(suggestedStage(o)?"Échange enregistré · suggestion de statut disponible":"Échange enregistré et vérifié");
 }
 }
 function deleteRecord(kind,entityId){
@@ -610,13 +610,13 @@ if(a==="revenue-breakdown"){revenueBreakdown(btn.dataset.revenue||"");return}
 if(a==="day-jump"){document.getElementById(btn.dataset.target)?.scrollIntoView({behavior:"smooth",block:"start"});return}
 if(a==="natural-search"){naturalQuery=$("natural-query")?.value?.trim()||"";render();return}
 if(a==="copy-report"){if(typeof navigator!=="undefined"&&navigator.clipboard?.writeText)navigator.clipboard.writeText(reportText()).then(()=>toast("Bilan copié")).catch(()=>alert(reportText()));else alert(reportText());return}
-if(a==="apply-stage-suggestion"){const o=opportunity(x);if(!o)return;const next=suggestedStage(o);if(!next)return;if(!confirm("Passer cette opportunité à « "+next+" » ?"))return;if(markStage(o,next)&&save()){opportunityModal(o);toast("Étape mise à jour et historisée")}return}
+if(a==="apply-stage-suggestion"){const o=opportunity(x);if(!o)return;const next=suggestedStage(o);if(!next)return;if(!confirm("Passer cette opportunité à « "+next+" » ?"))return;if(markStage(o,next)&&save()){if(page==="opportunity-detail"&&selectedOpportunityId===o.id)render();else opportunityModal(o);toast("Étape mise à jour et historisée")}return}
 if(a.startsWith("cloud-")){window.MOON_CLOUD?.act(a);return}
 if(a==="nav"){page=btn.dataset.page==="search"?"opportunities":btn.dataset.page;render();window.MOON_CLOUD?.refreshStatus?.()}
 else if(a==="voice-open")window.MOON_VOICE?.open();
 else if(a==="new-contact"||a==="new-contact-from-op"){afterContact=a==="new-contact-from-op";contactModal()}
 else if(a==="new-opportunity")opportunityModal(null,btn.dataset.contactId||"");
-else if(a==="new-task")taskModal(null,btn.dataset.opportunityId||"",btn.dataset.contactId||"");
+else if(a==="new-task")taskModal(null,btn.dataset.opportunityId||(page==="opportunity-detail"?selectedOpportunityId:""),btn.dataset.contactId||"");
 else if(a==="edit-contact")contactModal(contact(x));
 else if(a==="open-opportunity"){selectedOpportunityId=x;page="opportunity-detail";render()}
 else if(a==="edit-opportunity")opportunityModal(opportunity(x));
