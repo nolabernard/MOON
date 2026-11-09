@@ -11,6 +11,7 @@ const TYPES=["VAE","Formation courte","Autre"];
 const CHANNELS=["Appel","Email","SMS","Visioconférence","Rendez-vous","Note"];
 let data={version:2,contacts:[],opportunities:[],tasks:[]};
 let naturalQuery="";
+let opportunityReturnPage="opportunities";
 let opportunityStageFilter="all",opportunitySort="created",opportunitySortDir="desc",selectedOpportunityId="";
 const UI_PREF_KEY="moon.ui.preferences.v1";
 let sidebarCollapsed=false,themePreference="system";
@@ -283,9 +284,11 @@ ${metric("Panier moyen",priced.length?money(Math.round(sum(priced)/priced.length
 ${due.length||dueOpportunities.length?followRows+due.slice(0,7).map(taskRow).join(""):`<div class="empty"><strong>Tout est à jour</strong><p>Aucune tâche en retard ou prévue aujourd'hui.</p><button class="btn" data-action="new-task">Ajouter une tâche</button></div>`}</section>
 <section class="panel"><h2>Indicateurs complémentaires</h2><div class="kpi-line"><span>Taux de conversion</span><strong>${conversion}</strong></div><div class="kpi-line"><span>Contacts enregistrés</span><strong>${data.contacts.length}</strong></div><div class="kpi-line"><span>Relances d’opportunités en retard</span><strong>${dueOpportunities.filter(o=>o.follow<today()).length}</strong></div><div class="kpi-line"><span>Tâches en retard</span><strong>${due.filter(t=>t.due<today()).length}</strong></div><div class="kpi-line"><span>Tâches du jour</span><strong>${due.filter(t=>t.due===today()).length}</strong></div><div class="kpi-line"><span>Tâches à venir</span><strong>${future.length}</strong></div><div class="kpi-line"><span>Rendez-vous à venir</span><strong>${future.filter(t=>t.type==="Rendez-vous").length}</strong></div></section></div>`;
 }
+const PIPELINE_VISIBLE_LIMIT=10;
+const pipelineExpandedStages=new Set();
 function board(){
 const all=scoped();
-return `<div class="board">${STAGES.map(s=>{const list=all.filter(o=>o.stage===s),total=sum(list);return `<section class="lane" data-stage="${esc(s)}"><div class="lane-header"><span class="lane-title">${esc(s)}</span><span class="badge">${list.length}</span></div><div class="amount">${money(total)}</div>${list.map(o=>`<article class="op-card" draggable="true" data-id="${esc(o.id)}" data-action="edit-opportunity" tabindex="0" role="button"><div class="head">${esc(contactName(linkedContact(o)))}</div><p>${esc(o.training)} · ${esc(o.category)}</p><div class="bottom"><strong>${amountText(o)}</strong><span>${o.follow?"↻ "+dt(o.follow):""}</span></div></article>`).join("")}</section>`}).join("")}</div>`;
+return `<div class="board">${STAGES.map(stage=>{const list=all.filter(o=>o.stage===stage),total=sum(list),expanded=pipelineExpandedStages.has(stage),visible=expanded?list:list.slice(0,PIPELINE_VISIBLE_LIMIT),remaining=list.length-PIPELINE_VISIBLE_LIMIT;return `<section class="lane" data-stage="${esc(stage)}"><div class="lane-header"><span class="lane-title">${esc(stage)}</span><span class="badge">${list.length}</span></div><div class="amount">${money(total)}</div><div class="lane-cards">${visible.map(o=>`<article class="op-card" draggable="true" data-id="${esc(o.id)}" data-action="open-opportunity" tabindex="0" role="button" aria-label="Ouvrir la fiche de ${esc(contactName(linkedContact(o)))} — ${esc(o.training)}"><div class="head">${esc(contactName(linkedContact(o)))}</div><p>${esc(o.training)} · ${esc(o.category)}</p><div class="bottom"><strong>${amountText(o)}</strong><span>${o.follow?"↻ "+dt(o.follow):""}</span></div></article>`).join("")}</div>${remaining>0?`<button type="button" class="btn small lane-more" data-action="toggle-pipeline-stage" data-stage="${esc(stage)}" aria-expanded="${expanded}">${expanded?"Réduire à 10 opportunités":"Afficher les "+remaining+" autres opportunités"} ${expanded?"↑":"↓"}</button>`:""}</section>`}).join("")}</div>`;
 }
 function opportunitySortValue(o,key){
  if(key==="amount")return amount(o);
@@ -318,7 +321,7 @@ function opportunityDetailPage(){
  const c=linkedContact(o),events=[...(o.events||[])].sort((a,b)=>String(b.at||"").localeCompare(String(a.at||"")));
  const related=data.tasks.filter(t=>t.opportunityId===o.id).sort((a,b)=>compare(a.due,b.due));
  const link=(value,scheme)=>value?'<a href="'+scheme+encodeURIComponent(value)+'">'+esc(value)+'</a>':'—';
- const header='<div class="opportunity-detail-head"><div><button class="btn small ghost" data-action="nav" data-page="opportunities">← Toutes les opportunités</button><h2>'+esc(o.training)+'</h2><p class="subtle">'+esc(o.category)+' · Créée le '+dt(o.created)+'</p></div><div class="opportunity-detail-actions">'+badge(o.stage)+'<button class="btn primary" data-action="edit-opportunity" data-id="'+esc(o.id)+'">Modifier la fiche</button></div></div>';
+ const header='<div class="opportunity-detail-head"><div><button class="btn small ghost" data-action="nav" data-page="'+opportunityReturnPage+'">← '+(opportunityReturnPage==="board"?"Retour au pipeline":"Toutes les opportunités")+'</button><h2>'+esc(o.training)+'</h2><p class="subtle">'+esc(o.category)+' · Créée le '+dt(o.created)+'</p></div><div class="opportunity-detail-actions">'+badge(o.stage)+'<button class="btn primary" data-action="edit-opportunity" data-id="'+esc(o.id)+'">Modifier la fiche</button></div></div>';
  const info='<section class="panel"><h3>Contact associé</h3><h2>'+esc(contactName(c))+'</h2><p class="subtle">'+esc(c?.company||"")+'</p><div class="detail-fields"><div>Email <strong>'+link(c?.email,"mailto:")+'</strong></div><div>Téléphone <strong>'+link(c?.phone,"tel:")+'</strong></div><div>Profil <strong>'+esc(c?.profile||"—")+'</strong></div></div><button class="btn small" data-action="edit-contact" data-id="'+esc(c?.id||"")+'">Voir / modifier le contact</button></section>';
  const summary='<section class="panel"><h3>Informations commerciales</h3><div class="detail-fields"><div>Montant '+esc(tax.toUpperCase())+' <strong>'+amountText(o)+'</strong></div><div>Étape <strong>'+badge(o.stage)+'</strong></div><div>Maturité <strong>'+esc(o.maturity||"—")+'</strong></div><div>Relance <strong>'+dt(o.follow)+'</strong></div><div>Clôture prévue <strong>'+dt(o.forecast)+'</strong></div><div>Clôture réelle <strong>'+dt(o.closed)+'</strong></div><div>Responsable <strong>'+esc(o.owner||"—")+'</strong></div><div>Origine <strong>'+esc(o.source||"—")+'</strong></div></div>'+(o.notes?'<p class="detail-note">'+esc(o.notes)+'</p>':'')+'</section>';
  const timeline='<section class="panel opportunity-timeline"><div class="row"><div><h2>Suivi & échanges</h2><p class="subtle">Historique chronologique de cette opportunité</p></div><span class="badge">'+events.length+' échange(s)</span></div>'+
@@ -399,16 +402,15 @@ function taskLabel(type,opId,contactId){const o=opportunity(opId),c=o?linkedCont
 function taskModal(t=null,opId="",contactId=""){
  const selectedOp=opportunity(t?.opportunityId||opId),selectedContact=selectedOp?.contactId||t?.contactId||contactId;
  const lockedOp=!t&&!!selectedOp,lockedContact=!t&&!lockedOp&&!!selectedContact;
-const opChoices=['<option value="">Aucune opportunité</option>',...data.opportunities.map(o=>`<option value="${esc(o.id)}" ${String(selectedOp?.id||"")===String(o.id)?"selected":""}>${esc(o.training)} · ${esc(contactName(linkedContact(o)))}</option>`)].join("");
-const cChoices=['<option value="">Aucun contact</option>',...data.contacts.map(c=>`<option value="${esc(c.id)}" ${String(selectedContact||"")===String(c.id)?"selected":""}>${esc(contactName(c))}</option>`)].join("");
-modal(t?"Modifier la tâche":"Nouvelle tâche",`<form id="task-form"><input type="hidden" name="id" value="${esc(t?.id||"")}"><div class="form-grid">
-<label class="wide">Nom généré automatiquement<output class="field" id="task-auto-title" style="display:block">${esc(taskLabel(t?.type||"Relance",selectedOp?.id||"",selectedContact))}</output></label>
-${select("type","Type",["Relance","Appel","Email","Rendez-vous","Administratif","Autre"],t?.type||"Relance")}
-${input("due","Date d'échéance *",t?.due||today(),"date",true)}
-${select("priority","Priorité",["Normale","Haute","Basse"],t?.priority||"Normale")}
-${lockedOp?`<input type="hidden" name="opportunityId" value="${esc(selectedOp.id)}"><input type="hidden" name="contactId" value="${esc(selectedContact)}"><div class="help">Opportunité : ${esc(selectedOp.training)} · Contact : ${esc(contactName(contact(selectedContact)))}</div>`:lockedContact?`<input type="hidden" name="contactId" value="${esc(selectedContact)}"><div class="help">Contact : ${esc(contactName(contact(selectedContact)))}</div><label>Opportunité liée<select class="field" name="opportunityId">${opChoices}</select></label>`:`<label>Opportunité liée<select class="field" name="opportunityId">${opChoices}</select></label><label>Contact lié<select class="field" name="contactId">${cChoices}</select></label>`}
-${textarea("notes","Commentaire / détails",t?.notes)}
-</div>${formFooter(t,"task")}</form>`);
+ const opChoices=['<option value="">Aucune opportunité</option>',...data.opportunities.map(o=>`<option value="${esc(o.id)}" ${String(selectedOp?.id||"")===String(o.id)?"selected":""}>${esc(o.training)} · ${esc(contactName(linkedContact(o)))}</option>`)].join("");
+ const cChoices=['<option value="">Aucun contact</option>',...data.contacts.map(c=>`<option value="${esc(c.id)}" ${String(selectedContact||"")===String(c.id)?"selected":""}>${esc(contactName(c))}</option>`)].join("");
+ const relation=lockedOp?`<input type="hidden" name="opportunityId" value="${esc(selectedOp.id)}"><input type="hidden" name="contactId" value="${esc(selectedContact)}"><div class="task-linked-summary"><strong>${esc(selectedOp.training)}</strong><span>${esc(contactName(linkedContact(selectedOp)))}</span></div>`:
+ `<div class="task-relation-grid"><label>Opportunité liée<select class="field" name="opportunityId">${opChoices}</select></label>${lockedContact?`<input type="hidden" name="contactId" value="${esc(selectedContact)}"><div class="task-linked-summary"><span>Contact associé</span><strong>${esc(contactName(contact(selectedContact)))}</strong></div>`:`<label>Contact lié<select class="field" name="contactId" ${selectedOp?"disabled":""}>${cChoices}</select></label>`}</div><p class="subtle task-relation-help" id="task-relation-help">${selectedOp?"Le contact est automatiquement associé à l’opportunité sélectionnée.":"Sélectionnez une opportunité pour retrouver automatiquement son contact, ou choisissez un contact seul."}</p>`;
+ modal(t?"Modifier la tâche":"Nouvelle tâche",`<form id="task-form" class="task-form"><input type="hidden" name="id" value="${esc(t?.id||"")}">
+ <section class="task-form-section"><h3>À faire</h3><div class="form-grid">${select("type","Type d’action",["Relance","Appel","Email","Rendez-vous","Administratif","Autre"],t?.type||"Relance")}${input("due","Date d’échéance *",t?.due||today(),"date",true)}${select("priority","Priorité",["Normale","Haute","Basse"],t?.priority||"Normale")}</div></section>
+ <section class="task-form-section"><h3>Associer la tâche</h3>${relation}</section>
+ <section class="task-form-section"><label class="task-title-label">Intitulé automatique<output class="task-title-preview" id="task-auto-title" aria-live="polite">${esc(taskLabel(t?.type||"Relance",selectedOp?.id||"",selectedContact))}</output></label>${textarea("notes","Commentaire / détails",t?.notes)}</section>
+ ${formFooter(t,"task")}</form>`);
 }
 function closeModal(){$("modal").close()}
 function markStage(o,newStage,reason=""){
@@ -615,6 +617,7 @@ if(["save-contact-direct","save-opportunity-direct","save-task-direct","save-int
 }
 if(a==="toggle-sidebar"){sidebarCollapsed=!sidebarCollapsed;persistUi();render();return}
 if(a==="set-theme"){const value=btn.dataset.theme;if(!["system","light","dark"].includes(value))return;themePreference=value;persistUi();render();return}
+if(a==="toggle-pipeline-stage"){const stage=btn.dataset.stage;if(!STAGES.includes(stage))return;if(pipelineExpandedStages.has(stage))pipelineExpandedStages.delete(stage);else pipelineExpandedStages.add(stage);render();return}
 if(a==="sort-opportunities"){const key=btn.dataset.sort;if(!["amount","follow","created","stage"].includes(key))return;if(opportunitySort===key)opportunitySortDir=opportunitySortDir==="asc"?"desc":"asc";else{opportunitySort=key;opportunitySortDir=key==="created"?"desc":"asc"}render();return}
 if(a==="apply-moon-update"){applyMoonUpdate();return}
 if(a==="dismiss-moon-update"){$("moon-update").hidden=true;return}
@@ -630,7 +633,7 @@ else if(a==="new-contact"||a==="new-contact-from-op"){afterContact=a==="new-cont
 else if(a==="new-opportunity")opportunityModal(null,btn.dataset.contactId||"");
 else if(a==="new-task")taskModal(null,btn.dataset.opportunityId||(page==="opportunity-detail"?selectedOpportunityId:""),btn.dataset.contactId||"");
 else if(a==="edit-contact")contactModal(contact(x));
-else if(a==="open-opportunity"){selectedOpportunityId=x;page="opportunity-detail";render()}
+else if(a==="open-opportunity"){opportunityReturnPage=page==="board"?"board":"opportunities";selectedOpportunityId=x;page="opportunity-detail";render()}
 else if(a==="edit-opportunity")opportunityModal(opportunity(x));
 else if(a==="edit-task")taskModal(task(x));
 else if(a==="delete-contact")deleteRecord("contact",x);
@@ -659,7 +662,7 @@ function handleFormSubmit(e){
  }
 }
 
-const MOON_APP_VERSION="25.0";
+const MOON_APP_VERSION="26.0";
 let moonUpdateReady=false,moonUpdateChecking=false,moonFormDirty=false;
 function showMoonUpdate(){
  const node=$("moon-update");if(!node)return;
@@ -705,7 +708,7 @@ else if(t.id==="tax"){tax=t.value;render()}
 else if(t.id==="task-mode"){taskMode=t.value;render()}
 else if(t.id==="opportunity-stage-filter"){opportunityStageFilter=t.value;render()}
 else if(t.id==="opportunity-sort"){opportunitySort=t.value;opportunitySortDir=t.value==="created"?"desc":"asc";render()}
-else if(t.closest?.("#task-form")&&["type","opportunityId","contactId"].includes(t.name)){const f=t.closest("#task-form"),o=opportunity(f.elements.opportunityId?.value),c=o?.contactId||f.elements.contactId?.value||"";const out=f.querySelector("#task-auto-title");if(out)out.textContent=taskLabel(f.elements.type?.value,o?.id||"",c)}
+else if(t.closest?.("#task-form")&&["type","opportunityId","contactId"].includes(t.name)){const f=t.closest("#task-form"),o=opportunity(f.elements.opportunityId?.value),contactSelect=f.querySelector('select[name="contactId"]');if(contactSelect){contactSelect.disabled=!!o;if(o)contactSelect.value=o.contactId||""}const c=o?.contactId||f.elements.contactId?.value||"";const out=f.querySelector("#task-auto-title");if(out)out.textContent=taskLabel(f.elements.type?.value,o?.id||"",c);const help=f.querySelector("#task-relation-help");if(help)help.textContent=o?"Le contact est automatiquement associé à l’opportunité sélectionnée.":"Sélectionnez une opportunité pour retrouver automatiquement son contact, ou choisissez un contact seul."}
 else if(t.dataset.action==="toggle-task"){const item=task(t.dataset.id);if(item){item.status=t.checked?"done":"open";item.completed=item.status==="done"?new Date().toISOString():"";if(save())render()}}
 else if(t.id==="file-import"){const f=t.files?.[0];if(f)importFile(f,t.dataset.kind);t.value=""}
 });
