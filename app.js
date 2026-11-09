@@ -12,7 +12,7 @@ const CHANNELS=["Appel","Email","SMS","Visioconférence","Rendez-vous","Note"];
 let data={version:2,contacts:[],opportunities:[],tasks:[]};
 let naturalQuery="";
 let opportunityReturnPage="opportunities";
-let opportunityStageFilter="all",opportunitySort="created",opportunitySortDir="desc",selectedOpportunityId="";
+let statusFilterOpen=false,opportunityStageFilter=new Set(STAGES),opportunitySort="created",opportunitySortDir="desc",selectedOpportunityId="";
 const UI_PREF_KEY="moon.ui.preferences.v1";
 let sidebarCollapsed=false,themePreference="system";
 try{const pref=JSON.parse(localStorage.getItem(UI_PREF_KEY)||"{}");sidebarCollapsed=!!pref.sidebarCollapsed;themePreference=["system","light","dark"].includes(pref.theme)?pref.theme:"system"}catch(e){}
@@ -297,7 +297,7 @@ function opportunitySortValue(o,key){
  return o[key]||"";
 }
 function sortedOpportunities(){
- const rows=scoped().filter(o=>opportunityStageFilter==="all"||o.stage===opportunityStageFilter);
+ const rows=scoped().filter(o=>opportunityStageFilter.has(o.stage));
  return rows.slice().sort((a,b)=>{
   const x=opportunitySortValue(a,opportunitySort),y=opportunitySortValue(b,opportunitySort);
   const missing=x===""||x===null,otherMissing=y===""||y===null;
@@ -308,8 +308,8 @@ function sortedOpportunities(){
 }
 function opportunities(){
  const all=sortedOpportunities();
- const status='<label class="subtle">Statut<select id="opportunity-stage-filter" class="field"><option value="all">Tous les statuts</option>'+STAGES.map(x=>'<option value="'+esc(x)+'" '+(opportunityStageFilter===x?'selected':'')+'>'+esc(x)+'</option>').join("")+'</select></label>';
- const sort='<label class="subtle">Trier par<select id="opportunity-sort" class="field">'+[["created","Date de création"],["amount","Montant"],["follow","Relance"],["stage","Statut"]].map(([k,v])=>'<option value="'+k+'" '+(opportunitySort===k?'selected':'')+'>'+v+'</option>').join("")+'</select></label>';
+ const status='<div class="status-filter"><button type="button" class="btn status-filter-trigger" data-action="toggle-status-filter" aria-expanded="'+statusFilterOpen+'" aria-controls="status-filter-options">Statuts ('+opportunityStageFilter.size+'/'+STAGES.length+') ▾</button>'+(statusFilterOpen?'<div class="status-filter-options" id="status-filter-options" role="group" aria-label="Statuts affichés"><div class="status-filter-shortcuts"><button type="button" class="btn small" data-action="select-all-stages">Tout sélectionner</button><button type="button" class="btn small" data-action="clear-all-stages">Tout masquer</button></div>'+STAGES.map(x=>'<label class="status-filter-option"><input type="checkbox" data-action="filter-stage" value="'+esc(x)+'" '+(opportunityStageFilter.has(x)?"checked":"")+'><span>'+esc(x)+'</span></label>').join("")+'</div>':'')+'</div>';
+  const sort='<label class="subtle">Trier par<select id="opportunity-sort" class="field">'+[["created","Date de création"],["amount","Montant"],["follow","Relance"],["stage","Statut"]].map(([k,v])=>'<option value="'+k+'" '+(opportunitySort===k?'selected':'')+'>'+v+'</option>').join("")+'</select></label>';
  const arrow=(key,label)=>'<button type="button" class="table-sort" data-action="sort-opportunities" data-sort="'+key+'" aria-label="Trier '+label+' '+(opportunitySort===key&&opportunitySortDir==="asc"?'par ordre décroissant':'par ordre croissant')+'" aria-sort="'+(opportunitySort===key?(opportunitySortDir==="asc"?"ascending":"descending"):"none")+'">'+label+' <span aria-hidden="true">'+(opportunitySort===key?(opportunitySortDir==="asc"?"↑":"↓"):"↕")+'</span></button>';
  return '<section class="panel"><div class="row"><h2>Opportunités <span class="badge">'+all.length+'</span></h2><div class="opportunity-filter-row">'+status+sort+'</div></div>'+
  (all.length?'<div class="table-wrap"><table class="data-table"><thead><tr><th>Contact</th><th>Formation / prestation</th><th>'+arrow("stage","Statut")+'</th><th>'+arrow("amount","Montant")+'</th><th>'+arrow("follow","Relance")+'</th><th>'+arrow("created","Création")+'</th><th></th></tr></thead><tbody>'+
@@ -618,6 +618,9 @@ if(["save-contact-direct","save-opportunity-direct","save-task-direct","save-int
 if(a==="toggle-sidebar"){sidebarCollapsed=!sidebarCollapsed;persistUi();render();return}
 if(a==="set-theme"){const value=btn.dataset.theme;if(!["system","light","dark"].includes(value))return;themePreference=value;persistUi();render();return}
 if(a==="toggle-pipeline-stage"){const stage=btn.dataset.stage;if(!STAGES.includes(stage))return;if(pipelineExpandedStages.has(stage))pipelineExpandedStages.delete(stage);else pipelineExpandedStages.add(stage);render();return}
+if(a==="toggle-status-filter"){statusFilterOpen=!statusFilterOpen;render();return}
+if(a==="select-all-stages"){opportunityStageFilter=new Set(STAGES);render();return}
+if(a==="clear-all-stages"){opportunityStageFilter=new Set();render();return}
 if(a==="sort-opportunities"){const key=btn.dataset.sort;if(!["amount","follow","created","stage"].includes(key))return;if(opportunitySort===key)opportunitySortDir=opportunitySortDir==="asc"?"desc":"asc";else{opportunitySort=key;opportunitySortDir=key==="created"?"desc":"asc"}render();return}
 if(a==="apply-moon-update"){applyMoonUpdate();return}
 if(a==="dismiss-moon-update"){$("moon-update").hidden=true;return}
@@ -706,7 +709,7 @@ else if(t.id==="range-from"){rangeFrom=t.value;render()}
 else if(t.id==="range-to"){rangeTo=t.value;render()}
 else if(t.id==="tax"){tax=t.value;render()}
 else if(t.id==="task-mode"){taskMode=t.value;render()}
-else if(t.id==="opportunity-stage-filter"){opportunityStageFilter=t.value;render()}
+else if(t.dataset.action==="filter-stage"){if(t.checked)opportunityStageFilter.add(t.value);else opportunityStageFilter.delete(t.value);render()}
 else if(t.id==="opportunity-sort"){opportunitySort=t.value;opportunitySortDir=t.value==="created"?"desc":"asc";render()}
 else if(t.closest?.("#task-form")&&["type","opportunityId","contactId"].includes(t.name)){const f=t.closest("#task-form"),o=opportunity(f.elements.opportunityId?.value),contactSelect=f.querySelector('select[name="contactId"]');if(contactSelect){contactSelect.disabled=!!o;if(o)contactSelect.value=o.contactId||""}const c=o?.contactId||f.elements.contactId?.value||"";const out=f.querySelector("#task-auto-title");if(out)out.textContent=taskLabel(f.elements.type?.value,o?.id||"",c);const help=f.querySelector("#task-relation-help");if(help)help.textContent=o?"Le contact est automatiquement associé à l’opportunité sélectionnée.":"Sélectionnez une opportunité pour retrouver automatiquement son contact, ou choisissez un contact seul."}
 else if(t.dataset.action==="toggle-task"){const item=task(t.dataset.id);if(item){item.status=t.checked?"done":"open";item.completed=item.status==="done"?new Date().toISOString():"";if(save())render()}}
