@@ -117,14 +117,14 @@ ${page==="tasks"?`<select id="task-mode" class="field" aria-label="Filtrer les t
 }
 function render(){
 if(window.MOON_CLOUD&&!window.MOON_CLOUD.isAuthenticated?.()){const root=$("app");if(root)root.innerHTML="";return}
-const titles={day:["Ma journée","Vos relances, dossiers à suivre et priorités du jour"],dashboard:["Tableau de bord","Une vision claire de vos résultats et priorités"],board:["Pipeline commercial","Déplacez les opportunités pour suivre leur progression"],opportunities:["Opportunités","Les projets commerciaux et leurs montants"],contacts:["Contacts","Un contact peut avoir plusieurs opportunités"],tasks:["Tâches & relances","Ajoutez, terminez, modifiez ou supprimez vos actions"],reporting:["Reporting commercial","Vos indicateurs et votre bilan partageable"],settings:["Paramètres","Personnalisation, importations et sauvegardes"],account:["Mon compte","Connexion sécurisée, synchronisation et appareils"]};
+const titles={day:["Ma journée","Vos relances, dossiers à suivre et priorités du jour"],dashboard:["Tableau de bord","Une vision claire de vos résultats et priorités"],board:["Pipeline commercial","Déplacez les opportunités pour suivre leur progression"],opportunities:["Opportunités","Les projets commerciaux et leurs montants"],contacts:["Contacts","Un contact peut avoir plusieurs opportunités"],tasks:["Tâches & relances","Ajoutez, terminez, modifiez ou supprimez vos actions"],"opportunity-detail":["Fiche opportunité","Contact, suivi des échanges et prochaines actions"],reporting:["Reporting commercial","Vos indicateurs et votre bilan partageable"],settings:["Paramètres","Personnalisation, importations et sauvegardes"],account:["Mon compte","Connexion sécurisée, synchronisation et appareils"]};
 const [title,subtitle]=titles[page];
 $("app").innerHTML=`<div class="shell"><aside class="sidebar"><div class="brand"><div class="brand-symbol">☾</div><div><strong>MOON</strong><small>ESPI EXECUTIVE</small></div></div><nav aria-label="Navigation principale">
 ${navButton("day","☀","Ma journée")}${navButton("dashboard","◫","Accueil")}${navButton("board","▥","Pipeline")}${navButton("opportunities","◇","Opportunités")}${navButton("contacts","♙","Contacts")}${navButton("tasks","☑","Tâches")}${navButton("reporting","▤","Reporting")}<div class="nav-divider" aria-hidden="true"></div><div class="nav-group-label">ESPACE PERSONNEL</div>${navButton("account","☁","Mon compte")}${navButton("settings","⚙","Paramètres")}
 </nav><div class="sidebar-bottom"><span id="sidebar-sync-state">☁ Vérification de la synchronisation…</span><br>MOON · Votre espace sécurisé</div></aside>
 <div class="main"><div class="topbar"><div><div class="eyebrow">MOON / ${esc(page)}</div><h1>${title}</h1><div class="subtle">${subtitle}</div></div><div class="actions"><button class="btn" type="button" data-action="nav" data-page="account" title="Compte et synchronisation entre ordinateurs">☁ <span id="topbar-sync-label">Mon compte</span></button><button class="btn" data-action="voice-open" type="button">🎙 Dicter</button>
 ${page==="contacts"?`<button class="btn primary" data-action="new-contact">+ Nouveau contact</button>`:page==="tasks"?`<button class="btn primary" data-action="new-task">+ Nouvelle tâche</button>`:page==="settings"||page==="account"?"":`<button class="btn" data-action="new-task">+ Tâche</button><button class="btn primary" data-action="new-opportunity">+ Opportunité</button>`}</div></div>
-${toolbar()}<div id="view">${page==="day"?dayPage():page==="dashboard"?dashboard():page==="board"?board():page==="opportunities"?opportunities():page==="contacts"?contacts():page==="tasks"?tasks():page==="reporting"?reportingPage():page==="account"?accountPage():settings()}</div></div></div>`;
+${toolbar()}<div id="view">${page==="day"?dayPage():page==="dashboard"?dashboard():page==="board"?board():page==="opportunities"?opportunities():page==="opportunity-detail"?opportunityDetailPage():page==="contacts"?contacts():page==="tasks"?tasks():page==="reporting"?reportingPage():page==="account"?accountPage():settings()}</div></div></div>`;
 }
 function metric(label,value,foot,icon,color="",revenueKey=""){
  const active=!!revenueKey,tag=active?"button":"div";
@@ -304,6 +304,22 @@ function opportunities(){
  return '<section class="panel"><div class="row"><h2>Opportunités <span class="badge">'+all.length+'</span></h2><div class="opportunity-filter-row">'+status+sort+'</div></div>'+
  (all.length?'<div class="table-wrap"><table class="data-table"><thead><tr><th>Contact</th><th>Formation / prestation</th><th>'+arrow("stage","Statut")+'</th><th>'+arrow("amount","Montant")+'</th><th>'+arrow("follow","Relance")+'</th><th>'+arrow("created","Création")+'</th><th></th></tr></thead><tbody>'+
  all.map(o=>{const c=linkedContact(o);return '<tr data-search="'+esc((contactName(c)+" "+(c?.company||"")+" "+o.training+" "+o.stage).toLowerCase())+'"><td><div class="person">'+esc(contactName(c))+'<small>'+esc(c?.company||"")+'</small></div></td><td>'+esc(o.training)+'<div class="subtle">'+esc(o.category)+'</div></td><td>'+badge(o.stage)+'</td><td><strong>'+amountText(o)+'</strong></td><td>'+dt(o.follow)+'</td><td>'+dt(o.created)+'</td><td><button class="btn small" data-action="open-opportunity" data-id="'+esc(o.id)+'">Ouvrir</button></td></tr>'}).join("")+'</tbody></table></div>':'<div class="empty"><strong>Aucune opportunité pour ces critères</strong><p>Modifiez le statut ou la période sélectionnée.</p></div>')+'</section>';
+}
+function opportunityDetailPage(){
+ const o=opportunity(selectedOpportunityId);
+ if(!o)return '<section class="panel empty"><strong>Opportunité introuvable</strong><p>Elle a peut-être été supprimée ou modifiée depuis un autre appareil.</p><button class="btn primary" data-action="nav" data-page="opportunities">Retour aux opportunités</button></section>';
+ const c=linkedContact(o),events=[...(o.events||[])].sort((a,b)=>String(b.at||"").localeCompare(String(a.at||"")));
+ const related=data.tasks.filter(t=>t.opportunityId===o.id).sort((a,b)=>compare(a.due,b.due));
+ const link=(value,scheme)=>value?'<a href="'+scheme+encodeURIComponent(value)+'">'+esc(value)+'</a>':'—';
+ const header='<div class="opportunity-detail-head"><div><button class="btn small ghost" data-action="nav" data-page="opportunities">← Toutes les opportunités</button><h2>'+esc(o.training)+'</h2><p class="subtle">'+esc(o.category)+' · Créée le '+dt(o.created)+'</p></div><div class="opportunity-detail-actions">'+badge(o.stage)+'<button class="btn primary" data-action="edit-opportunity" data-id="'+esc(o.id)+'">Modifier la fiche</button></div></div>';
+ const info='<section class="panel"><h3>Contact associé</h3><h2>'+esc(contactName(c))+'</h2><p class="subtle">'+esc(c?.company||"")+'</p><div class="detail-fields"><div>Email <strong>'+link(c?.email,"mailto:")+'</strong></div><div>Téléphone <strong>'+link(c?.phone,"tel:")+'</strong></div><div>Profil <strong>'+esc(c?.profile||"—")+'</strong></div></div><button class="btn small" data-action="edit-contact" data-id="'+esc(c?.id||"')+'">Voir / modifier le contact</button></section>';
+ const summary='<section class="panel"><h3>Informations commerciales</h3><div class="detail-fields"><div>Montant '+esc(tax.toUpperCase())+' <strong>'+amountText(o)+'</strong></div><div>Étape <strong>'+badge(o.stage)+'</strong></div><div>Maturité <strong>'+esc(o.maturity||"—")+'</strong></div><div>Relance <strong>'+dt(o.follow)+'</strong></div><div>Clôture prévue <strong>'+dt(o.forecast)+'</strong></div><div>Clôture réelle <strong>'+dt(o.closed)+'</strong></div><div>Responsable <strong>'+esc(o.owner||"—")+'</strong></div><div>Origine <strong>'+esc(o.source||"—")+'</strong></div></div>'+(o.notes?'<p class="detail-note">'+esc(o.notes)+'</p>':'')+'</section>';
+ const timeline='<section class="panel opportunity-timeline"><div class="row"><div><h2>Suivi & échanges</h2><p class="subtle">Historique chronologique de cette opportunité</p></div><span class="badge">'+events.length+' échange(s)</span></div>'+
+ (suggestedStage(o)?'<div class="detail-suggestion">Un échange suggère de passer à « '+esc(suggestedStage(o))+' ». <button class="btn small" data-action="apply-stage-suggestion" data-id="'+esc(o.id)+'">Appliquer</button></div>':'')+
+ '<form id="interaction-form" data-id="'+esc(o.id)+'"><div class="form-grid">'+select("channel","Canal",CHANNELS,"Appel")+input("date","Date / heure",new Date().toISOString().slice(0,16),"datetime-local",true)+'</div>'+textarea("text","Compte rendu de l’échange *","")+'<div class="form-footer"><span></span><button class="btn primary" type="button" data-action="save-interaction-direct">+ Enregistrer cet échange</button></div></form>'+
+ '<div class="timeline">'+(events.length?events.map(e=>'<div class="timeline-item"><div class="timeline-meta">'+esc(e.channel||"Note")+' · '+fmtDateTime(e.at)+'</div><p>'+esc(e.text||"")+'</p></div>').join(""):'<div class="empty">Aucun échange enregistré. Ajoutez le premier compte rendu ci-dessus.</div>')+'</div></section>';
+ const tasks='<section class="panel"><div class="row"><h3>Tâches & prochaines actions</h3><button class="btn small" data-action="new-task" data-opportunity-id="'+esc(o.id)+'">+ Ajouter</button></div>'+(related.length?related.map(t=>'<div class="detail-task">'+esc(t.title)+' <span class="subtle">'+dt(t.due)+' · '+(t.status==="done"?"Terminée":"À faire")+'</span><button class="btn small ghost" data-action="edit-task" data-id="'+esc(t.id)+'">Ouvrir</button></div>').join(""):'<p class="subtle">Aucune tâche liée.</p>')+'</section>';
+ return header+'<div class="opportunity-detail-layout"><div class="opportunity-detail-primary">'+timeline+tasks+'</div><aside class="opportunity-detail-aside">'+info+summary+'</aside></div>';
 }
 function contacts(){
 const all=data.contacts.slice().sort((a,b)=>compare(a.last,b.last));
@@ -589,6 +605,7 @@ if(["save-contact-direct","save-opportunity-direct","save-task-direct","save-int
  }catch(err){console.error("MOON direct save failure",kind,err);alert("Enregistrement interrompu : "+(err?.message||err))}
  return;
 }
+if(a==="sort-opportunities"){const key=btn.dataset.sort;if(!["amount","follow","created","stage"].includes(key))return;if(opportunitySort===key)opportunitySortDir=opportunitySortDir==="asc"?"desc":"asc";else{opportunitySort=key;opportunitySortDir=key==="created"?"desc":"asc"}render();return}
 if(a==="revenue-breakdown"){revenueBreakdown(btn.dataset.revenue||"");return}
 if(a==="day-jump"){document.getElementById(btn.dataset.target)?.scrollIntoView({behavior:"smooth",block:"start"});return}
 if(a==="natural-search"){naturalQuery=$("natural-query")?.value?.trim()||"";render();return}
@@ -601,6 +618,7 @@ else if(a==="new-contact"||a==="new-contact-from-op"){afterContact=a==="new-cont
 else if(a==="new-opportunity")opportunityModal(null,btn.dataset.contactId||"");
 else if(a==="new-task")taskModal(null,btn.dataset.opportunityId||"",btn.dataset.contactId||"");
 else if(a==="edit-contact")contactModal(contact(x));
+else if(a==="open-opportunity"){selectedOpportunityId=x;page="opportunity-detail";render()}
 else if(a==="edit-opportunity")opportunityModal(opportunity(x));
 else if(a==="edit-task")taskModal(task(x));
 else if(a==="delete-contact")deleteRecord("contact",x);
@@ -643,6 +661,8 @@ else if(t.id==="range-from"){rangeFrom=t.value;render()}
 else if(t.id==="range-to"){rangeTo=t.value;render()}
 else if(t.id==="tax"){tax=t.value;render()}
 else if(t.id==="task-mode"){taskMode=t.value;render()}
+else if(t.id==="opportunity-stage-filter"){opportunityStageFilter=t.value;render()}
+else if(t.id==="opportunity-sort"){opportunitySort=t.value;opportunitySortDir=t.value==="created"?"desc":"asc";render()}
 else if(t.closest?.("#task-form")&&["type","opportunityId","contactId"].includes(t.name)){const f=t.closest("#task-form"),o=opportunity(f.elements.opportunityId?.value),c=o?.contactId||f.elements.contactId?.value||"";const out=f.querySelector("#task-auto-title");if(out)out.textContent=taskLabel(f.elements.type?.value,o?.id||"",c)}
 else if(t.dataset.action==="toggle-task"){const item=task(t.dataset.id);if(item){item.status=t.checked?"done":"open";item.completed=item.status==="done"?new Date().toISOString():"";if(save())render()}}
 else if(t.id==="file-import"){const f=t.files?.[0];if(f)importFile(f,t.dataset.kind);t.value=""}
