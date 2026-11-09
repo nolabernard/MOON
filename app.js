@@ -116,6 +116,7 @@ ${page==="tasks"?`<select id="task-mode" class="field" aria-label="Filtrer les t
 </div>`;
 }
 function render(){
+moonFormDirty=false;
 if(window.MOON_CLOUD&&!window.MOON_CLOUD.isAuthenticated?.()){const root=$("app");if(root)root.innerHTML="";return}
 const titles={day:["Ma journée","Vos relances, dossiers à suivre et priorités du jour"],dashboard:["Tableau de bord","Une vision claire de vos résultats et priorités"],board:["Pipeline commercial","Déplacez les opportunités pour suivre leur progression"],opportunities:["Opportunités","Les projets commerciaux et leurs montants"],contacts:["Contacts","Un contact peut avoir plusieurs opportunités"],tasks:["Tâches & relances","Ajoutez, terminez, modifiez ou supprimez vos actions"],"opportunity-detail":["Fiche opportunité","Contact, suivi des échanges et prochaines actions"],reporting:["Reporting commercial","Vos indicateurs et votre bilan partageable"],settings:["Paramètres","Personnalisation, importations et sauvegardes"],account:["Mon compte","Connexion sécurisée, synchronisation et appareils"]};
 const [title,subtitle]=titles[page];
@@ -650,7 +651,7 @@ function handleFormSubmit(e){
 }
 
 const MOON_APP_VERSION="23.0";
-let moonUpdateReady=false,moonUpdateChecking=false;
+let moonUpdateReady=false,moonUpdateChecking=false,moonFormDirty=false;
 function showMoonUpdate(){
  const node=$("moon-update");if(!node)return;
  node.hidden=false;
@@ -668,7 +669,7 @@ async function checkMoonUpdate(){
  finally{moonUpdateChecking=false}
 }
 function applyMoonUpdate(){
- if(document.querySelector("#modal[open]")||document.querySelector("#voice-modal[open]")||document.activeElement?.closest?.("form")||document.querySelector("#interaction-form:focus-within")){
+ if(moonFormDirty||document.querySelector("#modal[open]")||document.querySelector("#voice-modal[open]")||document.activeElement?.closest?.("form")||document.querySelector("#interaction-form:focus-within")){
   alert("Fermez ou enregistrez d’abord le formulaire en cours avant de mettre MOON à jour.");return;
  }
  if(window.MOON_CLOUD&&!window.MOON_CLOUD.canReload?.()){
@@ -699,7 +700,7 @@ else if(t.closest?.("#task-form")&&["type","opportunityId","contactId"].includes
 else if(t.dataset.action==="toggle-task"){const item=task(t.dataset.id);if(item){item.status=t.checked?"done":"open";item.completed=item.status==="done"?new Date().toISOString():"";if(save())render()}}
 else if(t.id==="file-import"){const f=t.files?.[0];if(f)importFile(f,t.dataset.kind);t.value=""}
 });
-document.addEventListener("input",e=>{if(e.target.id==="search"){const term=e.target.value.trim().toLowerCase();document.querySelectorAll("[data-search]").forEach(el=>el.hidden=!el.dataset.search.includes(term))}});
+document.addEventListener("input",e=>{if(e.target.closest?.("form"))moonFormDirty=true;if(e.target.id==="search"){const term=e.target.value.trim().toLowerCase();document.querySelectorAll("[data-search]").forEach(el=>el.hidden=!el.dataset.search.includes(term))}});
 document.addEventListener("submit",handleFormSubmit,true);
 let dragged="";
 document.addEventListener("dragstart",e=>{const card=e.target.closest(".op-card");if(card){dragged=card.dataset.id;e.dataTransfer.setData("text/plain",dragged);e.dataTransfer.effectAllowed="move"}});
