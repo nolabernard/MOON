@@ -107,7 +107,7 @@ Deno.serve(async (req: Request) => {
       return json(req, 200, {ok: true, revision: Number(full.data.revision), updatedAt: full.data.updated_at, content: filteredSnapshot(full.data.content,allowedSections),allowedSections,permissionsVersion});
     }
 
-    if (!["list","create","revoke","recover","update"].includes(action)) return json(req, 400, {error: "Action inconnue."});
+    if (!["list","create","revoke","recover","update","delete"].includes(action)) return json(req, 400, {error: "Action inconnue."});
     const owner = await authenticatedOwner(req);
     if (!owner) return json(req, 401, {error: "Session propriétaire requise."});
 
@@ -137,6 +137,25 @@ Deno.serve(async (req: Request) => {
     const linkId = typeof input.id === "string" ? input.id : "";
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(linkId))
       return json(req, 400, {error: "Identifiant du lien invalide."});
+    if (action === "delete") {
+      // Deletion is permitted only for a link already revoked or expired.
+      // Ownership is always checked on the server; CRM snapshots are never touched.
+      const existing=await db.from("moon_visitor_links")
+        .select("id,revoked_at,expires_at")
+        .eq("owner_id",owner.id).eq("id",linkId).maybeSingle();
+      if(existing.error)throw existing.error;
+      if(!existing.data)return json(req,404,{error:"Lien introuvable."});
+      const disabled=!!existing.data.revoked_at||(!!existing.data.expires_at&&Date.parse(existing.data.expires_at)<=Date.now());
+      if(!disabled)return json(req,409,{error:"Désactivez ce lien avant de le supprimer."});
+      // Guard against a concurrent status change before deletion.
+      let deletion=db.from("moon_visitor_links").delete().eq("owner_id",owner.id).eq("id",linkId);
+      if(existing.data.revoked_at)deletion=deletion.eq("revoked_at",existing.data.revoked_at);
+      else deletion=deletion.is("revoked_at",null).lte("expires_at",new Date().toISOString());
+      const removed=await deletion.select("id");
+      if(removed.error)throw removed.error;
+      if(!removed.data?.length)return json(req,409,{error:"L'état du lien a changé. Actualisez la liste."});
+      return json(req,200,{ok:true,deleted:true});
+    }
     if (action === "update") {
       if(!validSections(input.allowedSections))return json(req,400,{error:"Rubriques invalides."});
       const existing=await db.from("moon_visitor_links").select("permissions_version").eq("owner_id",owner.id).eq("id",linkId).is("revoked_at",null).maybeSingle();
