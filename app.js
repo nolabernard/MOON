@@ -606,6 +606,8 @@ if(["save-contact-direct","save-opportunity-direct","save-task-direct","save-int
  return;
 }
 if(a==="sort-opportunities"){const key=btn.dataset.sort;if(!["amount","follow","created","stage"].includes(key))return;if(opportunitySort===key)opportunitySortDir=opportunitySortDir==="asc"?"desc":"asc";else{opportunitySort=key;opportunitySortDir=key==="created"?"desc":"asc"}render();return}
+if(a==="apply-moon-update"){applyMoonUpdate();return}
+if(a==="dismiss-moon-update"){$("moon-update").hidden=true;return}
 if(a==="revenue-breakdown"){revenueBreakdown(btn.dataset.revenue||"");return}
 if(a==="day-jump"){document.getElementById(btn.dataset.target)?.scrollIntoView({behavior:"smooth",block:"start"});return}
 if(a==="natural-search"){naturalQuery=$("natural-query")?.value?.trim()||"";render();return}
@@ -646,10 +648,40 @@ function handleFormSubmit(e){
   alert("Enregistrement interrompu : "+(err?.message||err)+". Vos données précédentes sont conservées.");
  }
 }
+
+const MOON_APP_VERSION="23.0";
+let moonUpdateReady=false,moonUpdateChecking=false;
+function showMoonUpdate(){
+ const node=$("moon-update");if(!node)return;
+ node.hidden=false;
+ node.innerHTML='<div><strong>Nouvelle version de MOON disponible</strong><p>Vos données sont conservées. Enregistrez vos saisies avant d’actualiser.</p></div><button type="button" class="btn primary" data-action="apply-moon-update">Mettre à jour</button><button type="button" class="btn small ghost" data-action="dismiss-moon-update">Plus tard</button>';
+}
+async function checkMoonUpdate(){
+ if(moonUpdateChecking||moonUpdateReady||document.hidden)return;
+ moonUpdateChecking=true;
+ try{
+  const response=await fetch("./index.html?moon-check="+Date.now(),{cache:"no-store"});
+  if(!response.ok)return;
+  const html=await response.text(),version=html.match(/app\.js\?v=([0-9.]+)/)?.[1];
+  if(version&&version!==MOON_APP_VERSION){moonUpdateReady=true;showMoonUpdate()}
+ }catch(e){console.info("Vérification des mises à jour indisponible",e)}
+ finally{moonUpdateChecking=false}
+}
+function applyMoonUpdate(){
+ if(document.querySelector("#modal[open]")||document.querySelector("#voice-modal[open]")||document.activeElement?.closest?.("form")||document.querySelector("#interaction-form:focus-within")){
+  alert("Fermez ou enregistrez d’abord le formulaire en cours avant de mettre MOON à jour.");return;
+ }
+ if(window.MOON_CLOUD&&!window.MOON_CLOUD.canReload?.()){
+  alert("Vos dernières modifications ne sont pas encore synchronisées avec Supabase. Attendez l’indication « Synchronisé » puis réessayez.");return;
+ }
+ window.location.reload();
+}
+
 function init(){
 // Do not load unscoped legacy CRM data before authentication.
 if(!window.MOON_CLOUD)load();render();
 document.addEventListener("click",onClick);
+setTimeout(checkMoonUpdate,5000);setInterval(checkMoonUpdate,180000);document.addEventListener("visibilitychange",()=>{if(!document.hidden)checkMoonUpdate()});
 document.addEventListener("change",e=>{
 const t=e.target;
 if(t.id==="period"){period=t.value;render()}
