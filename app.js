@@ -11,6 +11,7 @@ const TYPES=["VAE","Formation courte","Autre"];
 const CHANNELS=["Appel","Email","SMS","Visioconférence","Rendez-vous","Note"];
 let data={version:2,contacts:[],opportunities:[],tasks:[]};
 let naturalQuery="";
+let opportunityStageFilter="all",opportunitySort="created",opportunitySortDir="desc",selectedOpportunityId="";
 let reportingPeriod="all",reportingAnchor="",reportingFrom="",reportingTo="";
 let page="day",period="all",rangeFrom="",rangeTo="",tax="ht",taskMode="open",afterContact=false;
 const $=id=>document.getElementById(id);
@@ -279,11 +280,30 @@ function board(){
 const all=scoped();
 return `<div class="board">${STAGES.map(s=>{const list=all.filter(o=>o.stage===s),total=sum(list);return `<section class="lane" data-stage="${esc(s)}"><div class="lane-header"><span class="lane-title">${esc(s)}</span><span class="badge">${list.length}</span></div><div class="amount">${money(total)}</div>${list.map(o=>`<article class="op-card" draggable="true" data-id="${esc(o.id)}" data-action="edit-opportunity" tabindex="0" role="button"><div class="head">${esc(contactName(linkedContact(o)))}</div><p>${esc(o.training)} · ${esc(o.category)}</p><div class="bottom"><strong>${amountText(o)}</strong><span>${o.follow?"↻ "+dt(o.follow):""}</span></div></article>`).join("")}</section>`}).join("")}</div>`;
 }
+function opportunitySortValue(o,key){
+ if(key==="amount")return amount(o);
+ if(key==="follow")return o.follow||"";
+ if(key==="created")return o.created||"";
+ return o[key]||"";
+}
+function sortedOpportunities(){
+ const rows=scoped().filter(o=>opportunityStageFilter==="all"||o.stage===opportunityStageFilter);
+ return rows.slice().sort((a,b)=>{
+  const x=opportunitySortValue(a,opportunitySort),y=opportunitySortValue(b,opportunitySort);
+  const missing=x===""||x===null,otherMissing=y===""||y===null;
+  if(missing!==otherMissing)return missing?1:-1;
+  const diff=typeof x==="number"&&typeof y==="number"?x-y:compare(String(x),String(y));
+  return (opportunitySortDir==="asc"?diff:-diff)||compare(b.created,a.created)||compare(a.id,b.id);
+ });
+}
 function opportunities(){
-const all=scoped().slice().sort((a,b)=>compare(b.created,a.created));
-if(!all.length)return `<section class="panel empty"><strong>Aucune opportunité</strong><p>Créez d'abord un contact, puis associez-lui une ou plusieurs opportunités.</p><button class="btn primary" data-action="new-opportunity">Créer une opportunité</button></section>`;
-return `<section class="panel"><div class="row"><h2>Opportunités <span class="badge">${all.length}</span></h2></div><div class="table-wrap"><table class="data-table"><thead><tr><th>Contact</th><th>Formation / prestation</th><th>Statut</th><th>Montant</th><th>Relance</th><th></th></tr></thead><tbody>
-${all.map(o=>{const c=linkedContact(o);return `<tr data-search="${esc((contactName(c)+" "+(c?.company||"")+" "+o.training+" "+o.stage).toLowerCase())}"><td><div class="person">${esc(contactName(c))}<small>${esc(c?.company||"")}</small></div></td><td>${esc(o.training)}<div class="subtle">${esc(o.category)}</div></td><td>${badge(o.stage)}</td><td><strong>${amountText(o)}</strong></td><td>${dt(o.follow)}</td><td><button class="btn small" data-action="edit-opportunity" data-id="${esc(o.id)}">Ouvrir</button></td></tr>`}).join("")}</tbody></table></div></section>`;
+ const all=sortedOpportunities();
+ const status='<label class="subtle">Statut<select id="opportunity-stage-filter" class="field"><option value="all">Tous les statuts</option>'+STAGES.map(x=>'<option value="'+esc(x)+'" '+(opportunityStageFilter===x?'selected':'')+'>'+esc(x)+'</option>').join("")+'</select></label>';
+ const sort='<label class="subtle">Trier par<select id="opportunity-sort" class="field">'+[["created","Date de création"],["amount","Montant"],["follow","Relance"],["stage","Statut"]].map(([k,v])=>'<option value="'+k+'" '+(opportunitySort===k?'selected':'')+'>'+v+'</option>').join("")+'</select></label>';
+ const arrow=(key,label)=>'<button type="button" class="table-sort" data-action="sort-opportunities" data-sort="'+key+'" aria-label="Trier '+label+' '+(opportunitySort===key&&opportunitySortDir==="asc"?'par ordre décroissant':'par ordre croissant')+'" aria-sort="'+(opportunitySort===key?(opportunitySortDir==="asc"?"ascending":"descending"):"none")+'">'+label+' <span aria-hidden="true">'+(opportunitySort===key?(opportunitySortDir==="asc"?"↑":"↓"):"↕")+'</span></button>';
+ return '<section class="panel"><div class="row"><h2>Opportunités <span class="badge">'+all.length+'</span></h2><div class="opportunity-filter-row">'+status+sort+'</div></div>'+
+ (all.length?'<div class="table-wrap"><table class="data-table"><thead><tr><th>Contact</th><th>Formation / prestation</th><th>'+arrow("stage","Statut")+'</th><th>'+arrow("amount","Montant")+'</th><th>'+arrow("follow","Relance")+'</th><th>'+arrow("created","Création")+'</th><th></th></tr></thead><tbody>'+
+ all.map(o=>{const c=linkedContact(o);return '<tr data-search="'+esc((contactName(c)+" "+(c?.company||"")+" "+o.training+" "+o.stage).toLowerCase())+'"><td><div class="person">'+esc(contactName(c))+'<small>'+esc(c?.company||"")+'</small></div></td><td>'+esc(o.training)+'<div class="subtle">'+esc(o.category)+'</div></td><td>'+badge(o.stage)+'</td><td><strong>'+amountText(o)+'</strong></td><td>'+dt(o.follow)+'</td><td>'+dt(o.created)+'</td><td><button class="btn small" data-action="open-opportunity" data-id="'+esc(o.id)+'">Ouvrir</button></td></tr>'}).join("")+'</tbody></table></div>':'<div class="empty"><strong>Aucune opportunité pour ces critères</strong><p>Modifiez le statut ou la période sélectionnée.</p></div>')+'</section>';
 }
 function contacts(){
 const all=data.contacts.slice().sort((a,b)=>compare(a.last,b.last));
