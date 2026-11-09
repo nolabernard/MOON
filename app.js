@@ -22,6 +22,7 @@ applyTheme();
 let reportingPeriod="all",reportingAnchor="",reportingFrom="",reportingTo="";
 let page="day",period="all",rangeFrom="",rangeTo="",tax="ht",taskMode="open",afterContact=false;
 const $=id=>document.getElementById(id);
+const isReadOnly=()=>!!window.MOON_VISITOR?.isVisitor?.();
 const today=()=>{const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)};
 const id=()=>typeof crypto!=="undefined"&&crypto.randomUUID?crypto.randomUUID():"moon-"+Date.now()+"-"+Math.random().toString(36).slice(2);
 const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -69,6 +70,7 @@ try{const s=JSON.parse(localStorage.getItem(scopedKey())||"null");if(s&&Array.is
 if(!loaded){if(!activeOwner)migrateOld();save(false)}normalize();
 }
 function save(show=true){
+ if(isReadOnly())return false;
  if(window.MOON_CLOUD&&!activeOwner)return false;
  try{
   const serialized=JSON.stringify(data);
@@ -124,15 +126,17 @@ ${page==="tasks"?`<select id="task-mode" class="field" aria-label="Filtrer les t
 }
 function render(){
 moonFormDirty=false;
-if(window.MOON_CLOUD&&!window.MOON_CLOUD.isAuthenticated?.()){const root=$("app");if(root)root.innerHTML="";return}
+if(window.MOON_CLOUD&&!window.MOON_CLOUD.isAuthenticated?.()&&!window.MOON_VISITOR?.isVisitorReady?.()){const root=$("app");if(root)root.innerHTML="";return}
 const titles={day:["Ma journée","Vos relances, dossiers à suivre et priorités du jour"],dashboard:["Tableau de bord","Une vision claire de vos résultats et priorités"],board:["Pipeline commercial","Déplacez les opportunités pour suivre leur progression"],opportunities:["Opportunités","Les projets commerciaux et leurs montants"],contacts:["Contacts","Un contact peut avoir plusieurs opportunités"],tasks:["Tâches & relances","Ajoutez, terminez, modifiez ou supprimez vos actions"],"opportunity-detail":["Fiche opportunité","Contact, suivi des échanges et prochaines actions"],reporting:["Reporting commercial","Vos indicateurs et votre bilan partageable"],settings:["Paramètres","Personnalisation, importations et sauvegardes"],account:["Mon compte","Connexion sécurisée, synchronisation et appareils"]};
 const [title,subtitle]=titles[page];
 $("app").innerHTML=`<div class="shell ${sidebarCollapsed?"sidebar-collapsed":""}"><aside class="sidebar"><div class="brand"><div class="brand-symbol">☾</div><div class="brand-text"><strong>MOON</strong><small>ESPI EXECUTIVE</small></div><button class="sidebar-toggle" type="button" data-action="toggle-sidebar" aria-label="${sidebarCollapsed?"Déployer":"Rétracter"} le menu" aria-expanded="${!sidebarCollapsed}" title="${sidebarCollapsed?"Déployer":"Rétracter"} le menu">${sidebarCollapsed?"»":"«"}</button></div><nav aria-label="Navigation principale">
-${navButton("day","☀","Ma journée")}${navButton("dashboard","◫","Accueil")}${navButton("board","▥","Pipeline")}${navButton("opportunities","◇","Opportunités")}${navButton("contacts","♙","Contacts")}${navButton("tasks","☑","Tâches")}${navButton("reporting","▤","Reporting")}<div class="nav-divider" aria-hidden="true"></div><div class="nav-group-label">ESPACE PERSONNEL</div>${navButton("account","☁","Mon compte")}${navButton("settings","⚙","Paramètres")}
+${navButton("day","☀","Ma journée")}${navButton("dashboard","◫","Accueil")}${navButton("board","▥","Pipeline")}${navButton("opportunities","◇","Opportunités")}${navButton("contacts","♙","Contacts")}${navButton("tasks","☑","Tâches")}${navButton("reporting","▤","Reporting")}${isReadOnly()?"":'<div class="nav-divider" aria-hidden="true"></div><div class="nav-group-label">ESPACE PERSONNEL</div>'}${isReadOnly()?"":navButton("account","☁","Mon compte")+navButton("settings","⚙","Paramètres")}
 </nav><div class="sidebar-bottom"><span id="sidebar-sync-state">☁ Vérification de la synchronisation…</span><br>MOON · Votre espace sécurisé</div></aside>
-<div class="main ${["opportunities","contacts","tasks","reporting"].includes(page)?"workspace-main":""}"><div class="topbar"><div><div class="eyebrow">MOON / ${esc(page)}</div><h1>${title}</h1><div class="subtle">${subtitle}</div></div><div class="actions">${["day","contacts","opportunities","opportunity-detail","tasks"].includes(page)?`<button class="btn" data-action="voice-open" type="button" title="Dicter un contact, une opportunité, un échange ou une tâche">🎙 Dicter</button>`:""}
-${page==="contacts"?`<button class="btn primary" data-action="new-contact">+ Nouveau contact</button>`:page==="tasks"?`<button class="btn primary" data-action="new-task">+ Nouvelle tâche</button>`:page==="settings"||page==="account"?"":`<button class="btn" data-action="new-task">+ Tâche</button><button class="btn primary" data-action="new-opportunity">+ Opportunité</button>`}</div></div>
-${toolbar()}<div id="view" class="${["opportunities","contacts","tasks","reporting"].includes(page)?"workspace-view workspace-"+page:""}">${page==="day"?dayPage():page==="dashboard"?dashboard():page==="board"?board():page==="opportunities"?opportunities():page==="opportunity-detail"?opportunityDetailPage():page==="contacts"?contacts():page==="tasks"?tasks():page==="reporting"?reportingPage():page==="account"?accountPage():settings()}</div></div></div>`;
+<div class="main ${["opportunities","contacts","tasks","reporting"].includes(page)?"workspace-main":""}"><div class="topbar"><div><div class="eyebrow">MOON / ${esc(page)}</div><h1>${title}</h1><div class="subtle">${subtitle}</div></div><div class="actions">${isReadOnly()?'<span class="visitor-pill" aria-label="Mode visiteur, lecture seule">◉ Lecture seule</span><button type="button" class="btn small" data-action="visitor-refresh">Actualiser</button>':(["day","contacts","opportunities","opportunity-detail","tasks"].includes(page)?`<button class="btn" data-action="voice-open" type="button" title="Dicter un contact, une opportunité, un échange ou une tâche">🎙 Dicter</button>`:""}
+${page==="contacts"?`<button class="btn primary" data-action="new-contact">+ Nouveau contact</button>`:page==="tasks"?`<button class="btn primary" data-action="new-task">+ Nouvelle tâche</button>`:page==="settings"||page==="account"?"":`<button class="btn" data-action="new-task">+ Tâche</button><button class="btn primary" data-action="new-opportunity">+ Opportunité</button>`)}</div></div>
+${isReadOnly()?'<div class="visitor-status-bar" role="status"><span id="visitor-live-status">Lecture seule · actualisation automatique</span><span>Les modifications enregistrées sont vérifiées toutes les 15 secondes.</span></div>':""}${toolbar()}<div id="view" class="${["opportunities","contacts","tasks","reporting"].includes(page)?"workspace-view workspace-"+page:""}">${page==="day"?dayPage():page==="dashboard"?dashboard():page==="board"?board():page==="opportunities"?opportunities():page==="opportunity-detail"?opportunityDetailPage():page==="contacts"?contacts():page==="tasks"?tasks():page==="reporting"?reportingPage():page==="account"?accountPage():settings()}</div></div></div>`;
+if(isReadOnly())document.querySelectorAll("#app .task-check").forEach(el=>{el.disabled=true;el.setAttribute("aria-label","Statut de tâche en lecture seule")});
+if(page==="account"&&!isReadOnly())window.MOON_VISITOR?.maybeLoadAdminLinks?.();
 }
 function metric(label,value,foot,icon,color="",revenueKey=""){
  const active=!!revenueKey,tag=active?"button":"div";
@@ -288,7 +292,7 @@ const PIPELINE_VISIBLE_LIMIT=10;
 const pipelineExpandedStages=new Set();
 function board(){
 const all=scoped();
-return `<div class="board">${STAGES.map(stage=>{const list=all.filter(o=>o.stage===stage),total=sum(list),visible=list;return `<section class="lane" data-stage="${esc(stage)}"><div class="lane-header"><span class="lane-title">${esc(stage)}</span><span class="badge">${list.length}</span></div><div class="amount">${money(total)}</div><div class="lane-cards">${visible.map(o=>`<article class="op-card" draggable="true" data-id="${esc(o.id)}" data-action="open-opportunity" tabindex="0" role="button" aria-label="Ouvrir la fiche de ${esc(contactName(linkedContact(o)))} — ${esc(o.training)}"><div class="head">${esc(contactName(linkedContact(o)))}</div><p>${esc(o.training)} · ${esc(o.category)}</p><div class="bottom"><strong>${amountText(o)}</strong><span>${o.follow?"↻ "+dt(o.follow):""}</span></div></article>`).join("")}</div></section>`}).join("")}</div>`;
+return `<div class="board">${STAGES.map(stage=>{const list=all.filter(o=>o.stage===stage),total=sum(list),visible=list;return `<section class="lane" data-stage="${esc(stage)}"><div class="lane-header"><span class="lane-title">${esc(stage)}</span><span class="badge">${list.length}</span></div><div class="amount">${money(total)}</div><div class="lane-cards">${visible.map(o=>`<article class="op-card" draggable="${!isReadOnly()}" data-id="${esc(o.id)}" data-action="open-opportunity" tabindex="0" role="button" aria-label="Ouvrir la fiche de ${esc(contactName(linkedContact(o)))} — ${esc(o.training)}"><div class="head">${esc(contactName(linkedContact(o)))}</div><p>${esc(o.training)} · ${esc(o.category)}</p><div class="bottom"><strong>${amountText(o)}</strong><span>${o.follow?"↻ "+dt(o.follow):""}</span></div></article>`).join("")}</div></section>`}).join("")}</div>`;
 }
 function opportunitySortValue(o,key){
  if(key==="amount")return amount(o);
@@ -347,7 +351,7 @@ return `<section class="panel"><div class="row"><h2>Tâches <span class="badge">
 <div class="stack" style="margin-top:12px">${all.length?all.map(t=>`<div data-search="${esc((t.title+" "+t.notes+" "+taskRelation(t)).toLowerCase())}">${taskRow(t)}</div>`).join(""):`<div class="empty"><strong>Aucune tâche dans cette vue</strong><p>Les nouvelles tâches apparaîtront ici immédiatement après leur enregistrement.</p><button class="btn primary" data-action="new-task">Nouvelle tâche</button></div>`}</div></section>`;
 }
 function accountPage(){
-return `<div class="account-layout"><div id="cloud-live">${window.MOON_CLOUD?.settingsHtml()||""}</div><section class="panel account-help"><h2>Retrouvez MOON sur tous vos ordinateurs</h2><p class="subtle">Utilisez la même adresse email de connexion sur chaque appareil. Vos contacts, opportunités, tâches et échanges sont conservés dans votre compte Supabase.</p><div class="account-steps"><div><strong>01</strong><span>Vos modifications sont regroupées et envoyées automatiquement après une courte pause.</span></div><div><strong>02</strong><span>Attendez l’indication « Synchronisé » avant de fermer ou quitter l’appareil.</span></div><div><strong>03</strong><span>Connectez-vous ailleurs avec le même email : MOON charge vos données.</span></div></div><p class="subtle">En cas de modification simultanée sur deux appareils, MOON bloque le conflit pour protéger les données. Ne remplacez pas une sauvegarde sans vérifier son contenu.</p></section></div>`;
+return `<div class="account-layout"><div><div id="cloud-live">${window.MOON_CLOUD?.settingsHtml()||""}</div>${window.MOON_VISITOR?.adminHtml?.()||""}</div><section class="panel account-help"><h2>Retrouvez MOON sur tous vos ordinateurs</h2><p class="subtle">Utilisez la même adresse email de connexion sur chaque appareil. Vos contacts, opportunités, tâches et échanges sont conservés dans votre compte Supabase.</p><div class="account-steps"><div><strong>01</strong><span>Vos modifications sont regroupées et envoyées automatiquement après une courte pause.</span></div><div><strong>02</strong><span>Attendez l’indication « Synchronisé » avant de fermer ou quitter l’appareil.</span></div><div><strong>03</strong><span>Connectez-vous ailleurs avec le même email : MOON charge vos données.</span></div></div><p class="subtle">En cas de modification simultanée sur deux appareils, MOON bloque le conflit pour protéger les données. Ne remplacez pas une sauvegarde sans vérifier son contenu.</p></section></div>`;
 }
 function settings(){
 const appearance='<section class="panel"><div class="section-heading"><div><div class="eyebrow">APPARENCE</div><h2>Confort visuel</h2></div><span class="settings-icon">◐</span></div><p class="subtle">Choisissez un thème ou suivez automatiquement les préférences de votre ordinateur.</p><div class="theme-options" role="group" aria-label="Thème de MOON">'+[["system","Automatique"],["light","Clair"],["dark","Sombre"]].map(([v,label])=>'<button type="button" class="btn '+(themePreference===v?'primary':'')+'" data-action="set-theme" data-theme="'+v+'" aria-pressed="'+(themePreference===v)+'">'+label+'</button>').join("")+'</div></section>';
@@ -671,7 +675,7 @@ function handleFormSubmit(e){
  }
 }
 
-const MOON_APP_VERSION="30.0";
+const MOON_APP_VERSION="31.0";
 let moonUpdateReady=false,moonUpdateChecking=false,moonFormDirty=false;
 function showMoonUpdate(){
  const node=$("moon-update");if(!node)return;
