@@ -26,6 +26,7 @@ jobs:
         run: |
           node --check app.js
           node --check cloud.js
+          node --check visitor.js
           node --check voice.js
       - name: Run CRM regression tests
         run: node --test tests/*.test.cjs
