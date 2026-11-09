@@ -106,7 +106,7 @@ function reportingOpportunities(){
  return data.opportunities.filter(o=>{if(!from&&!to)return true;const d=String(isActive(o)?o.forecast||o.created:o.closed||o.created||"").slice(0,10);return !!d&&(!from||d>=from)&&(!to||d<=to)});
 }
 function reportingPeriodLabel(){const [from,to]=reportingBounds();return reportingPeriod==="all"?"Toutes périodes":(from?dt(from):"Début")+" – "+(to?dt(to):"Sans fin")}
-function navButton(k,icon,label){return `<button class="nav-button ${page===k?"active":""}" data-action="nav" data-page="${k}" type="button"><span class="nav-ico">${icon}</span><span class="nav-label">${label}</span></button>`}
+function navButton(k,icon,label){return `<button class="nav-button ${page===k?"active":""}" data-action="nav" data-page="${k}" type="button" title="${esc(label)}" aria-label="${esc(label)}"><span class="nav-ico">${icon}</span><span class="nav-label">${label}</span></button>`}
 function reportingFilters(){
  const select='<label class="subtle">Période<select class="field" id="reporting-period" aria-label="Période du reporting">'+opts(["all","week","month","year","custom"],reportingPeriod).replace(/>all</g,">Toutes périodes<").replace(/>week</g,">Semaine<").replace(/>month</g,">Mois<").replace(/>year</g,">Année<").replace(/>custom</g,">Personnalisée<")+'</select></label>';
  if(reportingPeriod==="custom")return select+'<label class="subtle">Du <input class="field" type="date" id="reporting-from" value="'+esc(reportingFrom)+'"></label><label class="subtle">Au <input class="field" type="date" id="reporting-to" value="'+esc(reportingTo)+'"></label>';
