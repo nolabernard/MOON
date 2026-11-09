@@ -681,7 +681,7 @@ function init(){
 // Do not load unscoped legacy CRM data before authentication.
 if(!window.MOON_CLOUD)load();render();
 document.addEventListener("click",onClick);
-setTimeout(checkMoonUpdate,5000);setInterval(checkMoonUpdate,180000);document.addEventListener("visibilitychange",()=>{if(!document.hidden)checkMoonUpdate()});
+if(typeof setTimeout==="function"&&typeof setInterval==="function"){setTimeout(checkMoonUpdate,5000);setInterval(checkMoonUpdate,180000);document.addEventListener("visibilitychange",()=>{if(!document.hidden)checkMoonUpdate()})}
 document.addEventListener("change",e=>{
 const t=e.target;
 if(t.id==="period"){period=t.value;render()}
