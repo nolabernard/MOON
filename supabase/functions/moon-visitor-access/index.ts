@@ -71,7 +71,7 @@ Deno.serve(async (req: Request) => {
       if (snapshot.error) throw snapshot.error;
       if (!snapshot.data) return json(req, 404, {error: "Aucune donnée disponible pour ce lien."});
       const revision = Number(snapshot.data.revision);
-      if (Number.isSafeInteger(input.knownRevision) && Number(input.knownRevision) === revision)
+      if (typeof input.knownRevision === "number" && Number.isSafeInteger(input.knownRevision) && input.knownRevision === revision)
         return json(req, 200, {ok: true, unchanged: true, revision, updatedAt: snapshot.data.updated_at});
       const full = await db.from("moon_snapshots")
         .select("content,revision,updated_at").eq("owner_id", link.data.owner_id).maybeSingle();
