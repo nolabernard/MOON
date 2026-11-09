@@ -344,3 +344,12 @@ html[data-theme="light"] .status-filter-option:hover{background:#e9eef9}
 html[data-theme="light"] .event-edit-btn{color:#53617a}
 html[data-theme="light"] .event-edit-btn:hover,html[data-theme="light"] .event-edit-btn:focus-visible{color:#25345b;background:#e4e9fa}
 @media(prefers-color-scheme:light){html[data-theme="system"] .event-edit-btn{color:#53617a}html[data-theme="system"] .event-edit-btn:hover{color:#25345b;background:#e4e9fa}}
+
+/* Pipeline: equal-height columns, each with its own vertical scroll */
+.board{align-items:stretch;overflow-x:auto;overflow-y:hidden;max-width:100%;padding-bottom:12px}
+.board .lane{display:flex;flex-direction:column;min-height:0;height:clamp(420px,calc(100dvh - 230px),760px);overflow:hidden}
+.board .lane-header,.board .lane>.amount{flex-shrink:0}
+.board .lane-cards{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior-y:contain;scrollbar-width:thin;scrollbar-color:#67739a transparent;padding-right:5px;padding-bottom:10px}
+.board .lane-cards .op-card{flex:0 0 auto}
+.board .lane-cards:focus-visible{outline:2px solid #a18bff;outline-offset:-2px}
+@media(max-width:700px){.board .lane{height:clamp(360px,calc(100dvh - 195px),650px)}}
