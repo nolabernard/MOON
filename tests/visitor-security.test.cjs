@@ -8,7 +8,7 @@ test("all MOON browser scripts have valid JavaScript syntax",()=>{
  for(const [name,source] of [["app.js",app],["cloud.js",cloud],["visitor.js",guest]])assert.doesNotThrow(()=>new vm.Script(source,{filename:name}));
 });
 test("visitor URL loads before authentication and has no access to personal pages",()=>{
- assert.match(html,/visitor\.js\?v=1\.0/);
+ assert.match(html,/visitor\.js\?v=1\.1/);
  assert.ok(html.indexOf("visitor.js?v=1.1")<html.indexOf("cloud.js?v=13.0"));
  assert.match(cloud,/if\(window\.MOON_VISITOR\?\.isVisitor\?\.\(\)\)return/);
  assert.match(app,/window\.MOON_VISITOR\?\.isVisitorReady/);
