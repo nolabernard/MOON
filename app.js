@@ -186,11 +186,11 @@ function dayPage(){
 
 function contactTimeline(c){
  const ops=data.opportunities.filter(o=>o.contactId===c.id);
- const events=ops.flatMap(o=>(o.events||[]).map(e=>({...e,training:o.training,oid:o.id}))).sort((a,b)=>String(b.at).localeCompare(String(a.at)));
+ const events=ops.flatMap(o=>(o.events||[]).map((e,eventIndex)=>({...e,training:o.training,oid:o.id,eventIndex}))).sort((a,b)=>String(b.at).localeCompare(String(a.at)));
  const tasks=data.tasks.filter(t=>t.status!=="done"&&(t.contactId===c.id||ops.some(o=>o.id===t.opportunityId))).sort((a,b)=>String(a.due).localeCompare(String(b.due)));
  const last=events[0],next=tasks[0];
  return '<section class="panel" style="margin-top:18px"><h3>Historique chronologique</h3><p class="subtle">'+(last?'Dernier échange : '+esc(fmtDateTime(last.at))+' · '+esc(last.text):'Aucun échange enregistré')+(next?' · Prochaine action : '+esc(next.title)+' ('+esc(dt(next.due))+')':'')+'</p>'+
- (events.length?events.map(e=>'<div class="task-item"><div class="task-content"><strong>'+esc(e.channel||"Échange")+' · '+esc(e.training)+'</strong><div class="subtle">'+esc(fmtDateTime(e.at))+'</div><div>'+esc(e.text)+'</div></div><button type="button" class="btn small" data-action="edit-opportunity" data-id="'+esc(e.oid)+'">Dossier</button></div>').join(""):'<p class="subtle">Les échanges des opportunités apparaîtront ici.</p>')+
+ (events.length?events.map(e=>'<div class="task-item"><div class="task-content"><strong>'+esc(e.channel||"Échange")+' · '+esc(e.training)+'</strong><div class="subtle">'+esc(fmtDateTime(e.at))+'</div><div>'+esc(e.text)+'</div></div><button type="button" class="event-edit-btn" data-action="edit-exchange" data-id="'+esc(e.oid)+'" data-event-index="'+e.eventIndex+'" title="Modifier cet échange" aria-label="Modifier cet échange">✎</button><button type="button" class="btn small" data-action="edit-opportunity" data-id="'+esc(e.oid)+'">Dossier</button></div>').join(""):'<p class="subtle">Les échanges des opportunités apparaîtront ici.</p>')+
  '<h3>Actions en attente</h3>'+(tasks.length?tasks.map(taskRow).join(""):'<p class="subtle">Aucune tâche en attente.</p>')+'</section>';
 }
 function suggestedStage(o){
@@ -331,7 +331,7 @@ function opportunityDetailPage(){
  const timeline='<section class="panel opportunity-timeline"><div class="row"><div><h2>Suivi & échanges</h2><p class="subtle">Historique chronologique de cette opportunité</p></div><span class="badge">'+events.length+' échange(s)</span></div>'+
  (suggestedStage(o)?'<div class="detail-suggestion">Un échange suggère de passer à « '+esc(suggestedStage(o))+' ». <button class="btn small" data-action="apply-stage-suggestion" data-id="'+esc(o.id)+'">Appliquer</button></div>':'')+
  '<form id="interaction-form" data-id="'+esc(o.id)+'"><div class="form-grid">'+select("channel","Canal",CHANNELS,"Appel")+input("date","Date / heure",new Date().toISOString().slice(0,16),"datetime-local",true)+'</div>'+textarea("text","Compte rendu de l’échange *","")+'<div class="form-footer"><span></span><button class="btn primary" type="button" data-action="save-interaction-direct">+ Enregistrer cet échange</button></div></form>'+
- '<div class="timeline">'+(events.length?events.map(e=>'<div class="timeline-item"><div class="timeline-meta">'+esc(e.channel||"Note")+' · '+fmtDateTime(e.at)+'</div><p>'+esc(e.text||"")+'</p></div>').join(""):'<div class="empty">Aucun échange enregistré. Ajoutez le premier compte rendu ci-dessus.</div>')+'</div></section>';
+ '<div class="timeline">'+(events.length?events.map(e=>'<div class="timeline-item"><div class="timeline-meta">'+esc(e.channel||"Note")+' · '+fmtDateTime(e.at)+eventEditButton(o,e)+'</div><p>'+esc(e.text||"")+'</p></div>').join(""):'<div class="empty">Aucun échange enregistré. Ajoutez le premier compte rendu ci-dessus.</div>')+'</div></section>';
  const tasks='<section class="panel"><div class="row"><h3>Tâches & prochaines actions</h3><button class="btn small" data-action="new-task" data-opportunity-id="'+esc(o.id)+'">+ Ajouter</button></div>'+(related.length?related.map(t=>'<div class="detail-task">'+esc(t.title)+' <span class="subtle">'+dt(t.due)+' · '+(t.status==="done"?"Terminée":"À faire")+'</span><button class="btn small ghost" data-action="edit-task" data-id="'+esc(t.id)+'">Ouvrir</button></div>').join(""):'<p class="subtle">Aucune tâche liée.</p>')+'</section>';
  return header+'<div class="opportunity-detail-layout"><div class="opportunity-detail-primary">'+timeline+tasks+'</div><aside class="opportunity-detail-aside">'+info+summary+'</aside></div>';
 }
