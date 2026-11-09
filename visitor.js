@@ -16,7 +16,7 @@
  let links=[],linksLoaded=false,linksLoading=false,linksUpdatedAt=0,createdLink="",adminError="",adminMessage="",adminBusy=false;
  function isVisitor(){return visitor}
  function isVisitorReady(){return visitor&&ready&&!invalid}
- function pageAllowed(key){return PAGES.has(key)&&allowedSections.includes(key==="opportunity-detail"?"opportunities":key)}
+ function pageAllowed(key){return PAGES.has(key)&&(key==="opportunity-detail"?(allowedSections.includes("board")||allowedSections.includes("opportunities")):allowedSections.includes(key))}
  function labelStatus(message){
   status=message;
   const el=$("visitor-live-status");if(el)el.textContent=message;
