@@ -788,6 +788,7 @@ window.MOON_CLOUD_BRIDGE={
  },
  visitorClear:()=>{if(!isReadOnly())return;data=emptyCRM();activeOwner=null;page="day";visitorOpenDetail=null;const root=$("app");if(root)root.innerHTML="";const dlg=$("modal");if(dlg?.open)dlg.close()},
  activate:ownerId=>{
+  if(isReadOnly())return false;
   if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(ownerId||"")))return false;
   if(activeOwner===ownerId)return true;
   data=emptyCRM();activeOwner=ownerId;page="day";naturalQuery="";
@@ -812,6 +813,7 @@ window.MOON_CLOUD_BRIDGE={
  show:()=>render(),
  snapshot:()=>JSON.parse(JSON.stringify(data)),
  restore:record=>{
+  if(isReadOnly())return false;
   if(!record||!Array.isArray(record.contacts)||!Array.isArray(record.opportunities)||!Array.isArray(record.tasks))return false;
   const current=JSON.stringify(data),checkpoint=scopedKey()+".precloud."+Date.now();
   try{
