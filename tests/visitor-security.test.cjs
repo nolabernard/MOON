@@ -8,12 +8,12 @@ test("all MOON browser scripts have valid JavaScript syntax",()=>{
  for(const [name,source] of [["app.js",app],["cloud.js",cloud],["visitor.js",guest]])assert.doesNotThrow(()=>new vm.Script(source,{filename:name}));
 });
 test("visitor URL loads before authentication and has no access to personal pages",()=>{
- assert.match(html,/visitor\.js\?v=1\.1/);
+ assert.match(html,/visitor\.js\?v=1\.2/);
  assert.ok(html.indexOf("visitor.js?v=1.2")<html.indexOf("cloud.js?v=13.0"));
  assert.match(cloud,/if\(window\.MOON_VISITOR\?\.isVisitor\?\.\(\)\)return/);
  assert.match(app,/window\.MOON_VISITOR\?\.isVisitorReady/);
  assert.match(guest,/pageAllowed/);
- assert.match(guest,/const PAGES=new Set\(\["day","dashboard","board","opportunities","contacts","tasks","reporting","opportunity-detail"\]\)/);
+ assert.match(guest,/const PAGES=new Set\(\[\.\.\.SECTIONS\.map/);
 });
 test("server validates bearer token and owner identity, never exposes DB to anon",()=>{
  assert.match(edge,/verify.*user JWT|user JWT/i);
@@ -35,7 +35,7 @@ test("anonymous UI cannot save, submit, drag, change tasks or access owner contr
  assert.match(app,/if\(isReadOnly\(\)\)\{e\.preventDefault\(\);return\}const card=/);
  assert.match(app,/if\(isReadOnly\(\)\)return;const lane=/);
  assert.match(app,/visitorContactModal/);assert.match(app,/visitorTaskModal/);
- assert.match(app,/MOON_CLOUD_BRIDGE=\{\n visitorLoad:/);
+ assert.match(app,/MOON_CLOUD_BRIDGE=\{\n visitorPage:/);
  assert.match(app,/if\(!isReadOnly\(\)\|\|!record/);
  assert.match(app,/disabled=true/);
 });
