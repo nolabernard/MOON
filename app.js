@@ -250,7 +250,7 @@ function revenueBreakdown(key){
  const rows=selection.items.slice().sort((a,b)=>compare(b.closed||b.created,a.closed||a.created));
  const weighted=selection.mode==="weighted",average=selection.mode==="average";
  const total=weighted?weightedSum(rows):average?(rows.length?Math.round(sum(rows)/rows.length):0):sum(rows);
- const canInspect=!isReadOnly()||window.MOON_VISITOR?.pageAllowed?.("opportunity-detail");
+ const canInspect=typeof isReadOnly!=="function"||!isReadOnly()||window.MOON_VISITOR?.pageAllowed?.("opportunity-detail");
  const details=rows.map(o=>{
   const c=linkedContact(o),gross=known(o)?money(amount(o)):"Non renseigné",contribution=known(o)?money(weighted?weightedOpportunityCents(o):amount(o)):"Non renseigné";
   const probability=REPORT_PROBABILITIES[o.stage]||0;
