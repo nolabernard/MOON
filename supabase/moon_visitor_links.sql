@@ -16,3 +16,6 @@ alter table public.moon_visitor_links enable row level security;
 revoke all on public.moon_visitor_links from anon, authenticated, public;
 grant select,insert,update,delete on public.moon_visitor_links to service_role;
 comment on table public.moon_visitor_links is 'Hashed read-only guest bearer links. Only the server-side Edge Function may access this table.';
+
+-- Recoverable visitor links (existing hash-only links require explicit rotation).
+alter table public.moon_visitor_links add column if not exists token_encrypted text;
