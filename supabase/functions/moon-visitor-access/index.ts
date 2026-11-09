@@ -32,6 +32,19 @@ async function hashToken(token: string) {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
   return Array.from(new Uint8Array(digest), n => n.toString(16).padStart(2, "0")).join("");
 }
+async function encryptionKey() {
+  const material = await crypto.subtle.importKey("raw", new TextEncoder().encode(secretKey), "HKDF", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey({name:"HKDF",hash:"SHA-256",salt:new TextEncoder().encode("moon-visitor-token-recovery-v1"),info:new TextEncoder().encode("AES-GCM bearer token storage")},material,{name:"AES-GCM",length:256},false,["encrypt","decrypt"]);
+}
+async function encryptToken(token: string) {
+  const iv=crypto.getRandomValues(new Uint8Array(12));
+  const bytes=new Uint8Array(await crypto.subtle.encrypt({name:"AES-GCM",iv},await encryptionKey(),new TextEncoder().encode(token)));
+  return btoa(String.fromCharCode(...iv,...bytes));
+}
+async function decryptToken(value: string) {
+  const bytes=Uint8Array.from(atob(value),c=>c.charCodeAt(0));
+  return new TextDecoder().decode(await crypto.subtle.decrypt({name:"AES-GCM",iv:bytes.slice(0,12)},await encryptionKey(),bytes.slice(12)));
+}
 function freshToken() {
   const bytes = crypto.getRandomValues(new Uint8Array(32));
   return "v1_" + btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
@@ -80,16 +93,16 @@ Deno.serve(async (req: Request) => {
       return json(req, 200, {ok: true, revision: Number(full.data.revision), updatedAt: full.data.updated_at, content: full.data.content});
     }
 
-    if (!["list","create","revoke"].includes(action)) return json(req, 400, {error: "Action inconnue."});
+    if (!["list","create","revoke","recover"].includes(action)) return json(req, 400, {error: "Action inconnue."});
     const owner = await authenticatedOwner(req);
     if (!owner) return json(req, 401, {error: "Session propriétaire requise."});
 
     if (action === "list") {
       const links = await db.from("moon_visitor_links")
-        .select("id,label,created_at,revoked_at,expires_at")
+        .select("id,label,created_at,revoked_at,expires_at,token_encrypted")
         .eq("owner_id", owner.id).order("created_at", {ascending: false}).limit(100);
       if (links.error) throw links.error;
-      return json(req, 200, {ok: true, links: links.data || []});
+      return json(req, 200, {ok: true, links: (links.data || []).map(({token_encrypted,...link})=>({...link,recoverable:!!token_encrypted}))});
     }
 
     if (action === "create") {
@@ -98,7 +111,7 @@ Deno.serve(async (req: Request) => {
       const token = freshToken();
       const digest = await hashToken(token);
       const inserted = await db.from("moon_visitor_links")
-        .insert({owner_id: owner.id, label, token_hash: digest})
+        .insert({owner_id: owner.id, label, token_hash: digest, token_encrypted: await encryptToken(token)})
         .select("id,label,created_at,revoked_at,expires_at").single();
       if (inserted.error) throw inserted.error;
       // The plaintext token is delivered once, to the owner who created it.
@@ -108,6 +121,27 @@ Deno.serve(async (req: Request) => {
     const linkId = typeof input.id === "string" ? input.id : "";
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(linkId))
       return json(req, 400, {error: "Identifiant du lien invalide."});
+    if (action === "recover") {
+      const existing=await db.from("moon_visitor_links")
+        .select("id,token_encrypted,revoked_at,expires_at")
+        .eq("owner_id",owner.id).eq("id",linkId).maybeSingle();
+      if(existing.error)throw existing.error;
+      if(!existing.data||existing.data.revoked_at||(existing.data.expires_at&&Date.parse(existing.data.expires_at)<=Date.now()))
+        return json(req,404,{error:"Ce lien n'est plus actif."});
+      if(existing.data.token_encrypted) {
+        const recovered=await decryptToken(existing.data.token_encrypted);
+        return json(req,200,{ok:true,token:recovered,rotated:false});
+      }
+      // Legacy links only stored SHA-256 hashes: the original bearer token cannot be recovered.
+      // Explicit owner-triggered renewal invalidates the previous token for this link.
+      const replacement=freshToken();
+      const updated=await db.from("moon_visitor_links")
+        .update({token_hash:await hashToken(replacement),token_encrypted:await encryptToken(replacement)})
+        .eq("owner_id",owner.id).eq("id",linkId).is("revoked_at",null).is("token_encrypted",null).select("id");
+      if(updated.error)throw updated.error;
+      if(!updated.data?.length)return json(req,409,{error:"Lien déjà renouvelé. Actualisez la liste."});
+      return json(req,200,{ok:true,token:replacement,rotated:true});
+    }
     const revoked = await db.from("moon_visitor_links")
       .update({revoked_at: new Date().toISOString()})
       .eq("owner_id", owner.id).eq("id", linkId).is("revoked_at", null)
