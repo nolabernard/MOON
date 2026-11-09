@@ -308,7 +308,7 @@
      pendingEmail=email;otpRequestedAt=Date.now();otpAttempts=0;notice="Si ce compte existe, un code de connexion sera envoyé. Vérifiez votre boîte email.";
    }catch(e){errorMessage=error(e)}finally{busy=false;refresh()}
  }
- window.MOON_CLOUD={settingsHtml,act,login,verifyCode,init,configured,onLocalSave:scheduleSync,refreshStatus,isAuthenticated:()=>!!user&&accountReady};
+ window.MOON_CLOUD={settingsHtml,act,login,verifyCode,init,configured,onLocalSave:scheduleSync,refreshStatus,isAuthenticated:()=>!!user&&accountReady,canReload:()=>!busy&&!syncRunning&&!syncQueued&&!hasUnsynced()&&(!user||syncState==="synced")};
  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);
  else init();
 })();
