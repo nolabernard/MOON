@@ -9,7 +9,7 @@ test("all MOON browser scripts have valid JavaScript syntax",()=>{
 });
 test("visitor URL loads before authentication and has no access to personal pages",()=>{
  assert.match(html,/visitor\.js\?v=1\.3/);
- assert.ok(html.indexOf("visitor.js?v=1.3")<html.indexOf("cloud.js?v=13.1"));
+ assert.ok(html.indexOf("visitor.js?v=1.3")<html.indexOf("cloud.js?v=13.2"));
  assert.match(cloud,/if\(window\.MOON_VISITOR\?\.isVisitor\?\.\(\)\)return/);
  assert.match(app,/window\.MOON_VISITOR\?\.isVisitorReady/);
  assert.match(guest,/pageAllowed/);
