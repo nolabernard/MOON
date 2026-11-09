@@ -19,3 +19,7 @@ comment on table public.moon_visitor_links is 'Hashed read-only guest bearer lin
 
 -- Recoverable visitor links (existing hash-only links require explicit rotation).
 alter table public.moon_visitor_links add column if not exists token_encrypted text;
+
+-- Per-link read-only sections; existing links keep their previous full access.
+alter table public.moon_visitor_links add column if not exists allowed_sections text[] not null default array['day','dashboard','board','opportunities','contacts','tasks','reporting']::text[];
+alter table public.moon_visitor_links add column if not exists permissions_version integer not null default 1;
