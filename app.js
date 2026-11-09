@@ -11,6 +11,7 @@ const TYPES=["VAE","Formation courte","Autre"];
 const CHANNELS=["Appel","Email","SMS","Visioconférence","Rendez-vous","Note"];
 let data={version:2,contacts:[],opportunities:[],tasks:[]};
 let naturalQuery="";
+let opportunityReturnPage="opportunities";
 let opportunityStageFilter="all",opportunitySort="created",opportunitySortDir="desc",selectedOpportunityId="";
 const UI_PREF_KEY="moon.ui.preferences.v1";
 let sidebarCollapsed=false,themePreference="system";
@@ -320,7 +321,7 @@ function opportunityDetailPage(){
  const c=linkedContact(o),events=[...(o.events||[])].sort((a,b)=>String(b.at||"").localeCompare(String(a.at||"")));
  const related=data.tasks.filter(t=>t.opportunityId===o.id).sort((a,b)=>compare(a.due,b.due));
  const link=(value,scheme)=>value?'<a href="'+scheme+encodeURIComponent(value)+'">'+esc(value)+'</a>':'—';
- const header='<div class="opportunity-detail-head"><div><button class="btn small ghost" data-action="nav" data-page="opportunities">← Toutes les opportunités</button><h2>'+esc(o.training)+'</h2><p class="subtle">'+esc(o.category)+' · Créée le '+dt(o.created)+'</p></div><div class="opportunity-detail-actions">'+badge(o.stage)+'<button class="btn primary" data-action="edit-opportunity" data-id="'+esc(o.id)+'">Modifier la fiche</button></div></div>';
+ const header='<div class="opportunity-detail-head"><div><button class="btn small ghost" data-action="nav" data-page="'+opportunityReturnPage+'">← '+(opportunityReturnPage==="board"?"Retour au pipeline":"Toutes les opportunités")+'</button><h2>'+esc(o.training)+'</h2><p class="subtle">'+esc(o.category)+' · Créée le '+dt(o.created)+'</p></div><div class="opportunity-detail-actions">'+badge(o.stage)+'<button class="btn primary" data-action="edit-opportunity" data-id="'+esc(o.id)+'">Modifier la fiche</button></div></div>';
  const info='<section class="panel"><h3>Contact associé</h3><h2>'+esc(contactName(c))+'</h2><p class="subtle">'+esc(c?.company||"")+'</p><div class="detail-fields"><div>Email <strong>'+link(c?.email,"mailto:")+'</strong></div><div>Téléphone <strong>'+link(c?.phone,"tel:")+'</strong></div><div>Profil <strong>'+esc(c?.profile||"—")+'</strong></div></div><button class="btn small" data-action="edit-contact" data-id="'+esc(c?.id||"")+'">Voir / modifier le contact</button></section>';
  const summary='<section class="panel"><h3>Informations commerciales</h3><div class="detail-fields"><div>Montant '+esc(tax.toUpperCase())+' <strong>'+amountText(o)+'</strong></div><div>Étape <strong>'+badge(o.stage)+'</strong></div><div>Maturité <strong>'+esc(o.maturity||"—")+'</strong></div><div>Relance <strong>'+dt(o.follow)+'</strong></div><div>Clôture prévue <strong>'+dt(o.forecast)+'</strong></div><div>Clôture réelle <strong>'+dt(o.closed)+'</strong></div><div>Responsable <strong>'+esc(o.owner||"—")+'</strong></div><div>Origine <strong>'+esc(o.source||"—")+'</strong></div></div>'+(o.notes?'<p class="detail-note">'+esc(o.notes)+'</p>':'')+'</section>';
  const timeline='<section class="panel opportunity-timeline"><div class="row"><div><h2>Suivi & échanges</h2><p class="subtle">Historique chronologique de cette opportunité</p></div><span class="badge">'+events.length+' échange(s)</span></div>'+
@@ -632,7 +633,7 @@ else if(a==="new-contact"||a==="new-contact-from-op"){afterContact=a==="new-cont
 else if(a==="new-opportunity")opportunityModal(null,btn.dataset.contactId||"");
 else if(a==="new-task")taskModal(null,btn.dataset.opportunityId||(page==="opportunity-detail"?selectedOpportunityId:""),btn.dataset.contactId||"");
 else if(a==="edit-contact")contactModal(contact(x));
-else if(a==="open-opportunity"){selectedOpportunityId=x;page="opportunity-detail";render()}
+else if(a==="open-opportunity"){opportunityReturnPage=page==="board"?"board":"opportunities";selectedOpportunityId=x;page="opportunity-detail";render()}
 else if(a==="edit-opportunity")opportunityModal(opportunity(x));
 else if(a==="edit-task")taskModal(task(x));
 else if(a==="delete-contact")deleteRecord("contact",x);
