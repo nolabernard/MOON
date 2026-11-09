@@ -607,9 +607,40 @@ async function importFile(file,kind){
   render();toast(plan.accepted.length+" opportunité(s) ajoutée(s) · "+plan.duplicates+" doublon(s) ignoré(s)");
  }catch(e){alert("Import impossible : "+e.message)}
 }
+function visitorContactModal(c){
+ if(!c)return;
+ const field=(label,value)=>'<div>'+esc(label)+' <strong>'+esc(value||"—")+'</strong></div>';
+ modal("Contact · "+contactName(c),'<section class="visitor-details"><div class="detail-fields">'+
+  field("Nom",contactName(c))+field("Entreprise",c.company)+field("Email",c.email)+field("Téléphone",c.phone)+field("Profil",c.profile)+
+  '</div>'+(c.notes?'<div class="visitor-note"><strong>Notes</strong><p>'+esc(c.notes)+'</p></div>':"")+
+  contactTimeline(c)+'</section>');
+}
+function visitorTaskModal(t){
+ if(!t)return;
+ const o=opportunity(t.opportunityId),c=contact(t.contactId||o?.contactId);
+ modal("Tâche · "+t.title,'<section class="visitor-details"><div class="detail-fields">'+
+  '<div>Statut <strong>'+(t.status==="done"?"Terminée":"À faire")+'</strong></div>'+
+  '<div>Échéance <strong>'+esc(dt(t.due))+'</strong></div>'+
+  '<div>Type <strong>'+esc(t.type||"—")+'</strong></div>'+
+  '<div>Priorité <strong>'+esc(t.priority||"—")+'</strong></div>'+
+  '<div>Contact <strong>'+esc(c?contactName(c):"—")+'</strong></div>'+
+  '<div>Opportunité <strong>'+esc(o?.training||"—")+'</strong></div></div>'+
+  (t.notes?'<div class="visitor-note"><strong>Commentaires</strong><p>'+esc(t.notes)+'</p></div>':"")+
+  (c?'<button type="button" class="btn small" data-action="edit-contact" data-id="'+esc(c.id)+'">Voir le contact</button>':"")+
+  (o?'<button type="button" class="btn small" data-action="edit-opportunity" data-id="'+esc(o.id)+'">Voir l’opportunité</button>':"")+'</section>');
+}
 function onClick(e){
 const btn=e.target.closest("[data-action]");if(!btn||btn.matches("input[type=checkbox]"))return;
 const a=btn.dataset.action,x=btn.dataset.id;
+if(a.startsWith("visitor-")&&!isReadOnly()){window.MOON_VISITOR?.adminAction?.(a,btn);return}
+if(isReadOnly()){
+ if(a==="visitor-refresh"){window.MOON_VISITOR?.refresh?.();return}
+ if(a==="edit-contact"){visitorContactModal(contact(x));return}
+ if(a==="edit-task"){visitorTaskModal(task(x));return}
+ if(a==="edit-opportunity"){opportunityReturnPage=page==="board"?"board":"opportunities";selectedOpportunityId=x;page="opportunity-detail";render();return}
+ const allowed=new Set(["nav","open-opportunity","revenue-breakdown","day-jump","toggle-status-filter","select-all-stages","clear-all-stages","sort-opportunities","natural-search","toggle-sidebar","set-theme","close-modal","apply-moon-update","dismiss-moon-update"]);
+ if(!allowed.has(a)||(a==="nav"&&!window.MOON_VISITOR?.pageAllowed?.(btn.dataset.page)))return;
+}
 if(["save-contact-direct","save-opportunity-direct","save-task-direct","save-interaction-direct"].includes(a)){
  e.preventDefault();e.stopPropagation();
  const kind=a.slice(5,-7),form=btn.closest?.("#"+kind+"-form")||$("modal")?.querySelector("#"+kind+"-form");
@@ -658,6 +689,7 @@ else if(a==="export-csv")exportCsv();
 else if(a==="import-json"||a==="import-csv"){$("file-import").dataset.kind=a==="import-json"?"json":"csv";$("file-import").accept=a==="import-json"?".json":".csv,text/csv";$("file-import").click()}
 }
 function handleFormSubmit(e){
+ if(isReadOnly()){e.preventDefault();e.stopPropagation();return}
  const form=e.target;
  if(!["cloud-login-form","contact-form","opportunity-form","task-form","interaction-form"].includes(form?.id))return;
  // Capture-phase cancellation: never allow a CRM form to navigate/reload the page.
@@ -710,6 +742,7 @@ document.addEventListener("click",onClick);
 if(typeof setTimeout==="function"&&typeof setInterval==="function"){setTimeout(checkMoonUpdate,5000);setInterval(checkMoonUpdate,180000);document.addEventListener("visibilitychange",()=>{if(!document.hidden)checkMoonUpdate()})}
 document.addEventListener("change",e=>{
 const t=e.target;
+if(isReadOnly()&&(t.dataset.action==="toggle-task"||t.id==="file-import")){if(t.dataset.action==="toggle-task")t.checked=!t.checked;return}
 if(t.id==="period"){period=t.value;render()}
  else if(t.id==="reporting-period"){reportingPeriod=t.value;render()}
  else if(t.id==="reporting-anchor"){reportingAnchor=t.value||today();render()}
@@ -728,15 +761,24 @@ else if(t.id==="file-import"){const f=t.files?.[0];if(f)importFile(f,t.dataset.k
 document.addEventListener("input",e=>{if(e.target.closest?.("form"))moonFormDirty=true;if(e.target.id==="search"){const term=e.target.value.trim().toLowerCase();document.querySelectorAll("[data-search]").forEach(el=>el.hidden=!el.dataset.search.includes(term))}});
 document.addEventListener("submit",handleFormSubmit,true);
 let dragged="";
-document.addEventListener("dragstart",e=>{const card=e.target.closest(".op-card");if(card){dragged=card.dataset.id;e.dataTransfer.setData("text/plain",dragged);e.dataTransfer.effectAllowed="move"}});
-document.addEventListener("dragover",e=>{const lane=e.target.closest(".lane");if(lane){e.preventDefault();lane.classList.add("over")}});
+document.addEventListener("dragstart",e=>{if(isReadOnly()){e.preventDefault();return}const card=e.target.closest(".op-card");if(card){dragged=card.dataset.id;e.dataTransfer.setData("text/plain",dragged);e.dataTransfer.effectAllowed="move"}});
+document.addEventListener("dragover",e=>{if(isReadOnly())return;const lane=e.target.closest(".lane");if(lane){e.preventDefault();lane.classList.add("over")}});
 document.addEventListener("dragleave",e=>{const lane=e.target.closest(".lane");if(lane&&!lane.contains(e.relatedTarget))lane.classList.remove("over")});
-document.addEventListener("drop",e=>{const lane=e.target.closest(".lane");if(!lane)return;e.preventDefault();document.querySelectorAll(".lane.over").forEach(n=>n.classList.remove("over"));const o=opportunity(e.dataTransfer.getData("text/plain")||dragged);if(o&&markStage(o,lane.dataset.stage)){save();render()}dragged=""});
+document.addEventListener("drop",e=>{if(isReadOnly())return;const lane=e.target.closest(".lane");if(!lane)return;e.preventDefault();document.querySelectorAll(".lane.over").forEach(n=>n.classList.remove("over"));const o=opportunity(e.dataTransfer.getData("text/plain")||dragged);if(o&&markStage(o,lane.dataset.stage)){save();render()}dragged=""});
 $("modal").addEventListener("click",e=>{if(e.target===$("modal"))closeModal()});
 }
 
 /* Optional Supabase bridge: never uploads without confirmation in cloud.js. */
 window.MOON_CLOUD_BRIDGE={
+ visitorLoad:record=>{
+  if(!isReadOnly()||!record||!Array.isArray(record.contacts)||!Array.isArray(record.opportunities)||!Array.isArray(record.tasks))return false;
+  const scroll=Array.from(document.querySelectorAll(".lane-cards,.table-wrap,.workspace-view,.stack")).map((el,i)=>({i,top:el.scrollTop,left:el.scrollLeft}));
+  data=JSON.parse(JSON.stringify(record));activeOwner=null;normalize();render();
+  const nodes=Array.from(document.querySelectorAll(".lane-cards,.table-wrap,.workspace-view,.stack"));
+  scroll.forEach(x=>{if(nodes[x.i]){nodes[x.i].scrollTop=x.top;nodes[x.i].scrollLeft=x.left}});
+  return true;
+ },
+ visitorClear:()=>{if(!isReadOnly())return;data=emptyCRM();activeOwner=null;page="day";const root=$("app");if(root)root.innerHTML="";const dlg=$("modal");if(dlg?.open)dlg.close()},
  activate:ownerId=>{
   if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(ownerId||"")))return false;
   if(activeOwner===ownerId)return true;
@@ -783,6 +825,7 @@ window.MOON_CLOUD_BRIDGE={
 
 /* Voice assistant bridge: validate parsed fields and persist only after explicit confirmation. */
 function saveVoiceConversation(v){
+ if(isReadOnly())return {ok:false,error:"Lecture seule : modification interdite."};
  const name=String(v.last||"").trim(),email=String(v.email||"").trim(),phone=String(v.phone||"").trim();
  const existing=v.existingContact?contact(v.existingContact):null;
  if(v.existingContact&&!existing)return {ok:false,error:"Contact sélectionné introuvable."};
@@ -832,6 +875,7 @@ window.MOON_VOICE_BRIDGE={
  refresh:()=>render(),
  notify:message=>toast(message),
  save(v){
+  if(isReadOnly())return {ok:false,error:"Lecture seule : modification interdite."};
   const kind=v.kind,existing=v.existingContact?contact(v.existingContact):null;
   if(!["contact","opportunity","task"].includes(kind))return {ok:false,error:"Action non reconnue."};
   if(v.email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.email))return {ok:false,error:"Adresse email invalide."};
