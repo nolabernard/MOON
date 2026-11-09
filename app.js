@@ -23,6 +23,7 @@ let reportingPeriod="all",reportingAnchor="",reportingFrom="",reportingTo="";
 let page="day",period="all",rangeFrom="",rangeTo="",tax="ht",taskMode="open",afterContact=false;
 const $=id=>document.getElementById(id);
 const isReadOnly=()=>!!window.MOON_VISITOR?.isVisitor?.();
+let visitorOpenDetail=null;
 const today=()=>{const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)};
 const id=()=>typeof crypto!=="undefined"&&crypto.randomUUID?crypto.randomUUID():"moon-"+Date.now()+"-"+Math.random().toString(36).slice(2);
 const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -135,7 +136,10 @@ ${navButton("day","☀","Ma journée")}${navButton("dashboard","◫","Accueil")}
 <div class="main ${["opportunities","contacts","tasks","reporting"].includes(page)?"workspace-main":""}"><div class="topbar"><div><div class="eyebrow">MOON / ${esc(page)}</div><h1>${title}</h1><div class="subtle">${subtitle}</div></div><div class="actions">${isReadOnly()?'<span class="visitor-pill" aria-label="Mode visiteur, lecture seule">◉ Lecture seule</span><button type="button" class="btn small" data-action="visitor-refresh">Actualiser</button>':(["day","contacts","opportunities","opportunity-detail","tasks"].includes(page)?`<button class="btn" data-action="voice-open" type="button" title="Dicter un contact, une opportunité, un échange ou une tâche">🎙 Dicter</button>`:""}
 ${page==="contacts"?`<button class="btn primary" data-action="new-contact">+ Nouveau contact</button>`:page==="tasks"?`<button class="btn primary" data-action="new-task">+ Nouvelle tâche</button>`:page==="settings"||page==="account"?"":`<button class="btn" data-action="new-task">+ Tâche</button><button class="btn primary" data-action="new-opportunity">+ Opportunité</button>`)}</div></div>
 ${isReadOnly()?'<div class="visitor-status-bar" role="status"><span id="visitor-live-status">Lecture seule · actualisation automatique</span><span>Les modifications enregistrées sont vérifiées toutes les 15 secondes.</span></div>':""}${toolbar()}<div id="view" class="${["opportunities","contacts","tasks","reporting"].includes(page)?"workspace-view workspace-"+page:""}">${page==="day"?dayPage():page==="dashboard"?dashboard():page==="board"?board():page==="opportunities"?opportunities():page==="opportunity-detail"?opportunityDetailPage():page==="contacts"?contacts():page==="tasks"?tasks():page==="reporting"?reportingPage():page==="account"?accountPage():settings()}</div></div></div>`;
-if(isReadOnly())document.querySelectorAll("#app .task-check").forEach(el=>{el.disabled=true;el.setAttribute("aria-label","Statut de tâche en lecture seule")});
+if(isReadOnly()){
+ document.querySelectorAll("#app .task-check").forEach(el=>{el.disabled=true;el.setAttribute("aria-label","Statut de tâche en lecture seule")});
+ document.querySelectorAll('#app [data-action="edit-contact"],#app [data-action="edit-task"],#app [data-action="edit-opportunity"]').forEach(el=>{el.textContent="Voir";el.setAttribute("title","Consulter les détails en lecture seule")});
+}
 if(page==="account"&&!isReadOnly())window.MOON_VISITOR?.maybeLoadAdminLinks?.();
 }
 function metric(label,value,foot,icon,color="",revenueKey=""){
@@ -360,7 +364,7 @@ return `<div class="settings-layout">${appearance}<section class="panel"><div cl
 <div class="help">MOON utilise une authentification Supabase et des règles de confidentialité par compte. L’utilisation de données professionnelles réelles reste soumise à la validation et aux règles de sécurité de votre organisation.</div>
 </section><section class="panel"><div class="section-heading"><div><div class="eyebrow">VOTRE ESPACE</div><h2>Contenu actuel</h2></div><span class="settings-icon">▤</span></div><div class="kpi-line"><span>Contacts</span><strong>${data.contacts.length}</strong></div><div class="kpi-line"><span>Opportunités</span><strong>${data.opportunities.length}</strong></div><div class="kpi-line"><span>Tâches</span><strong>${data.tasks.length}</strong></div><div class="settings-tip">La synchronisation et la déconnexion se gèrent dans <button type="button" class="inline-link" data-action="nav" data-page="account">Mon compte</button>.</div></section></div>`;
 }
-function modal(title,body){const dialog=$("modal");dialog.innerHTML=`<div class="dialog-head"><h2>${esc(title)}</h2><button type="button" class="btn small ghost" data-action="close-modal" aria-label="Fermer">✕</button></div><div class="dialog-body">${body}</div>`;if(!dialog.open)dialog.showModal()}
+function modal(title,body){if(isReadOnly())visitorOpenDetail=null;const dialog=$("modal");dialog.innerHTML=`<div class="dialog-head"><h2>${esc(title)}</h2><button type="button" class="btn small ghost" data-action="close-modal" aria-label="Fermer">✕</button></div><div class="dialog-body">${body}</div>`;if(!dialog.open)dialog.showModal()}
 function input(name,label,value="",type="text",required=false,extra=""){return `<label>${esc(label)}<input class="field" name="${name}" type="${type}" value="${esc(value)}" ${required?"required":""} ${extra}></label>`}
 function select(name,label,values,value){return `<label>${esc(label)}<select class="field" name="${name}">${opts(values,value)}</select></label>`}
 function textarea(name,label,value=""){return `<label class="wide">${esc(label)}<textarea class="field" name="${name}">${esc(value)}</textarea></label>`}
@@ -420,7 +424,7 @@ function taskModal(t=null,opId="",contactId=""){
  <section class="task-form-section"><label class="task-title-label">Intitulé automatique<output class="task-title-preview" id="task-auto-title" aria-live="polite">${esc(taskLabel(t?.type||"Relance",selectedOp?.id||"",selectedContact))}</output></label>${textarea("notes","Commentaire / détails",t?.notes)}</section>
  ${formFooter(t,"task")}</form>`);
 }
-function closeModal(){$("modal").close()}
+function closeModal(){$("modal").close();visitorOpenDetail=null}
 function markStage(o,newStage,reason=""){
 if(o.stage===newStage)return true;
 if(newStage==="Perdu"&&!reason&&!o.lostReason){const answer=prompt("Motif de perte (facultatif) :","");if(answer===null)return false;reason=answer}
@@ -614,6 +618,7 @@ function visitorContactModal(c){
   field("Nom",contactName(c))+field("Entreprise",c.company)+field("Email",c.email)+field("Téléphone",c.phone)+field("Profil",c.profile)+
   '</div>'+(c.notes?'<div class="visitor-note"><strong>Notes</strong><p>'+esc(c.notes)+'</p></div>':"")+
   contactTimeline(c)+'</section>');
+ visitorOpenDetail={kind:"contact",id:c.id};
 }
 function visitorTaskModal(t){
  if(!t)return;
@@ -628,6 +633,7 @@ function visitorTaskModal(t){
   (t.notes?'<div class="visitor-note"><strong>Commentaires</strong><p>'+esc(t.notes)+'</p></div>':"")+
   (c?'<button type="button" class="btn small" data-action="edit-contact" data-id="'+esc(c.id)+'">Voir le contact</button>':"")+
   (o?'<button type="button" class="btn small" data-action="edit-opportunity" data-id="'+esc(o.id)+'">Voir l’opportunité</button>':"")+'</section>');
+ visitorOpenDetail={kind:"task",id:t.id};
 }
 function onClick(e){
 const btn=e.target.closest("[data-action]");if(!btn||btn.matches("input[type=checkbox]"))return;
@@ -774,11 +780,12 @@ window.MOON_CLOUD_BRIDGE={
   if(!isReadOnly()||!record||!Array.isArray(record.contacts)||!Array.isArray(record.opportunities)||!Array.isArray(record.tasks))return false;
   const scroll=Array.from(document.querySelectorAll(".lane-cards,.table-wrap,.workspace-view,.stack")).map((el,i)=>({i,top:el.scrollTop,left:el.scrollLeft}));
   data=JSON.parse(JSON.stringify(record));activeOwner=null;normalize();render();
+  if($("modal")?.open&&visitorOpenDetail){const view=visitorOpenDetail;if(view.kind==="contact")visitorContactModal(contact(view.id));else if(view.kind==="task")visitorTaskModal(task(view.id));}
   const nodes=Array.from(document.querySelectorAll(".lane-cards,.table-wrap,.workspace-view,.stack"));
   scroll.forEach(x=>{if(nodes[x.i]){nodes[x.i].scrollTop=x.top;nodes[x.i].scrollLeft=x.left}});
   return true;
  },
- visitorClear:()=>{if(!isReadOnly())return;data=emptyCRM();activeOwner=null;page="day";const root=$("app");if(root)root.innerHTML="";const dlg=$("modal");if(dlg?.open)dlg.close()},
+ visitorClear:()=>{if(!isReadOnly())return;data=emptyCRM();activeOwner=null;page="day";visitorOpenDetail=null;const root=$("app");if(root)root.innerHTML="";const dlg=$("modal");if(dlg?.open)dlg.close()},
  activate:ownerId=>{
   if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(ownerId||"")))return false;
   if(activeOwner===ownerId)return true;
