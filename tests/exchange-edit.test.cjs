@@ -1,0 +1,5 @@
+"use strict";
+const test=require("node:test"),assert=require("node:assert/strict"),fs=require("node:fs"),path=require("node:path");
+const app=fs.readFileSync(path.join(__dirname,"..","app.js"),"utf8"),css=fs.readFileSync(path.join(__dirname,"..","styles.css"),"utf8");
+test("exchange histories sort newest-first in detail and editor",()=>{assert.match(app,/function sortedEvents\(/);assert.match(app,/events=sortedEvents\(o\)/);assert.match(app,/const events=sortedEvents\(o\)/);assert.match(app,/String\(b\.at\|\|b\.date\|\|""\)\.localeCompare/);assert.match(app,/const events=ops\.flatMap/);});
+test("exchange editing targets original array index and saves only edited record",()=>{assert.match(app,/function eventEditButton\(/);assert.match(app,/indexOf\(e\)/);assert.match(app,/data-action="edit-exchange"/);assert.match(app,/function editExchangeModal\(/);assert.match(app,/function saveExchangeEdit\(/);assert.match(app,/Object\.assign\(e,\{at:date\.toISOString\(\),channel:v\.channel,text:textValue\}\)/);assert.match(app,/if\(!save\(\)\)/);assert.match(css,/\.event-edit-btn/);});

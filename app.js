@@ -186,11 +186,11 @@ function dayPage(){
 
 function contactTimeline(c){
  const ops=data.opportunities.filter(o=>o.contactId===c.id);
- const events=ops.flatMap(o=>(o.events||[]).map(e=>({...e,training:o.training,oid:o.id}))).sort((a,b)=>String(b.at).localeCompare(String(a.at)));
+ const events=ops.flatMap(o=>(o.events||[]).map((e,eventIndex)=>({...e,training:o.training,oid:o.id,eventIndex}))).sort((a,b)=>String(b.at).localeCompare(String(a.at)));
  const tasks=data.tasks.filter(t=>t.status!=="done"&&(t.contactId===c.id||ops.some(o=>o.id===t.opportunityId))).sort((a,b)=>String(a.due).localeCompare(String(b.due)));
  const last=events[0],next=tasks[0];
  return '<section class="panel" style="margin-top:18px"><h3>Historique chronologique</h3><p class="subtle">'+(last?'Dernier échange : '+esc(fmtDateTime(last.at))+' · '+esc(last.text):'Aucun échange enregistré')+(next?' · Prochaine action : '+esc(next.title)+' ('+esc(dt(next.due))+')':'')+'</p>'+
- (events.length?events.map(e=>'<div class="task-item"><div class="task-content"><strong>'+esc(e.channel||"Échange")+' · '+esc(e.training)+'</strong><div class="subtle">'+esc(fmtDateTime(e.at))+'</div><div>'+esc(e.text)+'</div></div><button type="button" class="btn small" data-action="edit-opportunity" data-id="'+esc(e.oid)+'">Dossier</button></div>').join(""):'<p class="subtle">Les échanges des opportunités apparaîtront ici.</p>')+
+ (events.length?events.map(e=>'<div class="task-item"><div class="task-content"><strong>'+esc(e.channel||"Échange")+' · '+esc(e.training)+'</strong><div class="subtle">'+esc(fmtDateTime(e.at))+'</div><div>'+esc(e.text)+'</div></div><button type="button" class="event-edit-btn" data-action="edit-exchange" data-id="'+esc(e.oid)+'" data-event-index="'+e.eventIndex+'" title="Modifier cet échange" aria-label="Modifier cet échange">✎</button><button type="button" class="btn small" data-action="edit-opportunity" data-id="'+esc(e.oid)+'">Dossier</button></div>').join(""):'<p class="subtle">Les échanges des opportunités apparaîtront ici.</p>')+
  '<h3>Actions en attente</h3>'+(tasks.length?tasks.map(taskRow).join(""):'<p class="subtle">Aucune tâche en attente.</p>')+'</section>';
 }
 function suggestedStage(o){
@@ -315,10 +315,14 @@ function opportunities(){
  (all.length?'<div class="table-wrap"><table class="data-table"><thead><tr><th>Contact</th><th>Formation / prestation</th><th>'+arrow("stage","Statut")+'</th><th>'+arrow("amount","Montant")+'</th><th>'+arrow("follow","Relance")+'</th><th>'+arrow("created","Création")+'</th><th></th></tr></thead><tbody>'+
  all.map(o=>{const c=linkedContact(o);return '<tr data-search="'+esc((contactName(c)+" "+(c?.company||"")+" "+o.training+" "+o.stage).toLowerCase())+'"><td><div class="person">'+esc(contactName(c))+'<small>'+esc(c?.company||"")+'</small></div></td><td>'+esc(o.training)+'<div class="subtle">'+esc(o.category)+'</div></td><td>'+badge(o.stage)+'</td><td><strong>'+amountText(o)+'</strong></td><td>'+dt(o.follow)+'</td><td>'+dt(o.created)+'</td><td><button class="btn small" data-action="open-opportunity" data-id="'+esc(o.id)+'">Ouvrir</button></td></tr>'}).join("")+'</tbody></table></div>':'<div class="empty"><strong>Aucune opportunité pour ces critères</strong><p>Modifiez le statut ou la période sélectionnée.</p></div>')+'</section>';
 }
+function sortedEvents(o){return [...(o?.events||[])].sort((a,b)=>String(b.at||b.date||"").localeCompare(String(a.at||a.date||"")))}
+function eventEditButton(o,e){const index=(o.events||[]).indexOf(e);return '<button type="button" class="event-edit-btn" data-action="edit-exchange" data-id="'+esc(o.id)+'" data-event-index="'+index+'" title="Modifier cet échange" aria-label="Modifier l’échange du '+esc(fmtDateTime(e.at))+'">✎</button>'}
+function editExchangeModal(o,index){const e=o?.events?.[index];if(!e)return;const raw=e.at||e.date||new Date().toISOString(),date=new Date(raw),local=new Date(date.getTime()-date.getTimezoneOffset()*60000).toISOString().slice(0,16);modal("Modifier un échange",'<form id="exchange-edit-form" data-id="'+esc(o.id)+'" data-event-index="'+index+'"><div class="form-grid">'+select("channel","Canal",CHANNELS,e.channel||"Note")+input("date","Date / heure",local,"datetime-local",true)+textarea("text","Compte rendu de l’échange *",e.text||"")+'</div><div class="form-footer"><button type="button" class="btn" data-action="close-modal">Annuler</button><button type="button" class="btn primary" data-action="save-exchange-edit">Enregistrer les modifications</button></div></form>')}
+function saveExchangeEdit(f){const o=opportunity(f.dataset.id),index=Number(f.dataset.eventIndex),e=o?.events?.[index];if(!e)return;const v=Object.fromEntries(new FormData(f)),textValue=(v.text||"").trim();if(!textValue){alert("Saisissez un commentaire.");return}const date=new Date(v.date);if(!Number.isFinite(date.getTime())){alert("Date invalide.");return}const previous={...e};Object.assign(e,{at:date.toISOString(),channel:v.channel,text:textValue});if(!save()){Object.assign(e,previous);return}const verified=JSON.parse(localStorage.getItem(scopedKey())||"null")?.opportunities?.find(x=>x.id===o.id)?.events?.[index];if(!verified||verified.at!==e.at||verified.text!==e.text){Object.assign(e,previous);alert("Modification non confirmée dans le stockage.");return}closeModal();if(page==="opportunity-detail")render();else opportunityModal(o);toast("Échange modifié et enregistré")}
 function opportunityDetailPage(){
  const o=opportunity(selectedOpportunityId);
  if(!o)return '<section class="panel empty"><strong>Opportunité introuvable</strong><p>Elle a peut-être été supprimée ou modifiée depuis un autre appareil.</p><button class="btn primary" data-action="nav" data-page="opportunities">Retour aux opportunités</button></section>';
- const c=linkedContact(o),events=[...(o.events||[])].sort((a,b)=>String(b.at||"").localeCompare(String(a.at||"")));
+ const c=linkedContact(o),events=sortedEvents(o);
  const related=data.tasks.filter(t=>t.opportunityId===o.id).sort((a,b)=>compare(a.due,b.due));
  const link=(value,scheme)=>value?'<a href="'+scheme+encodeURIComponent(value)+'">'+esc(value)+'</a>':'—';
  const header='<div class="opportunity-detail-head"><div><button class="btn small ghost" data-action="nav" data-page="'+opportunityReturnPage+'">← '+(opportunityReturnPage==="board"?"Retour au pipeline":"Toutes les opportunités")+'</button><h2>'+esc(o.training)+'</h2><p class="subtle">'+esc(o.category)+' · Créée le '+dt(o.created)+'</p></div><div class="opportunity-detail-actions">'+badge(o.stage)+'<button class="btn primary" data-action="edit-opportunity" data-id="'+esc(o.id)+'">Modifier la fiche</button></div></div>';
@@ -327,7 +331,7 @@ function opportunityDetailPage(){
  const timeline='<section class="panel opportunity-timeline"><div class="row"><div><h2>Suivi & échanges</h2><p class="subtle">Historique chronologique de cette opportunité</p></div><span class="badge">'+events.length+' échange(s)</span></div>'+
  (suggestedStage(o)?'<div class="detail-suggestion">Un échange suggère de passer à « '+esc(suggestedStage(o))+' ». <button class="btn small" data-action="apply-stage-suggestion" data-id="'+esc(o.id)+'">Appliquer</button></div>':'')+
  '<form id="interaction-form" data-id="'+esc(o.id)+'"><div class="form-grid">'+select("channel","Canal",CHANNELS,"Appel")+input("date","Date / heure",new Date().toISOString().slice(0,16),"datetime-local",true)+'</div>'+textarea("text","Compte rendu de l’échange *","")+'<div class="form-footer"><span></span><button class="btn primary" type="button" data-action="save-interaction-direct">+ Enregistrer cet échange</button></div></form>'+
- '<div class="timeline">'+(events.length?events.map(e=>'<div class="timeline-item"><div class="timeline-meta">'+esc(e.channel||"Note")+' · '+fmtDateTime(e.at)+'</div><p>'+esc(e.text||"")+'</p></div>').join(""):'<div class="empty">Aucun échange enregistré. Ajoutez le premier compte rendu ci-dessus.</div>')+'</div></section>';
+ '<div class="timeline">'+(events.length?events.map(e=>'<div class="timeline-item"><div class="timeline-meta">'+esc(e.channel||"Note")+' · '+fmtDateTime(e.at)+eventEditButton(o,e)+'</div><p>'+esc(e.text||"")+'</p></div>').join(""):'<div class="empty">Aucun échange enregistré. Ajoutez le premier compte rendu ci-dessus.</div>')+'</div></section>';
  const tasks='<section class="panel"><div class="row"><h3>Tâches & prochaines actions</h3><button class="btn small" data-action="new-task" data-opportunity-id="'+esc(o.id)+'">+ Ajouter</button></div>'+(related.length?related.map(t=>'<div class="detail-task">'+esc(t.title)+' <span class="subtle">'+dt(t.due)+' · '+(t.status==="done"?"Terminée":"À faire")+'</span><button class="btn small ghost" data-action="edit-task" data-id="'+esc(t.id)+'">Ouvrir</button></div>').join(""):'<p class="subtle">Aucune tâche liée.</p>')+'</section>';
  return header+'<div class="opportunity-detail-layout"><div class="opportunity-detail-primary">'+timeline+tasks+'</div><aside class="opportunity-detail-aside">'+info+summary+'</aside></div>';
 }
@@ -376,7 +380,7 @@ const vat=o?.vat??"0";
 const vatChoices=["0","5.5","10","20","exempt","custom"];
 const vatOptions=vatChoices.map(v=>`<option value="${v}" ${(v==="custom"?!["0","5.5","10","20","exempt"].includes(String(vat)):String(vat)===v)?"selected":""}>${v==="exempt"?"Exonéré":v==="custom"?"Taux personnalisé":v.replace(".",",")+" %"}</option>`).join("");
 const customVat=vatChoices.includes(String(vat))?"":vat;
-const events=[...(o?.events||[])].reverse();
+const events=sortedEvents(o);
 modal(o?"Modifier l'opportunité":"Nouvelle opportunité",`${o&&suggestedStage(o)?`<div class="panel"><strong>Suggestion MOON</strong><p>Un échange enregistré suggère de passer à « ${esc(suggestedStage(o))} ».</p><button type="button" class="btn primary" data-action="apply-stage-suggestion" data-id="${esc(o.id)}">Valider le changement</button></div>`:""}<form id="opportunity-form"><input type="hidden" name="id" value="${esc(o?.id||"")}"><div class="form-grid">
 <label>Contact *<select name="contactId" class="field" required>${choices}</select></label><label>Ajouter un autre contact<button class="btn" type="button" data-action="new-contact-from-op">+ Nouveau contact</button></label>
 ${input("training","Formation / prestation *",o?.training,"text",true)}
@@ -396,7 +400,7 @@ ${textarea("notes","Notes commerciales",o?.notes)}
 </div>${formFooter(o,"opportunity")}</form>
 ${o?`<div class="row" style="margin-top:24px"><h3>Historique des échanges</h3><button class="btn small" data-action="new-task" data-opportunity-id="${esc(o.id)}">+ Tâche liée</button></div>
 <form id="interaction-form" data-id="${esc(o.id)}"><div class="form-grid">${select("channel","Canal",CHANNELS,"Appel")}${input("date","Date / heure",new Date().toISOString().slice(0,16),"datetime-local",true)}${textarea("text","Commentaire *","")}</div><div class="form-footer"><span></span><button type="button" data-action="save-interaction-direct" class="btn primary">+ Ajouter un échange</button></div></form>
-<div class="timeline">${events.length?events.map(e=>`<div class="timeline-item"><div class="timeline-meta">${esc(e.channel)} · ${fmtDateTime(e.at)}</div><p>${esc(e.text)}</p></div>`).join(""):'<p class="subtle">Aucun échange enregistré.</p>'}</div>`:'<p class="subtle">Enregistrez l’opportunité pour ajouter des échanges et des tâches liées.</p>'}`);
+<div class="timeline">${events.length?events.map(e=>`<div class="timeline-item"><div class="timeline-meta">${esc(e.channel)} · ${fmtDateTime(e.at)}${eventEditButton(o,e)}</div><p>${esc(e.text)}</p></div>`).join(""):'<p class="subtle">Aucun échange enregistré.</p>'}</div>`:'<p class="subtle">Enregistrez l’opportunité pour ajouter des échanges et des tâches liées.</p>'}`);
 }
 function taskLabel(type,opId,contactId){const o=opportunity(opId),c=o?linkedContact(o):contact(contactId);return [type||"Tâche",o?.training||(c?contactName(c):"")].filter(Boolean).join(" - ")}
 function taskModal(t=null,opId="",contactId=""){
@@ -615,6 +619,8 @@ if(["save-contact-direct","save-opportunity-direct","save-task-direct","save-int
  }catch(err){console.error("MOON direct save failure",kind,err);alert("Enregistrement interrompu : "+(err?.message||err))}
  return;
 }
+if(a==="edit-exchange"){editExchangeModal(opportunity(x),Number(btn.dataset.eventIndex));return}
+if(a==="save-exchange-edit"){const f=btn.closest?.("#exchange-edit-form")||$("modal")?.querySelector("#exchange-edit-form");if(f&&f.reportValidity())saveExchangeEdit(f);return}
 if(a==="toggle-sidebar"){sidebarCollapsed=!sidebarCollapsed;persistUi();render();return}
 if(a==="set-theme"){const value=btn.dataset.theme;if(!["system","light","dark"].includes(value))return;themePreference=value;persistUi();render();return}
 if(a==="toggle-pipeline-stage"){const stage=btn.dataset.stage;if(!STAGES.includes(stage))return;if(pipelineExpandedStages.has(stage))pipelineExpandedStages.delete(stage);else pipelineExpandedStages.add(stage);render();return}
@@ -665,7 +671,7 @@ function handleFormSubmit(e){
  }
 }
 
-const MOON_APP_VERSION="27.0";
+const MOON_APP_VERSION="28.0";
 let moonUpdateReady=false,moonUpdateChecking=false,moonFormDirty=false;
 function showMoonUpdate(){
  const node=$("moon-update");if(!node)return;
