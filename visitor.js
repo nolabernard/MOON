@@ -92,7 +92,7 @@
  function adminHtml(){
   const rows=links.map(l=>{
    const active=!l.revoked_at&&(!l.expires_at||new Date(l.expires_at)>new Date());
-   return '<div class="visitor-link-row"><div><strong>'+esc(l.label)+'</strong><small>'+esc(new Date(l.created_at).toLocaleDateString("fr-FR"))+' · '+(active?"Actif":"Désactivé")+' · '+esc((l.allowed_sections||SECTIONS.map(x=>x[0])).map(k=>SECTIONS.find(x=>x[0]===k)?.[1]||k).join(", "))+'</small></div>'+(active?'<div class="actions"><button type="button" class="btn small" data-action="visitor-edit" data-id="'+esc(l.id)+'">Modifier les accès</button><button type="button" class="btn small" data-action="visitor-recover" data-id="'+esc(l.id)+'" data-legacy="'+(!l.recoverable)+'">'+(l.recoverable?"Copier":"Renouveler et copier")+'</button><button type="button" class="btn small danger" data-action="visitor-revoke" data-id="'+esc(l.id)+'">Désactiver</button></div>':'<span class="subtle">Accès coupé</span>')+'</div>'+(editingLink===l.id&&active?'<div class="visitor-edit-panel">'+permissionCheckboxes(l.allowed_sections||SECTIONS.map(x=>x[0]),"edit")+'<button type="button" class="btn primary small" data-action="visitor-save" data-id="'+esc(l.id)+'">Enregistrer les accès</button><button type="button" class="btn small" data-action="visitor-cancel">Annuler</button></div>':"");
+   return '<div class="visitor-link-row"><div><strong>'+esc(l.label)+'</strong><small>'+esc(new Date(l.created_at).toLocaleDateString("fr-FR"))+' · '+(active?"Actif":"Désactivé")+' · '+esc((l.allowed_sections||SECTIONS.map(x=>x[0])).map(k=>SECTIONS.find(x=>x[0]===k)?.[1]||k).join(", "))+'</small></div>'+(active?'<div class="actions"><button type="button" class="btn small" data-action="visitor-edit" data-id="'+esc(l.id)+'">Modifier les accès</button><button type="button" class="btn small" data-action="visitor-recover" data-id="'+esc(l.id)+'" data-legacy="'+(!l.recoverable)+'">'+(l.recoverable?"Copier":"Renouveler et copier")+'</button><button type="button" class="btn small danger" data-action="visitor-revoke" data-id="'+esc(l.id)+'">Désactiver</button></div>':'<div class="actions"><span class="subtle">Accès coupé</span><button type="button" class="btn small danger" data-action="visitor-delete" data-id="'+esc(l.id)+'">Supprimer</button></div>')+'</div>'+(editingLink===l.id&&active?'<div class="visitor-edit-panel">'+permissionCheckboxes(l.allowed_sections||SECTIONS.map(x=>x[0]),"edit")+'<button type="button" class="btn primary small" data-action="visitor-save" data-id="'+esc(l.id)+'">Enregistrer les accès</button><button type="button" class="btn small" data-action="visitor-cancel">Annuler</button></div>':"");
   }).join("");
   return '<section id="visitor-management" class="panel visitor-management"><div class="section-heading"><div><div class="eyebrow">PARTAGE SÉCURISÉ</div><h2>Accès visiteurs</h2></div><span class="settings-icon">◉</span></div>'+
   '<p class="subtle">Créez un lien privé pour consulter toutes les données de MOON, sauf Mon compte et Paramètres. Accès sans connexion, lecture seule, mise à jour automatique toutes les 60 secondes.</p>'+
@@ -139,6 +139,7 @@
   if(action==="visitor-create"&&(!label||label.length>100)){adminError="Indiquez un nom pour identifier ce lien.";updateAdmin();return}
   if(["visitor-create","visitor-save"].includes(action)&&!selectedPermissions(action==="visitor-create"?"create":"edit").length){adminError="Sélectionnez au moins une rubrique.";updateAdmin();return}
   const requestedSections=["visitor-create","visitor-save"].includes(action)?selectedPermissions(action==="visitor-create"?"create":"edit"):null;
+  if(action==="visitor-delete"&&!confirm("Supprimer définitivement ce lien désactivé de la liste ? Cette action est irréversible et ne supprime aucune donnée CRM."))return;
   if(action==="visitor-revoke"&&!confirm("Désactiver définitivement ce lien ? Ses visiteurs perdront l'accès lors de leur prochaine vérification."))return;
   adminBusy=true;adminError="";adminMessage="";updateAdmin();
   try{
@@ -161,6 +162,11 @@
     }catch(e){
      adminMessage=response.rotated?"Nouveau lien généré : copiez-le ci-dessous. L'ancien lien n'est plus valide.":"Lien retrouvé : sélectionnez-le et copiez-le ci-dessous.";
     }
+   }else if(action==="visitor-delete"){
+    const response=await call("delete",{id:btn.dataset.id},jwt);
+    if(!response.deleted)throw new Error("Ce lien n'est plus disponible ou n'est pas désactivé.");
+    if(editingLink===btn.dataset.id)editingLink=null;
+    adminMessage="Lien supprimé définitivement de la liste. Vos données CRM sont conservées.";
    }else if(action==="visitor-revoke"){
     await call("revoke",{id:btn.dataset.id},jwt);
     adminMessage="Lien désactivé. Le visiteur n'aura plus accès aux données.";
