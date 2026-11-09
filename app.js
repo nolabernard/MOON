@@ -617,6 +617,8 @@ function visitorContactModal(c){
  modal("Contact · "+contactName(c),'<section class="visitor-details"><div class="detail-fields">'+
   field("Nom",contactName(c))+field("Entreprise",c.company)+field("Email",c.email)+field("Téléphone",c.phone)+field("Profil",c.profile)+
   '</div>'+(c.notes?'<div class="visitor-note"><strong>Notes</strong><p>'+esc(c.notes)+'</p></div>':"")+
+  '<section class="visitor-related"><h3>Opportunités liées</h3>'+
+  (data.opportunities.filter(o=>o.contactId===c.id).map(o=>'<div class="task-item"><div class="task-content"><strong>'+esc(o.training)+'</strong><div class="subtle">'+esc(o.stage)+' · '+esc(amountText(o))+'</div></div><button type="button" class="btn small" data-action="edit-opportunity" data-id="'+esc(o.id)+'">Voir</button></div>').join("")||'<p class="subtle">Aucune opportunité associée.</p>')+'</section>'+
   contactTimeline(c)+'</section>');
  visitorOpenDetail={kind:"contact",id:c.id};
 }
