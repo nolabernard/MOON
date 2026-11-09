@@ -269,3 +269,35 @@ html[data-theme="system"] dialog{background:#fff;color:#17233b;border-color:#cbd
 html[data-theme="system"] .dialog-body,html[data-theme="system"] .dialog-head{background:#fff;color:#17233b}
 html[data-theme="system"] a{color:#4e39b6}
 }
+
+/* Pipeline: bounded columns with deliberate expansion */
+.lane-cards{display:flex;flex-direction:column;gap:10px}
+.lane-cards .op-card{margin-bottom:0}
+.lane-more{width:100%;margin-top:12px;justify-content:center;white-space:normal;min-height:38px}
+.op-card[data-action="open-opportunity"]{cursor:pointer}
+.op-card[data-action="open-opportunity"]:focus-visible,.lane-more:focus-visible{outline:3px solid #aa9cff;outline-offset:3px}
+/* Task form: clear action, relation and notes hierarchy */
+.task-form{display:grid;gap:16px}
+.task-form-section{padding:17px;border:1px solid #34415f;border-radius:13px;background:#151e34;min-width:0}
+.task-form-section h3{font-size:14px;margin:0 0 15px;font-weight:800}
+.task-form-section .form-grid{margin:0}
+.task-relation-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+.task-relation-grid label{min-width:0}
+.task-relation-help{font-size:12px;line-height:1.5;margin:10px 0 0}
+.task-linked-summary{display:flex;flex-direction:column;gap:5px;justify-content:center;padding:12px 14px;border:1px solid #414e6c;border-radius:10px;min-width:0;overflow-wrap:anywhere}
+.task-linked-summary span{font-size:12px;color:#aebbd4}
+.task-title-label{display:grid;gap:8px}
+.task-title-preview{display:block;padding:12px 14px;border-radius:10px;background:#222c46;color:#e9edff;font-weight:700;overflow-wrap:anywhere}
+.task-form-section textarea{width:100%;min-height:90px}
+.task-form .form-footer{margin-top:0}
+html[data-theme="light"] .task-form-section{background:#f4f6fc;border-color:#cbd5e4}
+html[data-theme="light"] .task-linked-summary{border-color:#cbd5e4;background:#fff}
+html[data-theme="light"] .task-linked-summary span{color:#4b5a73}
+html[data-theme="light"] .task-title-preview{background:#e7edfa;color:#17233b}
+@media(prefers-color-scheme:light){
+html[data-theme="system"] .task-form-section{background:#f4f6fc;border-color:#cbd5e4}
+html[data-theme="system"] .task-linked-summary{border-color:#cbd5e4;background:#fff}
+html[data-theme="system"] .task-linked-summary span{color:#4b5a73}
+html[data-theme="system"] .task-title-preview{background:#e7edfa;color:#17233b}
+}
+@media(max-width:600px){.task-relation-grid{grid-template-columns:1fr}.task-form-section{padding:13px}}
