@@ -22,6 +22,8 @@ applyTheme();
 let reportingPeriod="all",reportingAnchor="",reportingFrom="",reportingTo="";
 let page="day",period="all",rangeFrom="",rangeTo="",tax="ht",taskMode="open",afterContact=false;
 const $=id=>document.getElementById(id);
+const isReadOnly=()=>!!window.MOON_VISITOR?.isVisitor?.();
+let visitorOpenDetail=null;
 const today=()=>{const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)};
 const id=()=>typeof crypto!=="undefined"&&crypto.randomUUID?crypto.randomUUID():"moon-"+Date.now()+"-"+Math.random().toString(36).slice(2);
 const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -69,6 +71,7 @@ try{const s=JSON.parse(localStorage.getItem(scopedKey())||"null");if(s&&Array.is
 if(!loaded){if(!activeOwner)migrateOld();save(false)}normalize();
 }
 function save(show=true){
+ if(isReadOnly())return false;
  if(window.MOON_CLOUD&&!activeOwner)return false;
  try{
   const serialized=JSON.stringify(data);
@@ -124,15 +127,20 @@ ${page==="tasks"?`<select id="task-mode" class="field" aria-label="Filtrer les t
 }
 function render(){
 moonFormDirty=false;
-if(window.MOON_CLOUD&&!window.MOON_CLOUD.isAuthenticated?.()){const root=$("app");if(root)root.innerHTML="";return}
+if(window.MOON_CLOUD&&!window.MOON_CLOUD.isAuthenticated?.()&&!window.MOON_VISITOR?.isVisitorReady?.()){const root=$("app");if(root)root.innerHTML="";return}
 const titles={day:["Ma journée","Vos relances, dossiers à suivre et priorités du jour"],dashboard:["Tableau de bord","Une vision claire de vos résultats et priorités"],board:["Pipeline commercial","Déplacez les opportunités pour suivre leur progression"],opportunities:["Opportunités","Les projets commerciaux et leurs montants"],contacts:["Contacts","Un contact peut avoir plusieurs opportunités"],tasks:["Tâches & relances","Ajoutez, terminez, modifiez ou supprimez vos actions"],"opportunity-detail":["Fiche opportunité","Contact, suivi des échanges et prochaines actions"],reporting:["Reporting commercial","Vos indicateurs et votre bilan partageable"],settings:["Paramètres","Personnalisation, importations et sauvegardes"],account:["Mon compte","Connexion sécurisée, synchronisation et appareils"]};
 const [title,subtitle]=titles[page];
 $("app").innerHTML=`<div class="shell ${sidebarCollapsed?"sidebar-collapsed":""}"><aside class="sidebar"><div class="brand"><div class="brand-symbol">☾</div><div class="brand-text"><strong>MOON</strong><small>ESPI EXECUTIVE</small></div><button class="sidebar-toggle" type="button" data-action="toggle-sidebar" aria-label="${sidebarCollapsed?"Déployer":"Rétracter"} le menu" aria-expanded="${!sidebarCollapsed}" title="${sidebarCollapsed?"Déployer":"Rétracter"} le menu">${sidebarCollapsed?"»":"«"}</button></div><nav aria-label="Navigation principale">
-${navButton("day","☀","Ma journée")}${navButton("dashboard","◫","Accueil")}${navButton("board","▥","Pipeline")}${navButton("opportunities","◇","Opportunités")}${navButton("contacts","♙","Contacts")}${navButton("tasks","☑","Tâches")}${navButton("reporting","▤","Reporting")}<div class="nav-divider" aria-hidden="true"></div><div class="nav-group-label">ESPACE PERSONNEL</div>${navButton("account","☁","Mon compte")}${navButton("settings","⚙","Paramètres")}
+${navButton("day","☀","Ma journée")}${navButton("dashboard","◫","Accueil")}${navButton("board","▥","Pipeline")}${navButton("opportunities","◇","Opportunités")}${navButton("contacts","♙","Contacts")}${navButton("tasks","☑","Tâches")}${navButton("reporting","▤","Reporting")}${isReadOnly()?"":'<div class="nav-divider" aria-hidden="true"></div><div class="nav-group-label">ESPACE PERSONNEL</div>'}${isReadOnly()?"":navButton("account","☁","Mon compte")+navButton("settings","⚙","Paramètres")}
 </nav><div class="sidebar-bottom"><span id="sidebar-sync-state">☁ Vérification de la synchronisation…</span><br>MOON · Votre espace sécurisé</div></aside>
-<div class="main ${["opportunities","contacts","tasks","reporting"].includes(page)?"workspace-main":""}"><div class="topbar"><div><div class="eyebrow">MOON / ${esc(page)}</div><h1>${title}</h1><div class="subtle">${subtitle}</div></div><div class="actions">${["day","contacts","opportunities","opportunity-detail","tasks"].includes(page)?`<button class="btn" data-action="voice-open" type="button" title="Dicter un contact, une opportunité, un échange ou une tâche">🎙 Dicter</button>`:""}
-${page==="contacts"?`<button class="btn primary" data-action="new-contact">+ Nouveau contact</button>`:page==="tasks"?`<button class="btn primary" data-action="new-task">+ Nouvelle tâche</button>`:page==="settings"||page==="account"?"":`<button class="btn" data-action="new-task">+ Tâche</button><button class="btn primary" data-action="new-opportunity">+ Opportunité</button>`}</div></div>
-${toolbar()}<div id="view" class="${["opportunities","contacts","tasks","reporting"].includes(page)?"workspace-view workspace-"+page:""}">${page==="day"?dayPage():page==="dashboard"?dashboard():page==="board"?board():page==="opportunities"?opportunities():page==="opportunity-detail"?opportunityDetailPage():page==="contacts"?contacts():page==="tasks"?tasks():page==="reporting"?reportingPage():page==="account"?accountPage():settings()}</div></div></div>`;
+<div class="main ${["opportunities","contacts","tasks","reporting"].includes(page)?"workspace-main":""}"><div class="topbar"><div><div class="eyebrow">MOON / ${esc(page)}</div><h1>${title}</h1><div class="subtle">${subtitle}</div></div><div class="actions">${isReadOnly()?'<span class="visitor-pill" aria-label="Mode visiteur, lecture seule">◉ Lecture seule</span><button type="button" class="btn small" data-action="visitor-refresh">Actualiser</button>':(["day","contacts","opportunities","opportunity-detail","tasks"].includes(page)?`<button class="btn" data-action="voice-open" type="button" title="Dicter un contact, une opportunité, un échange ou une tâche">🎙 Dicter</button>`:"")}
+${isReadOnly()?"":(page==="contacts"?`<button class="btn primary" data-action="new-contact">+ Nouveau contact</button>`:page==="tasks"?`<button class="btn primary" data-action="new-task">+ Nouvelle tâche</button>`:page==="settings"||page==="account"?"":`<button class="btn" data-action="new-task">+ Tâche</button><button class="btn primary" data-action="new-opportunity">+ Opportunité</button>`)}</div></div>
+${isReadOnly()?'<div class="visitor-status-bar" role="status"><span id="visitor-live-status">Lecture seule · actualisation automatique</span><span>Les modifications enregistrées sont vérifiées toutes les 15 secondes.</span></div>':""}${toolbar()}<div id="view" class="${["opportunities","contacts","tasks","reporting"].includes(page)?"workspace-view workspace-"+page:""}">${page==="day"?dayPage():page==="dashboard"?dashboard():page==="board"?board():page==="opportunities"?opportunities():page==="opportunity-detail"?opportunityDetailPage():page==="contacts"?contacts():page==="tasks"?tasks():page==="reporting"?reportingPage():page==="account"?accountPage():settings()}</div></div></div>`;
+if(isReadOnly()){
+ document.querySelectorAll("#app .task-check").forEach(el=>{el.disabled=true;el.setAttribute("aria-label","Statut de tâche en lecture seule")});
+ document.querySelectorAll('#app [data-action="edit-contact"],#app [data-action="edit-task"],#app [data-action="edit-opportunity"]').forEach(el=>{el.textContent="Voir";el.setAttribute("title","Consulter les détails en lecture seule")});
+}
+if(page==="account"&&!isReadOnly())window.MOON_VISITOR?.maybeLoadAdminLinks?.();
 }
 function metric(label,value,foot,icon,color="",revenueKey=""){
  const active=!!revenueKey,tag=active?"button":"div";
@@ -288,7 +296,7 @@ const PIPELINE_VISIBLE_LIMIT=10;
 const pipelineExpandedStages=new Set();
 function board(){
 const all=scoped();
-return `<div class="board">${STAGES.map(stage=>{const list=all.filter(o=>o.stage===stage),total=sum(list),visible=list;return `<section class="lane" data-stage="${esc(stage)}"><div class="lane-header"><span class="lane-title">${esc(stage)}</span><span class="badge">${list.length}</span></div><div class="amount">${money(total)}</div><div class="lane-cards">${visible.map(o=>`<article class="op-card" draggable="true" data-id="${esc(o.id)}" data-action="open-opportunity" tabindex="0" role="button" aria-label="Ouvrir la fiche de ${esc(contactName(linkedContact(o)))} — ${esc(o.training)}"><div class="head">${esc(contactName(linkedContact(o)))}</div><p>${esc(o.training)} · ${esc(o.category)}</p><div class="bottom"><strong>${amountText(o)}</strong><span>${o.follow?"↻ "+dt(o.follow):""}</span></div></article>`).join("")}</div></section>`}).join("")}</div>`;
+return `<div class="board">${STAGES.map(stage=>{const list=all.filter(o=>o.stage===stage),total=sum(list),visible=list;return `<section class="lane" data-stage="${esc(stage)}"><div class="lane-header"><span class="lane-title">${esc(stage)}</span><span class="badge">${list.length}</span></div><div class="amount">${money(total)}</div><div class="lane-cards">${visible.map(o=>`<article class="op-card" draggable="${!isReadOnly()}" data-id="${esc(o.id)}" data-action="open-opportunity" tabindex="0" role="button" aria-label="Ouvrir la fiche de ${esc(contactName(linkedContact(o)))} — ${esc(o.training)}"><div class="head">${esc(contactName(linkedContact(o)))}</div><p>${esc(o.training)} · ${esc(o.category)}</p><div class="bottom"><strong>${amountText(o)}</strong><span>${o.follow?"↻ "+dt(o.follow):""}</span></div></article>`).join("")}</div></section>`}).join("")}</div>`;
 }
 function opportunitySortValue(o,key){
  if(key==="amount")return amount(o);
@@ -347,7 +355,7 @@ return `<section class="panel"><div class="row"><h2>Tâches <span class="badge">
 <div class="stack" style="margin-top:12px">${all.length?all.map(t=>`<div data-search="${esc((t.title+" "+t.notes+" "+taskRelation(t)).toLowerCase())}">${taskRow(t)}</div>`).join(""):`<div class="empty"><strong>Aucune tâche dans cette vue</strong><p>Les nouvelles tâches apparaîtront ici immédiatement après leur enregistrement.</p><button class="btn primary" data-action="new-task">Nouvelle tâche</button></div>`}</div></section>`;
 }
 function accountPage(){
-return `<div class="account-layout"><div id="cloud-live">${window.MOON_CLOUD?.settingsHtml()||""}</div><section class="panel account-help"><h2>Retrouvez MOON sur tous vos ordinateurs</h2><p class="subtle">Utilisez la même adresse email de connexion sur chaque appareil. Vos contacts, opportunités, tâches et échanges sont conservés dans votre compte Supabase.</p><div class="account-steps"><div><strong>01</strong><span>Vos modifications sont regroupées et envoyées automatiquement après une courte pause.</span></div><div><strong>02</strong><span>Attendez l’indication « Synchronisé » avant de fermer ou quitter l’appareil.</span></div><div><strong>03</strong><span>Connectez-vous ailleurs avec le même email : MOON charge vos données.</span></div></div><p class="subtle">En cas de modification simultanée sur deux appareils, MOON bloque le conflit pour protéger les données. Ne remplacez pas une sauvegarde sans vérifier son contenu.</p></section></div>`;
+return `<div class="account-layout"><div><div id="cloud-live">${window.MOON_CLOUD?.settingsHtml()||""}</div>${window.MOON_VISITOR?.adminHtml?.()||""}</div><section class="panel account-help"><h2>Retrouvez MOON sur tous vos ordinateurs</h2><p class="subtle">Utilisez la même adresse email de connexion sur chaque appareil. Vos contacts, opportunités, tâches et échanges sont conservés dans votre compte Supabase.</p><div class="account-steps"><div><strong>01</strong><span>Vos modifications sont regroupées et envoyées automatiquement après une courte pause.</span></div><div><strong>02</strong><span>Attendez l’indication « Synchronisé » avant de fermer ou quitter l’appareil.</span></div><div><strong>03</strong><span>Connectez-vous ailleurs avec le même email : MOON charge vos données.</span></div></div><p class="subtle">En cas de modification simultanée sur deux appareils, MOON bloque le conflit pour protéger les données. Ne remplacez pas une sauvegarde sans vérifier son contenu.</p></section></div>`;
 }
 function settings(){
 const appearance='<section class="panel"><div class="section-heading"><div><div class="eyebrow">APPARENCE</div><h2>Confort visuel</h2></div><span class="settings-icon">◐</span></div><p class="subtle">Choisissez un thème ou suivez automatiquement les préférences de votre ordinateur.</p><div class="theme-options" role="group" aria-label="Thème de MOON">'+[["system","Automatique"],["light","Clair"],["dark","Sombre"]].map(([v,label])=>'<button type="button" class="btn '+(themePreference===v?'primary':'')+'" data-action="set-theme" data-theme="'+v+'" aria-pressed="'+(themePreference===v)+'">'+label+'</button>').join("")+'</div></section>';
@@ -356,7 +364,7 @@ return `<div class="settings-layout">${appearance}<section class="panel"><div cl
 <div class="help">MOON utilise une authentification Supabase et des règles de confidentialité par compte. L’utilisation de données professionnelles réelles reste soumise à la validation et aux règles de sécurité de votre organisation.</div>
 </section><section class="panel"><div class="section-heading"><div><div class="eyebrow">VOTRE ESPACE</div><h2>Contenu actuel</h2></div><span class="settings-icon">▤</span></div><div class="kpi-line"><span>Contacts</span><strong>${data.contacts.length}</strong></div><div class="kpi-line"><span>Opportunités</span><strong>${data.opportunities.length}</strong></div><div class="kpi-line"><span>Tâches</span><strong>${data.tasks.length}</strong></div><div class="settings-tip">La synchronisation et la déconnexion se gèrent dans <button type="button" class="inline-link" data-action="nav" data-page="account">Mon compte</button>.</div></section></div>`;
 }
-function modal(title,body){const dialog=$("modal");dialog.innerHTML=`<div class="dialog-head"><h2>${esc(title)}</h2><button type="button" class="btn small ghost" data-action="close-modal" aria-label="Fermer">✕</button></div><div class="dialog-body">${body}</div>`;if(!dialog.open)dialog.showModal()}
+function modal(title,body){if(isReadOnly())visitorOpenDetail=null;const dialog=$("modal");dialog.innerHTML=`<div class="dialog-head"><h2>${esc(title)}</h2><button type="button" class="btn small ghost" data-action="close-modal" aria-label="Fermer">✕</button></div><div class="dialog-body">${body}</div>`;if(!dialog.open)dialog.showModal()}
 function input(name,label,value="",type="text",required=false,extra=""){return `<label>${esc(label)}<input class="field" name="${name}" type="${type}" value="${esc(value)}" ${required?"required":""} ${extra}></label>`}
 function select(name,label,values,value){return `<label>${esc(label)}<select class="field" name="${name}">${opts(values,value)}</select></label>`}
 function textarea(name,label,value=""){return `<label class="wide">${esc(label)}<textarea class="field" name="${name}">${esc(value)}</textarea></label>`}
@@ -416,7 +424,7 @@ function taskModal(t=null,opId="",contactId=""){
  <section class="task-form-section"><label class="task-title-label">Intitulé automatique<output class="task-title-preview" id="task-auto-title" aria-live="polite">${esc(taskLabel(t?.type||"Relance",selectedOp?.id||"",selectedContact))}</output></label>${textarea("notes","Commentaire / détails",t?.notes)}</section>
  ${formFooter(t,"task")}</form>`);
 }
-function closeModal(){$("modal").close()}
+function closeModal(){$("modal").close();visitorOpenDetail=null}
 function markStage(o,newStage,reason=""){
 if(o.stage===newStage)return true;
 if(newStage==="Perdu"&&!reason&&!o.lostReason){const answer=prompt("Motif de perte (facultatif) :","");if(answer===null)return false;reason=answer}
@@ -603,9 +611,45 @@ async function importFile(file,kind){
   render();toast(plan.accepted.length+" opportunité(s) ajoutée(s) · "+plan.duplicates+" doublon(s) ignoré(s)");
  }catch(e){alert("Import impossible : "+e.message)}
 }
+function visitorContactModal(c){
+ if(!c)return;
+ const field=(label,value)=>'<div>'+esc(label)+' <strong>'+esc(value||"—")+'</strong></div>';
+ modal("Contact · "+contactName(c),'<section class="visitor-details"><div class="detail-fields">'+
+  field("Nom",contactName(c))+field("Entreprise",c.company)+field("Email",c.email)+field("Téléphone",c.phone)+field("Profil",c.profile)+
+  '</div>'+(c.notes?'<div class="visitor-note"><strong>Notes</strong><p>'+esc(c.notes)+'</p></div>':"")+
+  '<section class="visitor-related"><h3>Opportunités liées</h3>'+
+  (data.opportunities.filter(o=>o.contactId===c.id).map(o=>'<div class="task-item"><div class="task-content"><strong>'+esc(o.training)+'</strong><div class="subtle">'+esc(o.stage)+' · '+esc(amountText(o))+'</div></div><button type="button" class="btn small" data-action="edit-opportunity" data-id="'+esc(o.id)+'">Voir</button></div>').join("")||'<p class="subtle">Aucune opportunité associée.</p>')+'</section>'+
+  contactTimeline(c)+'</section>');
+ visitorOpenDetail={kind:"contact",id:c.id};
+}
+function visitorTaskModal(t){
+ if(!t)return;
+ const o=opportunity(t.opportunityId),c=contact(t.contactId||o?.contactId);
+ modal("Tâche · "+t.title,'<section class="visitor-details"><div class="detail-fields">'+
+  '<div>Statut <strong>'+(t.status==="done"?"Terminée":"À faire")+'</strong></div>'+
+  '<div>Échéance <strong>'+esc(dt(t.due))+'</strong></div>'+
+  '<div>Type <strong>'+esc(t.type||"—")+'</strong></div>'+
+  '<div>Priorité <strong>'+esc(t.priority||"—")+'</strong></div>'+
+  '<div>Contact <strong>'+esc(c?contactName(c):"—")+'</strong></div>'+
+  '<div>Opportunité <strong>'+esc(o?.training||"—")+'</strong></div></div>'+
+  (t.notes?'<div class="visitor-note"><strong>Commentaires</strong><p>'+esc(t.notes)+'</p></div>':"")+
+  (c?'<button type="button" class="btn small" data-action="edit-contact" data-id="'+esc(c.id)+'">Voir le contact</button>':"")+
+  (o?'<button type="button" class="btn small" data-action="edit-opportunity" data-id="'+esc(o.id)+'">Voir l’opportunité</button>':"")+'</section>');
+ visitorOpenDetail={kind:"task",id:t.id};
+}
 function onClick(e){
 const btn=e.target.closest("[data-action]");if(!btn||btn.matches("input[type=checkbox]"))return;
 const a=btn.dataset.action,x=btn.dataset.id;
+if(a.startsWith("visitor-")&&!isReadOnly()){window.MOON_VISITOR?.adminAction?.(a,btn);return}
+if(isReadOnly()){
+ if(a==="visitor-refresh"){window.MOON_VISITOR?.refresh?.();return}
+ if(a==="edit-contact"){visitorContactModal(contact(x));return}
+ if(a==="edit-task"){visitorTaskModal(task(x));return}
+ if(a==="edit-opportunity"){if($("modal")?.open)closeModal();opportunityReturnPage=page==="board"?"board":"opportunities";selectedOpportunityId=x;page="opportunity-detail";render();return}
+ if(a==="open-opportunity"&&$("modal")?.open)closeModal();
+ const allowed=new Set(["nav","open-opportunity","revenue-breakdown","day-jump","toggle-status-filter","select-all-stages","clear-all-stages","sort-opportunities","natural-search","toggle-sidebar","set-theme","close-modal","apply-moon-update","dismiss-moon-update"]);
+ if(!allowed.has(a)||(a==="nav"&&!window.MOON_VISITOR?.pageAllowed?.(btn.dataset.page)))return;
+}
 if(["save-contact-direct","save-opportunity-direct","save-task-direct","save-interaction-direct"].includes(a)){
  e.preventDefault();e.stopPropagation();
  const kind=a.slice(5,-7),form=btn.closest?.("#"+kind+"-form")||$("modal")?.querySelector("#"+kind+"-form");
@@ -654,6 +698,7 @@ else if(a==="export-csv")exportCsv();
 else if(a==="import-json"||a==="import-csv"){$("file-import").dataset.kind=a==="import-json"?"json":"csv";$("file-import").accept=a==="import-json"?".json":".csv,text/csv";$("file-import").click()}
 }
 function handleFormSubmit(e){
+ if(isReadOnly()){e.preventDefault();e.stopPropagation();return}
  const form=e.target;
  if(!["cloud-login-form","contact-form","opportunity-form","task-form","interaction-form"].includes(form?.id))return;
  // Capture-phase cancellation: never allow a CRM form to navigate/reload the page.
@@ -671,7 +716,7 @@ function handleFormSubmit(e){
  }
 }
 
-const MOON_APP_VERSION="30.0";
+const MOON_APP_VERSION="31.0";
 let moonUpdateReady=false,moonUpdateChecking=false,moonFormDirty=false;
 function showMoonUpdate(){
  const node=$("moon-update");if(!node)return;
@@ -706,6 +751,7 @@ document.addEventListener("click",onClick);
 if(typeof setTimeout==="function"&&typeof setInterval==="function"){setTimeout(checkMoonUpdate,5000);setInterval(checkMoonUpdate,180000);document.addEventListener("visibilitychange",()=>{if(!document.hidden)checkMoonUpdate()})}
 document.addEventListener("change",e=>{
 const t=e.target;
+if(isReadOnly()&&(t.dataset.action==="toggle-task"||t.id==="file-import")){if(t.dataset.action==="toggle-task")t.checked=!t.checked;return}
 if(t.id==="period"){period=t.value;render()}
  else if(t.id==="reporting-period"){reportingPeriod=t.value;render()}
  else if(t.id==="reporting-anchor"){reportingAnchor=t.value||today();render()}
@@ -724,16 +770,27 @@ else if(t.id==="file-import"){const f=t.files?.[0];if(f)importFile(f,t.dataset.k
 document.addEventListener("input",e=>{if(e.target.closest?.("form"))moonFormDirty=true;if(e.target.id==="search"){const term=e.target.value.trim().toLowerCase();document.querySelectorAll("[data-search]").forEach(el=>el.hidden=!el.dataset.search.includes(term))}});
 document.addEventListener("submit",handleFormSubmit,true);
 let dragged="";
-document.addEventListener("dragstart",e=>{const card=e.target.closest(".op-card");if(card){dragged=card.dataset.id;e.dataTransfer.setData("text/plain",dragged);e.dataTransfer.effectAllowed="move"}});
-document.addEventListener("dragover",e=>{const lane=e.target.closest(".lane");if(lane){e.preventDefault();lane.classList.add("over")}});
+document.addEventListener("dragstart",e=>{if(isReadOnly()){e.preventDefault();return}const card=e.target.closest(".op-card");if(card){dragged=card.dataset.id;e.dataTransfer.setData("text/plain",dragged);e.dataTransfer.effectAllowed="move"}});
+document.addEventListener("dragover",e=>{if(isReadOnly())return;const lane=e.target.closest(".lane");if(lane){e.preventDefault();lane.classList.add("over")}});
 document.addEventListener("dragleave",e=>{const lane=e.target.closest(".lane");if(lane&&!lane.contains(e.relatedTarget))lane.classList.remove("over")});
-document.addEventListener("drop",e=>{const lane=e.target.closest(".lane");if(!lane)return;e.preventDefault();document.querySelectorAll(".lane.over").forEach(n=>n.classList.remove("over"));const o=opportunity(e.dataTransfer.getData("text/plain")||dragged);if(o&&markStage(o,lane.dataset.stage)){save();render()}dragged=""});
+document.addEventListener("drop",e=>{if(isReadOnly())return;const lane=e.target.closest(".lane");if(!lane)return;e.preventDefault();document.querySelectorAll(".lane.over").forEach(n=>n.classList.remove("over"));const o=opportunity(e.dataTransfer.getData("text/plain")||dragged);if(o&&markStage(o,lane.dataset.stage)){save();render()}dragged=""});
 $("modal").addEventListener("click",e=>{if(e.target===$("modal"))closeModal()});
 }
 
 /* Optional Supabase bridge: never uploads without confirmation in cloud.js. */
 window.MOON_CLOUD_BRIDGE={
+ visitorLoad:record=>{
+  if(!isReadOnly()||!record||!Array.isArray(record.contacts)||!Array.isArray(record.opportunities)||!Array.isArray(record.tasks))return false;
+  const scroll=Array.from(document.querySelectorAll(".lane-cards,.table-wrap,.workspace-view,.stack")).map((el,i)=>({i,top:el.scrollTop,left:el.scrollLeft}));
+  data=JSON.parse(JSON.stringify(record));activeOwner=null;normalize();render();
+  if($("modal")?.open&&visitorOpenDetail){const view=visitorOpenDetail;if(view.kind==="contact")visitorContactModal(contact(view.id));else if(view.kind==="task")visitorTaskModal(task(view.id));}
+  const nodes=Array.from(document.querySelectorAll(".lane-cards,.table-wrap,.workspace-view,.stack"));
+  scroll.forEach(x=>{if(nodes[x.i]){nodes[x.i].scrollTop=x.top;nodes[x.i].scrollLeft=x.left}});
+  return true;
+ },
+ visitorClear:()=>{if(!isReadOnly())return;data=emptyCRM();activeOwner=null;page="day";visitorOpenDetail=null;const root=$("app");if(root)root.innerHTML="";const dlg=$("modal");if(dlg?.open)dlg.close()},
  activate:ownerId=>{
+  if(isReadOnly())return false;
   if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(ownerId||"")))return false;
   if(activeOwner===ownerId)return true;
   data=emptyCRM();activeOwner=ownerId;page="day";naturalQuery="";
@@ -758,6 +815,7 @@ window.MOON_CLOUD_BRIDGE={
  show:()=>render(),
  snapshot:()=>JSON.parse(JSON.stringify(data)),
  restore:record=>{
+  if(isReadOnly())return false;
   if(!record||!Array.isArray(record.contacts)||!Array.isArray(record.opportunities)||!Array.isArray(record.tasks))return false;
   const current=JSON.stringify(data),checkpoint=scopedKey()+".precloud."+Date.now();
   try{
@@ -779,6 +837,7 @@ window.MOON_CLOUD_BRIDGE={
 
 /* Voice assistant bridge: validate parsed fields and persist only after explicit confirmation. */
 function saveVoiceConversation(v){
+ if(isReadOnly())return {ok:false,error:"Lecture seule : modification interdite."};
  const name=String(v.last||"").trim(),email=String(v.email||"").trim(),phone=String(v.phone||"").trim();
  const existing=v.existingContact?contact(v.existingContact):null;
  if(v.existingContact&&!existing)return {ok:false,error:"Contact sélectionné introuvable."};
@@ -828,6 +887,7 @@ window.MOON_VOICE_BRIDGE={
  refresh:()=>render(),
  notify:message=>toast(message),
  save(v){
+  if(isReadOnly())return {ok:false,error:"Lecture seule : modification interdite."};
   const kind=v.kind,existing=v.existingContact?contact(v.existingContact):null;
   if(!["contact","opportunity","task"].includes(kind))return {ok:false,error:"Action non reconnue."};
   if(v.email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.email))return {ok:false,error:"Adresse email invalide."};

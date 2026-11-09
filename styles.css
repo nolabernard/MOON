@@ -374,3 +374,39 @@ html[data-theme="light"] .event-edit-btn:hover,html[data-theme="light"] .event-e
 }
 /* Small screens retain native page scrolling for touch and accessibility. */
 @media(max-width:720px){.workspace-view,.workspace-main{overflow:visible;max-height:none}.workspace-opportunities .table-wrap,.workspace-contacts .table-wrap{overflow-x:auto}}
+
+/* Secure link visitors: preserve existing views, never expose editing controls. */
+body.moon-visitor [data-action^="new-"],
+body.moon-visitor [data-action^="save-"],
+body.moon-visitor [data-action^="delete-"],
+body.moon-visitor [data-action^="import-"],
+body.moon-visitor [data-action^="export-"],
+body.moon-visitor [data-action="copy-report"],
+body.moon-visitor [data-action="apply-stage-suggestion"],
+body.moon-visitor [data-action="edit-exchange"],
+body.moon-visitor [data-action="voice-open"],
+body.moon-visitor #interaction-form,
+body.moon-visitor .opportunity-detail-actions [data-action="edit-opportunity"]{display:none!important}
+body.moon-visitor .task-check{cursor:default;opacity:.8}
+.visitor-pill{display:inline-flex;align-items:center;gap:5px;border:1px solid #655b93;border-radius:30px;padding:8px 11px;color:#cfbfff;background:rgba(123,99,218,.12);font-size:12px;font-weight:800;white-space:nowrap}
+.visitor-status-bar{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:-9px 0 15px;color:#9faed1;font-size:11px}
+.visitor-status-bar #visitor-live-status{color:#b8abff;font-weight:800}
+.visitor-management{margin-top:16px}
+.visitor-create{display:flex;align-items:end;gap:12px;flex-wrap:wrap;margin:20px 0}
+.visitor-create label{flex:1 1 220px;min-width:0}
+.visitor-create .btn{flex-shrink:0}
+.visitor-created{padding:16px;border-radius:13px;border:1px solid #655b93;background:rgba(120,98,214,.1);margin:12px 0 22px}
+.visitor-created p{margin:9px 0}
+.visitor-url{display:flex;gap:8px;align-items:center}
+.visitor-url .field{min-width:0;flex:1 1 auto}
+.visitor-link-row{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:12px 0;border-bottom:1px solid #343e57}
+.visitor-link-row>div{display:flex;flex-direction:column;min-width:0;gap:4px;overflow-wrap:anywhere}
+.visitor-link-row small{color:#9ba9c4}
+.visitor-link-row .btn{flex-shrink:0}
+.visitor-note{padding:12px 0;overflow-wrap:anywhere}
+.visitor-note p{white-space:pre-wrap}
+.visitor-details .detail-fields{margin-bottom:12px}
+.visitor-details .btn{margin:8px 8px 0 0}
+html[data-theme="light"] .visitor-pill{color:#57409a}
+html[data-theme="light"] .visitor-status-bar #visitor-live-status{color:#57409a}
+@media(max-width:720px){.visitor-url{flex-wrap:wrap}.visitor-url .btn{width:100%}.visitor-create .btn{width:100%}.visitor-status-bar{margin:2px 0 15px}}

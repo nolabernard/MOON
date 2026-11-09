@@ -148,6 +148,8 @@
  const bridge=()=>window.MOON_CLOUD_BRIDGE;
  function error(e){return String(e?.message||e||"Erreur inconnue")}
  async function init(){
+   // The bearer-link visitor flow never authenticates or loads an owner's local account.
+   if(window.MOON_VISITOR?.isVisitor?.())return;
    if(!configured){errorMessage="Connexion indisponible : configuration Supabase manquante.";authScreen();return;}
    if(!window.supabase?.createClient){
      try{
@@ -308,7 +310,7 @@
      pendingEmail=email;otpRequestedAt=Date.now();otpAttempts=0;notice="Si ce compte existe, un code de connexion sera envoyé. Vérifiez votre boîte email.";
    }catch(e){errorMessage=error(e)}finally{busy=false;refresh()}
  }
- window.MOON_CLOUD={settingsHtml,act,login,verifyCode,init,configured,onLocalSave:scheduleSync,refreshStatus,isAuthenticated:()=>!!user&&accountReady,canReload:()=>!busy&&!syncRunning&&!syncQueued&&!hasUnsynced()&&(!user||syncState==="synced")};
+ window.MOON_CLOUD={settingsHtml,act,login,verifyCode,init,configured,onLocalSave:scheduleSync,refreshStatus,getAccessToken:async()=>{if(!client||!user||!accountReady)return "";const result=await client.auth.getSession();return result.data?.session?.user?.id===user.id?(result.data.session.access_token||""):""},isAuthenticated:()=>!!user&&accountReady,canReload:()=>!busy&&!syncRunning&&!syncQueued&&!hasUnsynced()&&(!user||syncState==="synced")};
  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);
  else init();
 })();
