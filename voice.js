@@ -90,18 +90,13 @@ function analyze(){
  if(p.conversational)p.kind="conversation";
  const matches=p.last?contacts.filter(c=>normalize(c.last)===normalize(p.last)):[];
  const suggested=matches.length===1?matches[0].id:"";
- let html='<h3>Vérifier avant d’enregistrer</h3><form id="voice-confirm"><div class="form-grid">'+select("Action","kind",kinds,p.kind);
- html+=field("Prénom","first",p.first)+field("Nom","last",p.last)+field("Entreprise","company",p.company)+field("Email","email",p.email,"email")+field("Téléphone","phone",p.phone,"tel");
- html+=select("Contact existant (facultatif)","existingContact",[["","Créer un contact / aucun"],...contacts.map(c=>[c.id,[c.first,c.last,c.company].filter(Boolean).join(" · ")])],suggested);
+ let html='<h3>Vérifier avant d’enregistrer</h3><form id="voice-confirm" class="voice-confirm"><section class="voice-section"><h4>Action à réaliser</h4><div class="voice-form-grid">'+select("Action","kind",kinds,p.kind)+'</div></section>';
+ html+='<section class="voice-section"><h4>Contact</h4><div class="voice-form-grid">'+field("Prénom","first",p.first)+field("Nom","last",p.last)+field("Entreprise","company",p.company)+field("Email","email",p.email,"email")+field("Téléphone","phone",p.phone,"tel")+'</div>';
+ html+='<div class="voice-contact-choice">'+select("Contact existant (facultatif)","existingContact",[["","Créer un contact / aucun"],...contacts.map(c=>[c.id,[c.first,c.last,c.company].filter(Boolean).join(" · ")])],suggested)+'</div>';
  if(matches.length>1)html+='<p class="help">Plusieurs contacts portent ce nom : choisissez la bonne personne.</p>';
- html+='<div id="voice-extra-fields">';
- html+=field("Compte rendu / décision","summary",p.summary||p.transcript);
- html+=field("Formation / prestation","training",p.training)+select("Catégorie","category",TYPES.map(x=>[x,x]),p.category);
- html+='<p class="subtle">Actions proposées : associer le contact, créer ou mettre à jour une opportunité, ajouter le compte rendu à l’historique et créer une relance si une date est indiquée. Rien ne sera enregistré avant votre confirmation.</p>';
- html+=field("Montant (€)","amount",p.amount,"number",'min="0" step="0.01"')+select("Montant annoncé","vatMode",[["unknown","Non précisé : à vérifier"],["ht","HT"],["ttc","TTC"]],p.vatMode);
- html+=field("Date de relance / échéance","due",p.due,"date")+field("Intitulé de tâche","title",p.title);
- html+='</div>';
- html+='</div><p class="subtle">Le montant TTC ou sans précision ne sera pas converti automatiquement en HT. Il faudra compléter la TVA dans la fiche opportunité. Les dates relatives doivent être vérifiées.</p><div class="form-footer"><button type="button" class="btn" id="voice-cancel">Annuler</button><button type="button" class="btn primary" id="voice-save-direct">Confirmer l’enregistrement</button></div></form>';
+ html+='</section><div id="voice-extra-fields" class="voice-extra-fields"><section class="voice-section"><h4>Opportunité et compte rendu</h4><div class="voice-form-grid"><label class="voice-wide">Compte rendu / décision<textarea class="field" name="summary" rows="4">'+esc(p.summary||p.transcript)+'</textarea></label>'+field("Formation / prestation","training",p.training)+select("Catégorie","category",TYPES.map(x=>[x,x]),p.category)+field("Montant (€)","amount",p.amount,"number",'min="0" step="0.01"')+select("Montant annoncé","vatMode",[["unknown","Non précisé : à vérifier"],["ht","HT"],["ttc","TTC"]],p.vatMode)+'</div></section>';
+ html+='<section class="voice-section"><h4>Suivi et prochaine action</h4><div class="voice-form-grid">'+field("Date de relance / échéance","due",p.due,"date")+field("Intitulé de tâche","title",p.title)+'</div><p class="subtle">Une relance est créée uniquement si une date est indiquée.</p></section></div>';
+ html+='<p class="subtle voice-disclaimer">Vérifiez les dates et le montant. Un montant TTC ou non précisé n’est pas automatiquement converti en HT. Rien n’est enregistré avant confirmation.</p><div class="form-footer"><button type="button" class="btn" id="voice-cancel">Annuler</button><button type="button" class="btn primary" id="voice-save-direct">Confirmer l’enregistrement</button></div></form>';
  $("voice-preview").innerHTML=html;
  $("voice-cancel").onclick=()=>{$("voice-preview").innerHTML=""};
  const commit=()=>{
