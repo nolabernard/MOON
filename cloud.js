@@ -11,7 +11,7 @@
  const SYNC_KEY="moon.crm.v2.autosync", BASE_KEY="moon.crm.v2.syncbase";
  let syncTimer=null,syncRunning=false,conflicted=false,syncState="loading",syncError="",syncQueued=false;
  const SYNC_DELAY_MS=1500,FOCUS_CHECK_INTERVAL_MS=30000;
- let lastCloudCheckAt=0,retryTimer=null,retryCount=0;
+ let lastCloudCheckAt=0,retryTimer=null,retryCount=0,historyRows=[],historyLoaded=false;
  const syncKey=()=>SYNC_KEY+"."+(user?.id||"anon");
  const baseKey=()=>BASE_KEY+"."+(user?.id||"anon");
  const enabled=()=>!!user&&localStorage.getItem(syncKey())==="yes";
@@ -204,6 +204,7 @@
      html+='<div class="account-identity"><span class="account-avatar">✦</span><div><span class="subtle">Adresse de connexion</span><strong>'+esc(user.email||user.id)+'</strong></div><span class="account-connected">● Connecté</span></div>';
      html+='<div class="sync-overview"><span>État de la synchronisation</span><strong data-sync-indicator data-state="'+esc(syncState)+'">'+esc(syncState==="synced"?"Synchronisé":syncState==="saving"?"Synchronisation…":syncState==="pending"?"À synchroniser":syncState==="conflict"?"Conflit à résoudre":syncState==="error"?"Synchronisation en erreur":"Connexion…")+'</strong><small id="cloud-sync-detail">'+esc(syncError||"Vos modifications sont envoyées automatiquement.")+'</small></div><p class="subtle">Dernière sauvegarde distante : '+(remote?esc(ts):"en attente")+'</p>';
      html+='<div class="actions account-primary-actions"><button class="btn primary" type="button" data-action="cloud-sync-now">Synchroniser maintenant</button><button class="btn" type="button" data-action="cloud-refresh">Vérifier le cloud</button><button class="btn danger" type="button" data-action="cloud-logout">Se déconnecter</button></div><details class="account-advanced"><summary>Options avancées et récupération</summary><div class="actions"><button class="btn" type="button" data-action="cloud-upload">Remplacer la sauvegarde distante</button><button class="btn" type="button" data-action="cloud-download" '+(remote?"":"disabled")+' >Restaurer la sauvegarde distante</button></div><p class="subtle">Ces opérations peuvent remplacer des données. Une confirmation est demandée avant toute modification.</p></details>';
+     html+='<details class="account-advanced"><summary>Historique des sauvegardes</summary><p class="subtle">Les anciennes versions sont conservées dans Supabase. Restaurer une version crée une nouvelle révision sans effacer l’historique.</p><button class="btn small" type="button" data-action="cloud-history-list">Afficher les versions</button>'+(historyLoaded?'<div class="cloud-history-list">'+(historyRows.length?historyRows.map(h=>'<div class="task-item"><div class="task-content"><strong>Version '+esc(h.revision)+'</strong><div class="subtle">'+esc(new Date(h.saved_at).toLocaleString("fr-FR"))+' · '+esc(h.source==="baseline"?"Sauvegarde initiale":h.source==="before_delete"?"Avant suppression":"Sauvegarde automatique")+'</div></div><button class="btn small" type="button" data-action="cloud-restore-version-'+esc(h.revision)+'">Restaurer</button></div>').join(""):'<p class="subtle">Aucune version antérieure disponible.</p>')+'</div>':'')+'</details>';
      html+='<p class="subtle">Synchronisation automatique : <strong>'+(enabled()?"activée":"en pause")+'</strong>. '+(enabled()?"Chaque création ou modification est envoyée automatiquement.":"Réactivez-la après avoir résolu un éventuel conflit.")+'</p>';
      html+='<div class="help">Un téléchargement crée d’abord une copie locale de secours. Une sauvegarde distante existante doit être confirmée avant tout remplacement. Évitez de modifier les mêmes dossiers simultanément sur deux appareils : les conflits sont bloqués, pas fusionnés.</div>';
    }
@@ -255,6 +256,52 @@
      if(serialize(latest.content)!==serialize(local())){errorMessage="Les versions locale et distante diffèrent. Sauvegardez ou restaurez manuellement avant d’activer la synchronisation.";refresh();return}
      if(!confirm("Activer la synchronisation automatique sur CET appareil ? Les modifications seront envoyées à Supabase et les changements d’autres appareils seront récupérés. En cas de conflit, la synchronisation s’arrête sans écraser vos données."))return;
      conflicted=false;remote=latest;setBaseline();localStorage.setItem(syncKey(),"yes");notice="Synchronisation automatique activée.";refresh();return;
+   }
+   if(action==="cloud-history-list"){
+     if(!client||!user)return;
+     const owner=user.id;
+     try{
+       const result=await client.from("moon_snapshot_history").select("revision,saved_at,source").eq("owner_id",owner).order("revision",{ascending:false}).limit(30);
+       if(result.error)throw result.error;
+       if(user?.id!==owner)return;
+       historyRows=result.data||[];historyLoaded=true;errorMessage="";
+     }catch(e){errorMessage="Historique indisponible : "+error(e)}
+     refresh();return;
+   }
+   if(/^cloud-restore-version-[0-9]+$/.test(action)){
+     if(!client||!user||syncRunning)return;
+     const owner=user.id,revision=Number(action.slice("cloud-restore-version-".length));
+     const ui=bridge();
+     if(!ui||ui.ownerId?.()!==owner||!Number.isSafeInteger(revision)||revision<1)return;
+     if(hasUnsynced()){errorMessage="Des modifications locales ne sont pas synchronisées. Synchronisez ou exportez-les avant toute restauration.";refresh();return}
+     busy=true;
+     try{
+       clearTimeout(syncTimer);
+       const localBefore=serialize(ui.snapshot());
+       const [old,current]=await Promise.all([
+         client.from("moon_snapshot_history").select("content,revision").eq("owner_id",owner).eq("revision",revision).single(),
+         client.from("moon_snapshots").select("content,revision,updated_at").eq("owner_id",owner).single()
+       ]);
+       if(old.error)throw old.error;
+       if(current.error)throw current.error;
+       if(user?.id!==owner||ui.ownerId?.()!==owner||serialize(ui.snapshot())!==localBefore)throw Error("Le compte ou les données locales ont changé. Recommencez.");
+       const baseline=JSON.parse(localStorage.getItem(baseKey())||"null");
+       if(!baseline||baseline.user!==owner||Number(baseline.revision)!==Number(current.data.revision)||localBefore!==serialize(current.data.content))
+         throw Error("Les données locales et cloud diffèrent. Synchronisez avant de restaurer.");
+       if(!valid(old.data.content))throw Error("Cette version historique est invalide.");
+       const counts=[old.data.content.contacts.length,old.data.content.opportunities.length,old.data.content.tasks.length];
+       if(!confirm("Restaurer la version "+revision+" ("+counts.join(" contacts / opportunités / tâches : ")+") ? La version actuelle sera conservée dans l’historique. Cette opération modifie les données de votre compte."))return;
+       if(user?.id!==owner||ui.ownerId?.()!==owner||serialize(ui.snapshot())!==localBefore)throw Error("Les données ont changé pendant la confirmation.");
+       const updated=await client.from("moon_snapshots").update({content:old.data.content,revision:Number(current.data.revision)+1,updated_at:new Date().toISOString()}).eq("owner_id",owner).eq("revision",current.data.revision).select("revision,updated_at").maybeSingle();
+       if(updated.error)throw updated.error;
+       if(!updated.data)throw Error("Conflit de synchronisation. Aucune restauration effectuée.");
+       remote={content:old.data.content,revision:updated.data.revision,updated_at:updated.data.updated_at};
+       if(!ui.restore(old.data.content))throw Error("Version restaurée dans le cloud, mais pas sur cet appareil. Rechargez MOON pour récupérer la version du cloud.");
+       conflicted=false;setBaseline();localStorage.setItem(syncKey(),"yes");setState("synced");
+       historyLoaded=false;historyRows=[];notice="Version "+revision+" restaurée. L’ancienne version a été archivée automatiquement.";errorMessage="";
+     }catch(e){errorMessage=error(e)}
+     finally{busy=false;refresh()}
+     return;
    }
    if(action==="cloud-sync-now"){if(!enabled()){errorMessage="La synchronisation est en pause. Résolvez le conflit ou restaurez la sauvegarde distante.";refresh();return}try{clearTimeout(syncTimer);await syncOnce();notice=syncState==="synced"?"Tout est synchronisé.":"Synchronisation demandée.";errorMessage="";}catch(e){syncFailed(e)}refresh();return}
    if(action==="cloud-refresh"){try{await syncOnce();notice="État actualisé.";errorMessage="";}catch(e){syncFailed(e)}refresh();return}
