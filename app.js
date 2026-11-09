@@ -250,12 +250,13 @@ function revenueBreakdown(key){
  const rows=selection.items.slice().sort((a,b)=>compare(b.closed||b.created,a.closed||a.created));
  const weighted=selection.mode==="weighted",average=selection.mode==="average";
  const total=weighted?weightedSum(rows):average?(rows.length?Math.round(sum(rows)/rows.length):0):sum(rows);
+ const canInspect=!isReadOnly()||window.MOON_VISITOR?.pageAllowed?.("opportunity-detail");
  const details=rows.map(o=>{
   const c=linkedContact(o),gross=known(o)?money(amount(o)):"Non renseigné",contribution=known(o)?money(weighted?weightedOpportunityCents(o):amount(o)):"Non renseigné";
   const probability=REPORT_PROBABILITIES[o.stage]||0;
   return '<tr><td><strong>'+esc(contactName(c))+'</strong><div class="subtle">'+esc(c?.company||"")+'</div></td><td>'+esc(o.training||"—")+'<div class="subtle">'+esc(o.category||"")+'</div></td><td>'+esc(o.stage)+'</td><td>'+esc(dt(o.closed||o.created))+'</td>'+
   (weighted?'<td>'+esc(Math.round(probability*100))+' %</td><td>'+esc(gross)+'</td>':'')+
-  '<td><strong>'+esc(contribution)+'</strong></td><td><button type="button" class="btn small" data-action="edit-opportunity" data-id="'+esc(o.id)+'">Ouvrir</button></td></tr>';
+  '<td><strong>'+esc(contribution)+'</strong></td><td>'+(canInspect?'<button type="button" class="btn small" data-action="edit-opportunity" data-id="'+esc(o.id)+'">Ouvrir</button>':'—')+'</td></tr>';
  }).join("");
  const label=average?"Panier moyen":weighted?"Total pondéré":"Total";
  const explanation=weighted?"Chaque ligne représente le montant de l’opportunité multiplié par la probabilité indicative de son étape.":average?"Le panier moyen est calculé sur les ventes gagnées dont le montant est renseigné.":"Seules les opportunités correspondant à cet indicateur sont affichées.";
@@ -646,8 +647,8 @@ if(isReadOnly()){
  if(a==="visitor-refresh"){window.MOON_VISITOR?.refresh?.();return}
  if(a==="edit-contact"){visitorContactModal(contact(x));return}
  if(a==="edit-task"){visitorTaskModal(task(x));return}
- if(a==="edit-opportunity"){if($("modal")?.open)closeModal();opportunityReturnPage=page==="board"?"board":"opportunities";selectedOpportunityId=x;page="opportunity-detail";render();return}
- if(a==="open-opportunity"&&$("modal")?.open)closeModal();
+ if(a==="edit-opportunity"){if(!window.MOON_VISITOR?.pageAllowed?.("opportunity-detail"))return;if($("modal")?.open)closeModal();opportunityReturnPage=page==="board"?"board":"opportunities";selectedOpportunityId=x;page="opportunity-detail";render();return}
+ if(a==="open-opportunity"){if(!window.MOON_VISITOR?.pageAllowed?.("opportunity-detail"))return;if($("modal")?.open)closeModal();}
  const allowed=new Set(["nav","open-opportunity","revenue-breakdown","day-jump","toggle-status-filter","select-all-stages","clear-all-stages","sort-opportunities","natural-search","toggle-sidebar","set-theme","close-modal","apply-moon-update","dismiss-moon-update"]);
  if(!allowed.has(a)||(a==="nav"&&!window.MOON_VISITOR?.pageAllowed?.(btn.dataset.page)))return;
 }
