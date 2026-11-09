@@ -659,7 +659,7 @@ function handleFormSubmit(e){
  }
 }
 
-const MOON_APP_VERSION="23.0";
+const MOON_APP_VERSION="24.0";
 let moonUpdateReady=false,moonUpdateChecking=false,moonFormDirty=false;
 function showMoonUpdate(){
  const node=$("moon-update");if(!node)return;
