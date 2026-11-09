@@ -9,7 +9,7 @@
  const ENDPOINT=(config.url||"")+"/functions/v1/moon-visitor-access";
  const PAGES=new Set(["day","dashboard","board","opportunities","contacts","tasks","reporting","opportunity-detail"]);
  const $=id=>document.getElementById(id);
- const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;':"&quot;","'":"&#39;"}[c]));
+ const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
  let ready=false,invalid=false,revision=null,lastSuccess=0,pending=false,refreshTimer=null,status="Consultation sécurisée";
  let links=[],linksLoaded=false,linksLoading=false,linksUpdatedAt=0,createdLink="",adminError="",adminMessage="",adminBusy=false;
  function isVisitor(){return visitor}
