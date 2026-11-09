@@ -140,3 +140,31 @@ button.metric-action:active{transform:none}
 .revenue-table .data-table td:nth-last-child(2){white-space:nowrap}
 .revenue-footer{display:flex;justify-content:flex-end;margin-top:20px}
 @media(max-width:720px){.revenue-summary{padding:14px}.revenue-category-row{padding:12px 7px}.revenue-table{max-height:56vh}}
+
+/* Opportunity list and detailed workspace */
+.opportunity-filter-row{display:flex;gap:12px;align-items:end;flex-wrap:wrap}
+.opportunity-filter-row label{display:grid;gap:5px;font-size:12px}
+.table-sort{border:0;background:transparent;color:inherit;font-weight:700;white-space:nowrap;padding:6px 2px;cursor:pointer}
+.table-sort:hover{color:#bfb4ff}.table-sort span{color:#a99bfa}
+.opportunity-detail-head{display:flex;justify-content:space-between;align-items:center;gap:16px;margin:0 0 22px}
+.opportunity-detail-head h2{font-size:clamp(22px,3vw,32px);margin:14px 0 5px}
+.opportunity-detail-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.opportunity-detail-layout{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(270px,1fr);gap:18px;align-items:start}
+.opportunity-detail-primary,.opportunity-detail-aside{display:grid;gap:18px;min-width:0}
+.opportunity-timeline{border-color:#685cb0}
+.opportunity-timeline .timeline{margin-top:22px}
+.opportunity-timeline form{margin-top:20px;padding:18px;background:#151e35;border-radius:12px;border:1px solid #344160}
+.opportunity-timeline form>label{display:grid;gap:8px;margin-top:12px}
+.opportunity-timeline textarea{width:100%}
+.detail-fields{display:grid;gap:12px;margin:18px 0}
+.detail-fields>div{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding-bottom:10px;border-bottom:1px solid #303a55;color:#aab5d0}
+.detail-fields strong{color:#f0f2fa;text-align:right;overflow-wrap:anywhere}
+.detail-note{white-space:pre-wrap;overflow-wrap:anywhere;border-top:1px solid #303a55;padding-top:14px}
+.detail-task{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid #303a55;flex-wrap:wrap}
+.detail-task .subtle{margin-left:auto}
+.detail-suggestion{padding:14px;margin:16px 0;border:1px solid #6b5bb5;border-radius:10px}
+.moon-update:not([hidden]){position:fixed;bottom:20px;right:20px;z-index:9999;display:flex;align-items:center;gap:15px;max-width:min(620px,calc(100vw - 28px));padding:16px;background:#202b46;color:#fff;border:1px solid #8975ed;border-radius:14px;box-shadow:0 16px 60px #0008}
+.moon-update p{margin:5px 0 0;font-size:12px;color:#bac4df}
+.moon-update button{flex-shrink:0}
+@media(max-width:920px){.opportunity-detail-layout{grid-template-columns:1fr}.opportunity-detail-head{align-items:start}}
+@media(max-width:600px){.opportunity-detail-head{flex-direction:column}.moon-update:not([hidden]){left:12px;right:12px;bottom:12px;flex-wrap:wrap}.moon-update>div{flex-basis:100%}.opportunity-filter-row{width:100%}.opportunity-filter-row label{flex:1;min-width:125px}}
