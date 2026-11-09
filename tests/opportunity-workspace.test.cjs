@@ -8,4 +8,4 @@ test("opportunity detail includes linked contact, interactions and tasks",()=>{a
 test("saved interactions return to full opportunity page",()=>{assert.match(app,/page==="opportunity-detail"&&selectedOpportunityId===o.id/);assert.match(app,/if\(page!=="opportunity-detail"\)page="tasks"/)});
 test("update banner is backed by server version and safe sync guard",()=>{assert.match(app,/function checkMoonUpdate\(/);assert.match(app,/cache:"no-store"/);assert.match(app,/function applyMoonUpdate\(/);assert.match(app,/MOON_CLOUD.canReload/);assert.match(cloud,/canReload:\(\)=>/);assert.match(html,/id="moon-update"/);assert.match(html,/app.js\?v=25\.0/)});
 
-test("direct interaction save resolves the form from the detail page, with modal fallback",()=>{assert.match(app,/btn\.closest\("#"\+kind\+"-form"\)\|\|\$\("modal"\)\?\.querySelector/);assert.match(app,/else interactionSubmit\(form\)/)});
+test("direct interaction save resolves the form from the detail page, with modal fallback",()=>{assert.match(app,/btn\.closest\?\.\("#"\+kind\+"-form"\)\|\|\$\("modal"\)\?\.querySelector/);assert.match(app,/else interactionSubmit\(form\)/)});
