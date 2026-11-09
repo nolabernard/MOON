@@ -57,6 +57,18 @@ async function authenticatedOwner(req: Request) {
   return result.error ? null : result.data.user;
 }
 
+const SECTIONS=["day","dashboard","board","opportunities","contacts","tasks","reporting"];
+function validSections(value:unknown): value is string[]{return Array.isArray(value)&&value.length>0&&value.length<=7&&value.every(x=>typeof x==="string"&&SECTIONS.includes(x))&&new Set(value).size===value.length}
+function filteredSnapshot(content:any,sections:string[]){
+ const broad=sections.includes("day")||sections.includes("dashboard");
+ const opp=broad||sections.includes("board")||sections.includes("opportunities");
+ const contacts=broad||sections.includes("contacts");
+ const tasks=broad||sections.includes("tasks");
+ const rawOpp=Array.isArray(content?.opportunities)?content.opportunities:[];
+ const opportunities=opp?rawOpp:sections.includes("reporting")?rawOpp.map((o:any)=>({id:o.id,stage:o.stage,amount:o.amount,price:o.price,vat:o.vat,created:o.created,createdAt:o.createdAt,date:o.date,wonAt:o.wonAt,closedAt:o.closedAt,category:o.category,type:o.type,maturity:o.maturity,training:"Opportunité",events:[]})):[];
+ const cs=Array.isArray(content?.contacts)?content.contacts:[];
+ return {version:content?.version||2,contacts:contacts?cs:opp?cs.map((c:any)=>({id:c.id,first:c.first,last:c.last,company:c.company})):[],opportunities,tasks:tasks&&Array.isArray(content?.tasks)?content.tasks:[]};
+}
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, {status: 204, headers: headers(req)});
   if (req.method !== "POST") return json(req, 405, {error: "Méthode non autorisée."});
@@ -75,7 +87,7 @@ Deno.serve(async (req: Request) => {
         return json(req, 403, {error: "Lien visiteur invalide ou désactivé."});
       const digest = await hashToken(token);
       const link = await db.from("moon_visitor_links")
-        .select("owner_id,revoked_at,expires_at").eq("token_hash", digest).maybeSingle();
+        .select("owner_id,revoked_at,expires_at,allowed_sections,permissions_version").eq("token_hash", digest).maybeSingle();
       if (link.error) throw link.error;
       if (!link.data || link.data.revoked_at || (link.data.expires_at && Date.parse(link.data.expires_at) <= Date.now()))
         return json(req, 403, {error: "Ce lien visiteur a expiré ou a été désactivé."});
@@ -84,22 +96,24 @@ Deno.serve(async (req: Request) => {
       if (snapshot.error) throw snapshot.error;
       if (!snapshot.data) return json(req, 404, {error: "Aucune donnée disponible pour ce lien."});
       const revision = Number(snapshot.data.revision);
-      if (typeof input.knownRevision === "number" && Number.isSafeInteger(input.knownRevision) && input.knownRevision === revision)
-        return json(req, 200, {ok: true, unchanged: true, revision, updatedAt: snapshot.data.updated_at});
+      const allowedSections=validSections(link.data.allowed_sections)?link.data.allowed_sections:SECTIONS;
+      const permissionsVersion=link.data.permissions_version||1;
+      if (typeof input.knownRevision === "number" && Number.isSafeInteger(input.knownRevision) && input.knownRevision === revision && input.knownPermissionsVersion === permissionsVersion)
+        return json(req, 200, {ok: true, unchanged: true, revision, allowedSections, permissionsVersion, updatedAt: snapshot.data.updated_at});
       const full = await db.from("moon_snapshots")
         .select("content,revision,updated_at").eq("owner_id", link.data.owner_id).maybeSingle();
       if (full.error) throw full.error;
       if (!full.data) return json(req, 404, {error: "Aucune donnée disponible pour ce lien."});
-      return json(req, 200, {ok: true, revision: Number(full.data.revision), updatedAt: full.data.updated_at, content: full.data.content});
+      return json(req, 200, {ok: true, revision: Number(full.data.revision), updatedAt: full.data.updated_at, content: filteredSnapshot(full.data.content,allowedSections),allowedSections,permissionsVersion});
     }
 
-    if (!["list","create","revoke","recover"].includes(action)) return json(req, 400, {error: "Action inconnue."});
+    if (!["list","create","revoke","recover","update"].includes(action)) return json(req, 400, {error: "Action inconnue."});
     const owner = await authenticatedOwner(req);
     if (!owner) return json(req, 401, {error: "Session propriétaire requise."});
 
     if (action === "list") {
       const links = await db.from("moon_visitor_links")
-        .select("id,label,created_at,revoked_at,expires_at,token_encrypted")
+        .select("id,label,created_at,revoked_at,expires_at,token_encrypted,allowed_sections")
         .eq("owner_id", owner.id).order("created_at", {ascending: false}).limit(100);
       if (links.error) throw links.error;
       return json(req, 200, {ok: true, links: (links.data || []).map(({token_encrypted,...link})=>({...link,recoverable:!!token_encrypted}))});
@@ -108,10 +122,12 @@ Deno.serve(async (req: Request) => {
     if (action === "create") {
       const label = typeof input.label === "string" ? input.label.trim() : "";
       if (!label || label.length > 100) return json(req, 400, {error: "Le nom du lien doit contenir entre 1 et 100 caractères."});
+      const allowedSections=input.allowedSections;
+      if(!validSections(allowedSections))return json(req,400,{error:"Sélectionnez au moins une rubrique valide."});
       const token = freshToken();
       const digest = await hashToken(token);
       const inserted = await db.from("moon_visitor_links")
-        .insert({owner_id: owner.id, label, token_hash: digest, token_encrypted: await encryptToken(token)})
+        .insert({owner_id: owner.id, label, token_hash: digest, token_encrypted: await encryptToken(token),allowed_sections:allowedSections})
         .select("id,label,created_at,revoked_at,expires_at").single();
       if (inserted.error) throw inserted.error;
       // The plaintext token is delivered once, to the owner who created it.
@@ -121,6 +137,16 @@ Deno.serve(async (req: Request) => {
     const linkId = typeof input.id === "string" ? input.id : "";
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(linkId))
       return json(req, 400, {error: "Identifiant du lien invalide."});
+    if (action === "update") {
+      if(!validSections(input.allowedSections))return json(req,400,{error:"Rubriques invalides."});
+      const existing=await db.from("moon_visitor_links").select("permissions_version").eq("owner_id",owner.id).eq("id",linkId).is("revoked_at",null).maybeSingle();
+      if(existing.error)throw existing.error;
+      if(!existing.data)return json(req,404,{error:"Lien introuvable ou désactivé."});
+      const updated=await db.from("moon_visitor_links").update({allowed_sections:input.allowedSections,permissions_version:existing.data.permissions_version+1}).eq("owner_id",owner.id).eq("id",linkId).eq("permissions_version",existing.data.permissions_version).is("revoked_at",null).select("id");
+      if(updated.error)throw updated.error;
+      if(!updated.data?.length)return json(req,409,{error:"Les accès ont changé. Actualisez puis réessayez."});
+      return json(req,200,{ok:true});
+    }
     if (action === "recover") {
       const existing=await db.from("moon_visitor_links")
         .select("id,token_encrypted,revoked_at,expires_at")
