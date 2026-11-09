@@ -353,3 +353,24 @@ html[data-theme="light"] .event-edit-btn:hover,html[data-theme="light"] .event-e
 .board .lane-cards .op-card{flex:0 0 auto}
 .board .lane-cards:focus-visible{outline:2px solid #a18bff;outline-offset:-2px}
 @media(max-width:700px){.board .lane{height:clamp(360px,calc(100dvh - 195px),650px)}}
+
+/* Viewport-sized workspaces: only the data region scrolls, not the whole page. */
+@media(min-width:721px){
+ .shell:has(.workspace-main){height:100dvh;min-height:0;overflow:hidden}
+ .shell:has(.workspace-main) .sidebar{min-height:0;overflow-y:auto}
+ .workspace-main{display:flex;flex-direction:column;min-height:0;max-height:100dvh;overflow:hidden;padding-bottom:18px}
+ .workspace-main>.topbar,.workspace-main>.filters{flex:0 0 auto}
+ .workspace-view{flex:1 1 auto;min-height:0;min-width:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior-y:contain;scrollbar-width:thin;scrollbar-color:#67739a transparent;padding-right:5px;padding-bottom:12px}
+ .workspace-opportunities,.workspace-contacts,.workspace-tasks{display:flex;flex-direction:column}
+ .workspace-opportunities>.panel,.workspace-contacts>.panel,.workspace-tasks>.panel{display:flex;flex-direction:column;flex:1 1 auto;min-height:0}
+ .workspace-opportunities .table-wrap,.workspace-contacts .table-wrap{flex:1 1 auto;min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin}
+ .workspace-opportunities .data-table thead th,.workspace-contacts .data-table thead th{position:sticky;top:0;z-index:2;background:#151c30;box-shadow:0 1px 0 #39435c}
+ .workspace-tasks .panel>.stack{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior-y:contain;padding-right:5px;scrollbar-width:thin}
+ .workspace-reporting{overflow-y:auto}
+ html[data-theme="light"] .workspace-opportunities .data-table thead th,html[data-theme="light"] .workspace-contacts .data-table thead th{background:#fff}
+}
+@media(min-width:721px) and (prefers-color-scheme:light){
+ html[data-theme="system"] .workspace-opportunities .data-table thead th,html[data-theme="system"] .workspace-contacts .data-table thead th{background:#fff}
+}
+/* Small screens retain native page scrolling for touch and accessibility. */
+@media(max-width:720px){.workspace-view,.workspace-main{overflow:visible;max-height:none}.workspace-opportunities .table-wrap,.workspace-contacts .table-wrap{overflow-x:auto}}
