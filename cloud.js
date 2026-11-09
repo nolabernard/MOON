@@ -276,7 +276,7 @@
      if(hasUnsynced()){errorMessage="Des modifications locales ne sont pas synchronisées. Synchronisez ou exportez-les avant toute restauration.";refresh();return}
      busy=true;
      try{
-       clearTimeout(syncTimer);
+       clearTimeout(syncTimer);clearTimeout(retryTimer);
        const localBefore=serialize(ui.snapshot());
        const [old,current]=await Promise.all([
          client.from("moon_snapshot_history").select("content,revision").eq("owner_id",owner).eq("revision",revision).single(),
@@ -286,11 +286,11 @@
        if(current.error)throw current.error;
        if(user?.id!==owner||ui.ownerId?.()!==owner||serialize(ui.snapshot())!==localBefore)throw Error("Le compte ou les données locales ont changé. Recommencez.");
        const baseline=JSON.parse(localStorage.getItem(baseKey())||"null");
-       if(!baseline||baseline.user!==owner||Number(baseline.revision)!==Number(current.data.revision)||localBefore!==serialize(current.data.content))
+       if(!baseline||baseline.user!==owner||Number(baseline.revision)!==Number(current.data.revision)||localBefore!==baseline.content)
          throw Error("Les données locales et cloud diffèrent. Synchronisez avant de restaurer.");
        if(!valid(old.data.content))throw Error("Cette version historique est invalide.");
        const counts=[old.data.content.contacts.length,old.data.content.opportunities.length,old.data.content.tasks.length];
-       if(!confirm("Restaurer la version "+revision+" ("+counts.join(" contacts / opportunités / tâches : ")+") ? La version actuelle sera conservée dans l’historique. Cette opération modifie les données de votre compte."))return;
+       if(!confirm("Restaurer la version "+revision+" ("+counts[0]+" contacts, "+counts[1]+" opportunités et "+counts[2]+" tâches"+") ? La version actuelle sera conservée dans l’historique. Cette opération modifie les données de votre compte."))return;
        if(user?.id!==owner||ui.ownerId?.()!==owner||serialize(ui.snapshot())!==localBefore)throw Error("Les données ont changé pendant la confirmation.");
        const updated=await client.from("moon_snapshots").update({content:old.data.content,revision:Number(current.data.revision)+1,updated_at:new Date().toISOString()}).eq("owner_id",owner).eq("revision",current.data.revision).select("revision,updated_at").maybeSingle();
        if(updated.error)throw updated.error;
