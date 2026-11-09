@@ -130,9 +130,9 @@ const [title,subtitle]=titles[page];
 $("app").innerHTML=`<div class="shell ${sidebarCollapsed?"sidebar-collapsed":""}"><aside class="sidebar"><div class="brand"><div class="brand-symbol">☾</div><div class="brand-text"><strong>MOON</strong><small>ESPI EXECUTIVE</small></div><button class="sidebar-toggle" type="button" data-action="toggle-sidebar" aria-label="${sidebarCollapsed?"Déployer":"Rétracter"} le menu" aria-expanded="${!sidebarCollapsed}" title="${sidebarCollapsed?"Déployer":"Rétracter"} le menu">${sidebarCollapsed?"»":"«"}</button></div><nav aria-label="Navigation principale">
 ${navButton("day","☀","Ma journée")}${navButton("dashboard","◫","Accueil")}${navButton("board","▥","Pipeline")}${navButton("opportunities","◇","Opportunités")}${navButton("contacts","♙","Contacts")}${navButton("tasks","☑","Tâches")}${navButton("reporting","▤","Reporting")}<div class="nav-divider" aria-hidden="true"></div><div class="nav-group-label">ESPACE PERSONNEL</div>${navButton("account","☁","Mon compte")}${navButton("settings","⚙","Paramètres")}
 </nav><div class="sidebar-bottom"><span id="sidebar-sync-state">☁ Vérification de la synchronisation…</span><br>MOON · Votre espace sécurisé</div></aside>
-<div class="main"><div class="topbar"><div><div class="eyebrow">MOON / ${esc(page)}</div><h1>${title}</h1><div class="subtle">${subtitle}</div></div><div class="actions">${["day","contacts","opportunities","opportunity-detail","tasks"].includes(page)?`<button class="btn" data-action="voice-open" type="button" title="Dicter un contact, une opportunité, un échange ou une tâche">🎙 Dicter</button>`:""}
+<div class="main ${["opportunities","contacts","tasks","reporting"].includes(page)?"workspace-main":""}"><div class="topbar"><div><div class="eyebrow">MOON / ${esc(page)}</div><h1>${title}</h1><div class="subtle">${subtitle}</div></div><div class="actions">${["day","contacts","opportunities","opportunity-detail","tasks"].includes(page)?`<button class="btn" data-action="voice-open" type="button" title="Dicter un contact, une opportunité, un échange ou une tâche">🎙 Dicter</button>`:""}
 ${page==="contacts"?`<button class="btn primary" data-action="new-contact">+ Nouveau contact</button>`:page==="tasks"?`<button class="btn primary" data-action="new-task">+ Nouvelle tâche</button>`:page==="settings"||page==="account"?"":`<button class="btn" data-action="new-task">+ Tâche</button><button class="btn primary" data-action="new-opportunity">+ Opportunité</button>`}</div></div>
-${toolbar()}<div id="view">${page==="day"?dayPage():page==="dashboard"?dashboard():page==="board"?board():page==="opportunities"?opportunities():page==="opportunity-detail"?opportunityDetailPage():page==="contacts"?contacts():page==="tasks"?tasks():page==="reporting"?reportingPage():page==="account"?accountPage():settings()}</div></div></div>`;
+${toolbar()}<div id="view" class="${["opportunities","contacts","tasks","reporting"].includes(page)?"workspace-view workspace-"+page:""}">${page==="day"?dayPage():page==="dashboard"?dashboard():page==="board"?board():page==="opportunities"?opportunities():page==="opportunity-detail"?opportunityDetailPage():page==="contacts"?contacts():page==="tasks"?tasks():page==="reporting"?reportingPage():page==="account"?accountPage():settings()}</div></div></div>`;
 }
 function metric(label,value,foot,icon,color="",revenueKey=""){
  const active=!!revenueKey,tag=active?"button":"div";
@@ -671,7 +671,7 @@ function handleFormSubmit(e){
  }
 }
 
-const MOON_APP_VERSION="29.0";
+const MOON_APP_VERSION="30.0";
 let moonUpdateReady=false,moonUpdateChecking=false,moonFormDirty=false;
 function showMoonUpdate(){
  const node=$("moon-update");if(!node)return;
