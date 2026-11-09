@@ -602,7 +602,7 @@ const btn=e.target.closest("[data-action]");if(!btn||btn.matches("input[type=che
 const a=btn.dataset.action,x=btn.dataset.id;
 if(["save-contact-direct","save-opportunity-direct","save-task-direct","save-interaction-direct"].includes(a)){
  e.preventDefault();e.stopPropagation();
- const kind=a.slice(5,-7),form=$("modal")?.querySelector("#"+kind+"-form");
+ const kind=a.slice(5,-7),form=btn.closest?.("#"+kind+"-form")||$("modal")?.querySelector("#"+kind+"-form");
  if(!form){alert("Formulaire introuvable. Réessayez.");return}
  if(!form.reportValidity())return;
  try{
@@ -659,7 +659,7 @@ function handleFormSubmit(e){
  }
 }
 
-const MOON_APP_VERSION="24.0";
+const MOON_APP_VERSION="25.0";
 let moonUpdateReady=false,moonUpdateChecking=false,moonFormDirty=false;
 function showMoonUpdate(){
  const node=$("moon-update");if(!node)return;
