@@ -15,7 +15,7 @@ let opportunityStageFilter="all",opportunitySort="created",opportunitySortDir="d
 const UI_PREF_KEY="moon.ui.preferences.v1";
 let sidebarCollapsed=false,themePreference="system";
 try{const pref=JSON.parse(localStorage.getItem(UI_PREF_KEY)||"{}");sidebarCollapsed=!!pref.sidebarCollapsed;themePreference=["system","light","dark"].includes(pref.theme)?pref.theme:"system"}catch(e){}
-function applyTheme(){if(typeof document==="undefined")return;document.documentElement.dataset.theme=themePreference;document.documentElement.style.colorScheme=themePreference==="system"?"light dark":themePreference;}
+function applyTheme(){if(typeof document==="undefined"||!document.documentElement)return;document.documentElement.dataset.theme=themePreference;document.documentElement.style.colorScheme=themePreference==="system"?"light dark":themePreference;}
 function persistUi(){try{localStorage.setItem(UI_PREF_KEY,JSON.stringify({sidebarCollapsed,theme:themePreference}))}catch(e){}applyTheme()}
 applyTheme();
 let reportingPeriod="all",reportingAnchor="",reportingFrom="",reportingTo="";
