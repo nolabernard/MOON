@@ -643,7 +643,8 @@ if(isReadOnly()){
  if(a==="visitor-refresh"){window.MOON_VISITOR?.refresh?.();return}
  if(a==="edit-contact"){visitorContactModal(contact(x));return}
  if(a==="edit-task"){visitorTaskModal(task(x));return}
- if(a==="edit-opportunity"){opportunityReturnPage=page==="board"?"board":"opportunities";selectedOpportunityId=x;page="opportunity-detail";render();return}
+ if(a==="edit-opportunity"){if($("modal")?.open)closeModal();opportunityReturnPage=page==="board"?"board":"opportunities";selectedOpportunityId=x;page="opportunity-detail";render();return}
+ if(a==="open-opportunity"&&$("modal")?.open)closeModal();
  const allowed=new Set(["nav","open-opportunity","revenue-breakdown","day-jump","toggle-status-filter","select-all-stages","clear-all-stages","sort-opportunities","natural-search","toggle-sidebar","set-theme","close-modal","apply-moon-update","dismiss-moon-update"]);
  if(!allowed.has(a)||(a==="nav"&&!window.MOON_VISITOR?.pageAllowed?.(btn.dataset.page)))return;
 }
