@@ -8,7 +8,7 @@ const data={
  version:2,
  contacts:[{id:"c1",created:"2026-11-01",first:"Camille",last:"Martin",company:"Entreprise Démonstration",email:"camille@example.org",phone:"0600000000",profile:"Salarié",notes:""}],
  opportunities:[{id:"o1",created:"2026-11-01",contactId:"c1",training:"VAE — Diplôme supérieur en immobilier",category:"VAE",stage:"En discussion",ht:"5980",vat:"0",follow:"2026-11-10",forecast:"2026-12-12",closed:"",maturity:"Tiède",owner:"",notes:"",events:[]}],
- tasks:[{id:"t1",created:"2026-11-01",type:"Relance",title:"Relancer Camille Martin",priority:"Normale",status:"open",due:"2026-11-10",contactId:"c1",opportunityId:"o1",notes:""}],
+ tasks:[{id:"t1",created:"2026-11-01",type:"Relance",title:"Relancer Camille Martin",priority:"Normale",status:"open",due:"2026-11-10",contactId:"c1",opportunityId:"o1",notes:""},{id:"t2",created:"2026-11-01",type:"Relance",title:"Prochaine action de démonstration",priority:"Normale",status:"open",due:"2026-11-22",contactId:"c1",opportunityId:"o1",notes:""}],
  reportingGoals:{},reportingAdjustments:[]
 };
 function check(ok,why){if(!ok)throw Error(why)}
@@ -56,8 +56,33 @@ async function main(){
     if(section==="account"&&width<=390)check(result.accountEmailWidth>=175,where+": account email area too narrow");
     if(section==="reporting")check(result.filters.length>=2,where+": reporting filters missing");
     if([375,1440].includes(width))await tab.screenshot({path:path.join(output,section+"-"+width+".png"),fullPage:true});
+    if(section==="day"){
+      const next=await tab.evaluate(()=>{
+        const el=document.querySelector(".day-next");
+        if(!el)return null;
+        const a=el.querySelector("span"),b=el.querySelector("strong");
+        if(!a||!b)return null;
+        const ra=a.getBoundingClientRect(),rb=b.getBoundingClientRect();
+        return {isGrid:getComputedStyle(el).display==="grid",twoLines:rb.top>=ra.bottom-1,hasInjectedIcon:!!el.querySelector(".moon-action-icon")};
+      });
+      check(next&&next.isGrid&&next.twoLines&&!next.hasInjectedIcon,where+": upcoming action date/title must be stacked without a redundant icon");
+    }
     checked++;
    }
+   await tab.evaluate(()=>{window.eval('selectedOpportunityId="o1";page="opportunity-detail";render()')});
+   const interaction=await tab.evaluate(()=>{
+     const form=document.querySelector("#interaction-form"),grid=form?.querySelector(".form-grid");
+     const fields=[...grid?.querySelectorAll(":scope>label")||[]];
+     const labels=fields.map(label=>{
+       const control=label.querySelector("select,input"),a=label.getBoundingClientRect(),b=control?.getBoundingClientRect();
+       return {above:!!b&&b.top>=a.top+15,width:!!b&&b.width<=a.width+1};
+     });
+     const note=form?.querySelector("textarea");
+     return {count:fields.length,labels,textarea:!!note,formWidth:form?.getBoundingClientRect().width||0};
+   });
+   check(interaction.count>=2&&interaction.labels.every(x=>x.above&&x.width)&&interaction.textarea,"Exchange form at "+width+"px: labels must sit above full-width controls");
+   if([375,1440].includes(width))await tab.screenshot({path:path.join(output,"exchanges-"+width+".png"),fullPage:true});
+
    if(errors.length)throw Error("Browser errors at "+width+"px: "+errors.join("; "));
    await tab.close();
   }
