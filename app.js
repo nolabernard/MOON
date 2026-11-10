@@ -14,10 +14,10 @@ let naturalQuery="";
 let opportunityReturnPage="opportunities";
 let statusFilterOpen=false,opportunityStageFilter=new Set(STAGES),opportunitySort="created",opportunitySortDir="desc",selectedOpportunityId="";
 const UI_PREF_KEY="moon.ui.preferences.v1";
-let sidebarCollapsed=false,themePreference="system";
-try{const pref=JSON.parse(localStorage.getItem(UI_PREF_KEY)||"{}");sidebarCollapsed=!!pref.sidebarCollapsed;themePreference=["system","light","dark"].includes(pref.theme)?pref.theme:"system"}catch(e){}
-function applyTheme(){if(typeof document==="undefined"||!document.documentElement)return;const resolved=themePreference==="system"?(typeof window!=="undefined"&&window.matchMedia?.("(prefers-color-scheme: dark)").matches?"dark":"light"):themePreference;document.documentElement.dataset.theme=resolved;document.documentElement.style.colorScheme=resolved;}
-function persistUi(){try{localStorage.setItem(UI_PREF_KEY,JSON.stringify({sidebarCollapsed,theme:themePreference}))}catch(e){}applyTheme()}
+let sidebarCollapsed=false;
+try{const pref=JSON.parse(localStorage.getItem(UI_PREF_KEY)||"{}");sidebarCollapsed=!!pref.sidebarCollapsed}catch(e){}
+function applyTheme(){if(typeof document==="undefined"||!document.documentElement)return;document.documentElement.dataset.theme="light";document.documentElement.style.colorScheme="light";}
+function persistUi(){try{localStorage.setItem(UI_PREF_KEY,JSON.stringify({sidebarCollapsed}))}catch(e){}applyTheme()}
 applyTheme();
 let reportingPeriod="month",reportingAnchor="",reportingFrom="",reportingTo="";
 let page="day",period="all",rangeFrom="",rangeTo="",tax="ht",taskMode="open",afterContact=false;
@@ -362,8 +362,7 @@ function accountPage(){
 return `<div class="account-layout"><div><div id="cloud-live">${window.MOON_CLOUD?.settingsHtml()||""}</div>${window.MOON_VISITOR?.adminHtml?.()||""}</div><section class="panel account-help"><h2>Retrouvez MOON sur tous vos ordinateurs</h2><p class="subtle">Utilisez la même adresse email de connexion sur chaque appareil. Vos contacts, opportunités, tâches et échanges sont conservés dans votre compte Supabase.</p><div class="account-steps"><div><strong>01</strong><span>Vos modifications sont regroupées et envoyées automatiquement après une courte pause.</span></div><div><strong>02</strong><span>Attendez l’indication « Synchronisé » avant de fermer ou quitter l’appareil.</span></div><div><strong>03</strong><span>Connectez-vous ailleurs avec le même email : MOON charge vos données.</span></div></div><p class="subtle">En cas de modification simultanée sur deux appareils, MOON bloque le conflit pour protéger les données. Ne remplacez pas une sauvegarde sans vérifier son contenu.</p></section></div>`;
 }
 function settings(){
-const appearance='<section class="panel"><div class="section-heading"><div><div class="eyebrow">APPARENCE</div><h2>Confort visuel</h2></div><span class="settings-icon">◐</span></div><p class="subtle">Choisissez un thème ou suivez automatiquement les préférences de votre ordinateur.</p><div class="theme-options" role="group" aria-label="Thème de MOON">'+[["system","Automatique"],["light","Clair"],["dark","Sombre"]].map(([v,label])=>'<button type="button" class="btn '+(themePreference===v?'primary':'')+'" data-action="set-theme" data-theme="'+v+'" aria-pressed="'+(themePreference===v)+'">'+label+'</button>').join("")+'</div></section>';
-return `<div class="settings-layout">${appearance}<section class="panel"><div class="section-heading"><div><div class="eyebrow">GESTION DES DONNÉES</div><h2>Exports et importations</h2></div><span class="settings-icon">↧</span></div><p class="subtle">Téléchargez une copie de secours ou importez vos fichiers. Les changements importés sont également synchronisés sur votre compte lorsque la connexion est active.</p>
+return `<div class="settings-layout"><section class="panel"><div class="section-heading"><div><div class="eyebrow">GESTION DES DONNÉES</div><h2>Exports et importations</h2></div><span class="settings-icon">↧</span></div><p class="subtle">Téléchargez une copie de secours ou importez vos fichiers. Les changements importés sont également synchronisés sur votre compte lorsque la connexion est active.</p>
 <div class="actions" style="margin-top:18px"><button class="btn primary" data-action="export-json">Télécharger une sauvegarde complète (.json)</button><button class="btn" data-action="import-json">Restaurer une sauvegarde JSON</button><button class="btn" data-action="export-csv">Exporter les opportunités CSV</button><button class="btn" data-action="import-csv">Importer des opportunités CSV</button></div>
 <div class="help">MOON utilise une authentification Supabase et des règles de confidentialité par compte. L’utilisation de données professionnelles réelles reste soumise à la validation et aux règles de sécurité de votre organisation.</div>
 </section><section class="panel"><div class="section-heading"><div><div class="eyebrow">VOTRE ESPACE</div><h2>Contenu actuel</h2></div><span class="settings-icon">▤</span></div><div class="kpi-line"><span>Contacts</span><strong>${data.contacts.length}</strong></div><div class="kpi-line"><span>Opportunités</span><strong>${data.opportunities.length}</strong></div><div class="kpi-line"><span>Tâches</span><strong>${data.tasks.length}</strong></div><div class="settings-tip">La synchronisation et la déconnexion se gèrent dans <button type="button" class="inline-link" data-action="nav" data-page="account">Mon compte</button>.</div></section></div>`;
@@ -670,7 +669,7 @@ if(["save-contact-direct","save-opportunity-direct","save-task-direct","save-int
 if(a==="edit-exchange"){editExchangeModal(opportunity(x),Number(btn.dataset.eventIndex));return}
 if(a==="save-exchange-edit"){const f=btn.closest?.("#exchange-edit-form")||$("modal")?.querySelector("#exchange-edit-form");if(f&&f.reportValidity())saveExchangeEdit(f);return}
 if(a==="toggle-sidebar"){sidebarCollapsed=!sidebarCollapsed;persistUi();render();return}
-if(a==="set-theme"){const value=btn.dataset.theme;if(!["system","light","dark"].includes(value))return;themePreference=value;persistUi();render();return}
+
 if(a==="toggle-pipeline-stage"){const stage=btn.dataset.stage;if(!STAGES.includes(stage))return;if(pipelineExpandedStages.has(stage))pipelineExpandedStages.delete(stage);else pipelineExpandedStages.add(stage);render();return}
 if(a==="toggle-status-filter"){statusFilterOpen=!statusFilterOpen;render();return}
 if(a==="select-all-stages"){opportunityStageFilter=new Set(STAGES);render();return}
@@ -722,7 +721,7 @@ function handleFormSubmit(e){
  }
 }
 
-const MOON_APP_VERSION="32.1";
+const MOON_APP_VERSION="33.0";
 let moonUpdateReady=false,moonUpdateChecking=false,moonFormDirty=false;
 function showMoonUpdate(){
  const node=$("moon-update");if(!node)return;
@@ -754,7 +753,7 @@ function init(){
 // Do not load unscoped legacy CRM data before authentication.
 if(!window.MOON_CLOUD)load();render();
 document.addEventListener("click",onClick);
- if(typeof window!=="undefined"&&window.matchMedia){const osTheme=window.matchMedia("(prefers-color-scheme: dark)");osTheme.addEventListener?.("change",()=>{if(themePreference==="system")applyTheme()})}
+ 
 if(typeof setTimeout==="function"&&typeof setInterval==="function"){setTimeout(checkMoonUpdate,5000);setInterval(checkMoonUpdate,180000);document.addEventListener("visibilitychange",()=>{if(!document.hidden)checkMoonUpdate()})}
 document.addEventListener("change",e=>{
 const t=e.target;
