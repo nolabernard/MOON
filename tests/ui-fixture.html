@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="fr" data-theme="light">
+<head>
+ <meta charset="utf-8">
+ <meta name="viewport" content="width=device-width, initial-scale=1">
+ <title>MOON — Vérification visuelle sans données réelles</title>
+ <link rel="stylesheet" href="../styles.css">
+ <link rel="stylesheet" href="../ux-overhaul.css">
+ <link rel="stylesheet" href="../moon-2026.css">
+ <script>
+  // Isolated demonstration: never connect to production, Supabase or visitor services.
+  window.MOON_CLOUD={
+    isAuthenticated:()=>true, refreshStatus:()=>{},canReload:()=>true,
+    settingsHtml:()=>'<section class="panel"><div class="section-heading"><div><div class="eyebrow">IDENTITÉ ET SYNCHRONISATION</div><h2>Votre compte MOON</h2></div></div><div class="account-identity"><span class="account-avatar">✦</span><div><span class="subtle">Adresse de connexion</span><strong>exemple@domaine.fr</strong></div><span class="account-connected">● Connecté</span></div><div class="sync-overview"><span>État de la synchronisation</span><strong data-state="synced">Synchronisé</strong><small>Vos changements sont envoyés automatiquement.</small></div><div class="actions account-primary-actions"><button class="btn primary" type="button">Synchroniser maintenant</button><button class="btn" type="button">Vérifier le cloud</button><button class="btn danger" type="button">Se déconnecter</button></div></section>'
+  };
+ </script>
+ <script defer src="../app.js"></script>
+ <script defer src="../ux-overhaul.js"></script>
+</head>
+<body>
+ <div id="app"></div>
+ <dialog id="modal"></dialog>
+ <dialog id="voice-modal"></dialog>
+ <div id="moon-update" hidden></div>
+ <div id="toast" hidden></div>
+ <input id="file-import" type="file" hidden>
+</body>
+</html>

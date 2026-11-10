@@ -1,0 +1,47 @@
+name: MOON visual regression (isolated demo)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "app.js"
+      - "styles.css"
+      - "ux-overhaul.css"
+      - "ux-overhaul.js"
+      - "moon-2026.css"
+      - "tests/ui-fixture.html"
+      - "tests/visual-check.cjs"
+      - ".github/workflows/ui-visual.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  visual:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Chromium test runtime
+        run: |
+          npm install --no-save playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Start isolated local static server
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 > /tmp/moon-ui-server.log 2>&1 &
+          for i in $(seq 1 20); do
+            if curl --fail --silent http://127.0.0.1:8765/tests/ui-fixture.html > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          exit 1
+      - name: Audit pages and capture screenshots
+        run: node tests/visual-check.cjs
+      - name: Save viewport screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: moon-ui-screenshots
+          path: screenshots/
+          if-no-files-found: ignore
+          retention-days: 7
