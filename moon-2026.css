@@ -43,7 +43,7 @@ a:hover{text-decoration-color:#344F85}
 .topbar .subtle{font-size:13px}
 h2,h3,h4{color:#1B2940}
 h2{letter-spacing:-.35px}
-.btn,html[data-theme] .btn:not(.primary){background:#FFFFFF!important;color:#33455F!important;border:1px solid #DCE3ED!important;border-radius:10px;min-height:40px;font-weight:650;font-size:12px;box-shadow:0 1px 2px #1C2A4010;transition:background .16s,border-color .16s,transform .16s}
+.btn,html[data-theme] .btn:not(.primary){background:#FFFFFF!important;color:#33455F!important;border:1px solid #DCE3ED!important;border-radius:12px;min-height:42px;font-weight:650;font-size:13px;padding:9px 15px;box-shadow:0 1px 2px #1C2A4010;transition:background .16s,border-color .16s,transform .16s}
 .btn:hover,html[data-theme] .btn:not(.primary):hover{background:#F2F5FA!important;border-color:#C2CDDC!important}
 .btn.primary,html[data-theme] .btn.primary{background:#405B8F!important;color:#FFFFFF!important;border-color:#405B8F!important;box-shadow:0 2px 5px #405B8F18}
 .btn.primary:hover,html[data-theme] .btn.primary:hover{background:#304A7C!important;border-color:#304A7C!important}
@@ -56,7 +56,7 @@ h2{letter-spacing:-.35px}
 .panel,html[data-theme] .panel,.metric,html[data-theme] .metric,.lane,html[data-theme] .lane,.op-card,html[data-theme] .op-card,.task-card,html[data-theme] .task-card,.account-card,html[data-theme] .account-card{
  background:#FFFFFF!important;color:#172238!important;border:1px solid #E5EAF1!important;border-radius:15px;box-shadow:0 1px 3px #1E2B4010
 }
-.panel{padding:23px}
+.panel{padding:24px}
 .grid-metrics{gap:13px}
 .metric,html[data-theme] .metric{background:#FFFFFF!important;padding:20px}
 .metric .label,html[data-theme] .metric .label{color:#607087!important;font-weight:650}
@@ -67,7 +67,7 @@ h2{letter-spacing:-.35px}
 .metric-action:hover{background:#F7F9FD!important;border-color:#AAB9CF!important;transform:translateY(-1px)}
 .filters{gap:10px;margin:11px 0 22px}
 .field,html[data-theme] .field,html[data-theme] input:not([type="checkbox"]):not([type="radio"]),html[data-theme] select,html[data-theme] textarea{
- background:#FFFFFF!important;color:#172238!important;border:1px solid #D7E0EC!important;border-radius:10px;min-height:40px;font-size:13px
+ background:#FFFFFF!important;color:#172238!important;border:1px solid #D7E0EC!important;border-radius:12px;min-height:44px;font-size:14px
 }
 .field:focus,html[data-theme] .field:focus{border-color:#7795CA!important;box-shadow:0 0 0 3px #E9F0FB}
 .field::placeholder,html[data-theme] .field::placeholder{color:#8996A7!important}
@@ -264,4 +264,164 @@ html[data-theme="light"] .sync-overview small{
  .account-identity{gap:10px;padding:14px!important}
  .account-connected{margin-left:0!important}
  .sync-overview{padding:15px!important}
+}
+
+
+/* MOON component system v2 — one set of primitives for every workspace.
+   This section owns component geometry; legacy styles above own page-specific artwork. */
+:root{
+ --moon-control-height:44px;
+ --moon-button-height:42px;
+ --moon-button-small-height:34px;
+ --moon-control-radius:12px;
+ --moon-card-radius:16px;
+ --moon-space-1:6px;
+ --moon-space-2:10px;
+ --moon-space-3:14px;
+ --moon-space-4:20px;
+ --moon-section-gap:24px;
+ --moon-control-border:#DCE3ED;
+ --moon-focus-color:#7695C9;
+ --moon-focus-shadow:0 0 0 3px rgba(118,149,201,.17);
+}
+html[data-theme="light"] :is(.btn,.field,.panel,.metric,.day-stat,.day-panel,.moon-goal-card,.lane,.op-card){box-sizing:border-box}
+html[data-theme="light"] .btn{
+ display:inline-flex;align-items:center;justify-content:center;
+ gap:8px;min-height:var(--moon-button-height);
+ padding:9px 16px;border-radius:var(--moon-control-radius);
+ line-height:1.25;white-space:normal;vertical-align:middle;text-align:center;
+}
+html[data-theme="light"] .btn.small{min-height:var(--moon-button-small-height);padding:6px 11px;font-size:12px;border-radius:10px}
+html[data-theme="light"] .btn.primary{color:#fff}
+html[data-theme="light"] .btn:disabled{opacity:.55;cursor:not-allowed}
+html[data-theme="light"] .btn.ghost{box-shadow:none}
+html[data-theme="light"] :is(.btn,.field,select,input,textarea,summary,a,button):focus-visible{
+ outline:2px solid var(--moon-focus-color);
+ outline-offset:2px;
+}
+html[data-theme="light"] .field:focus-visible{box-shadow:var(--moon-focus-shadow)}
+.moon-with-icon{display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.moon-action-icon{width:16px;height:16px;flex:0 0 16px;display:inline-grid;place-items:center;line-height:0}
+.moon-action-icon svg{width:16px;height:16px;stroke:currentColor;stroke-width:1.8;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.moon-icon-only{width:34px;padding:6px}
+.moon-filter-bar{
+ display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;
+ margin:10px 0 var(--moon-section-gap);
+ min-width:0;
+}
+.moon-filter-group{
+ display:flex;flex-direction:column;gap:8px;
+ flex:0 1 200px;min-width:160px;max-width:100%;
+ font-size:13px;line-height:1.25;
+}
+.moon-filter-group.moon-filter-date{flex-basis:210px}
+.moon-filter-group.moon-filter-period{flex-basis:208px}
+.moon-filter-group.moon-filter-tax{flex-basis:175px}
+.moon-filter-group.moon-filter-status{flex-basis:170px}
+.moon-filter-group.moon-filter-search{flex:1 1 250px;max-width:440px}
+.moon-filter-label{color:#5B6C82;font-size:12px;line-height:1.35;font-weight:650;letter-spacing:.01em}
+html[data-theme="light"] .moon-filter-group .field{
+ display:block;width:100%;min-width:0;max-width:none;
+ height:var(--moon-control-height);
+ min-height:var(--moon-control-height);
+ margin:0;padding:0 14px;
+ font-size:14px;font-weight:550;line-height:1.2;
+ border-radius:var(--moon-control-radius);
+ box-shadow:0 1px 1px #22344C09;
+}
+html[data-theme="light"] .moon-filter-group select.field{
+ appearance:none;-webkit-appearance:none;
+ padding-right:38px;
+ background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235A6C83' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")!important;
+ background-repeat:no-repeat!important;
+ background-position:right 13px center!important;
+ background-size:16px!important;
+}
+html[data-theme="light"] .moon-filter-group input[type="date"]{
+ min-width:0;
+ font-variant-numeric:tabular-nums;
+}
+.moon-filter-group input[type="date"]::-webkit-calendar-picker-indicator{
+ width:17px;height:17px;
+ cursor:pointer;opacity:.72;margin:0 0 0 6px;
+}
+html[data-theme="light"] .field.search{flex:none}
+html[data-theme="light"] .filters:empty{display:none}
+html[data-theme="light"] .actions,
+html[data-theme="light"] .topbar .actions,
+html[data-theme="light"] .form-footer{gap:10px;align-items:center}
+html[data-theme="light"] .topbar{align-items:flex-start;gap:22px}
+html[data-theme="light"] .topbar .actions{justify-content:flex-end}
+html[data-theme="light"] .form-footer{margin-top:22px}
+html[data-theme="light"] .row{gap:12px;min-width:0}
+html[data-theme="light"] :is(.panel,.metric,.day-panel,.day-stat,.lane,.op-card,.account-help,.moon-goal-card){min-width:0}
+html[data-theme="light"] :is(.panel,.day-panel,.metric,.day-stat,.account-help){border-radius:var(--moon-card-radius)}
+html[data-theme="light"] .grid-metrics,
+html[data-theme="light"] .day-summary,
+html[data-theme="light"] .moon-goals-grid{align-items:stretch;gap:14px}
+html[data-theme="light"] .grid-metrics>*,html[data-theme="light"] .day-summary>*{min-width:0}
+html[data-theme="light"] .day-summary .day-stat{height:100%}
+html[data-theme="light"] .day-columns{gap:18px;align-items:start}
+html[data-theme="light"] .day-secondary{gap:18px}
+html[data-theme="light"] .day-panel{padding:24px}
+html[data-theme="light"] .day-panel-head{align-items:center;gap:12px}
+html[data-theme="light"] .day-action{gap:12px;min-width:0}
+html[data-theme="light"] .day-action-main{flex:1;min-width:0}
+html[data-theme="light"] .day-action .btn.small{flex-shrink:0}
+html[data-theme="light"] .account-layout,
+html[data-theme="light"] .settings-layout{gap:20px;align-items:start}
+html[data-theme="light"] .account-layout>.panel,
+html[data-theme="light"] .settings-layout>.panel{min-width:0}
+html[data-theme="light"] .section-heading{gap:16px;align-items:center}
+html[data-theme="light"] .account-primary-actions{gap:10px;align-items:center}
+html[data-theme="light"] .account-primary-actions .btn{max-width:100%}
+html[data-theme="light"] .account-steps>div{align-items:flex-start;gap:14px}
+html[data-theme="light"] .account-steps strong{flex:0 0 auto}
+html[data-theme="light"] .task-item{align-items:center;gap:14px}
+html[data-theme="light"] .task-content{min-width:0;flex:1}
+html[data-theme="light"] .task-actions{align-items:center;gap:8px}
+html[data-theme="light"] .task-form-section{padding:20px;border-radius:var(--moon-card-radius)}
+html[data-theme="light"] dialog .form-grid{gap:14px}
+html[data-theme="light"] dialog label{gap:8px;min-width:0}
+html[data-theme="light"] dialog :is(input,select,textarea){max-width:100%}
+html[data-theme="light"] .ux-view-picker{display:inline-flex;align-items:center;gap:6px;background:#F3F6FA;border:1px solid #E4EAF2;border-radius:12px;padding:4px}
+html[data-theme="light"] .ux-view-picker .btn{border-radius:9px;box-shadow:none}
+html[data-theme="light"] .table-wrap{max-width:100%}
+html[data-theme="light"] .data-table td{vertical-align:middle}
+html[data-theme="light"] .data-table td .btn{vertical-align:middle}
+html[data-theme="light"] .badge{line-height:1.25;vertical-align:middle}
+@media(max-width:1080px){
+ .moon-filter-group.moon-filter-search{max-width:none}
+ html[data-theme="light"] .topbar .actions{justify-content:flex-start}
+}
+@media(max-width:720px){
+ .moon-filter-bar{gap:12px;align-items:stretch;margin:12px 0 20px}
+ .moon-filter-group,
+ .moon-filter-group.moon-filter-date,
+ .moon-filter-group.moon-filter-period,
+ .moon-filter-group.moon-filter-tax,
+ .moon-filter-group.moon-filter-status{flex:1 1 calc(50% - 6px);min-width:0}
+ .moon-filter-group.moon-filter-search{flex:1 1 100%;max-width:none}
+ html[data-theme="light"] .moon-filter-group .field{font-size:16px}
+ html[data-theme="light"] .day-panel{padding:17px}
+ html[data-theme="light"] .day-action{gap:10px;align-items:center}
+ html[data-theme="light"] .day-action-main strong{overflow-wrap:anywhere}
+ html[data-theme="light"] .day-action .btn.small{min-width:65px}
+ html[data-theme="light"] .topbar .actions{gap:8px}
+ html[data-theme="light"] .account-layout,
+ html[data-theme="light"] .settings-layout{gap:14px}
+ html[data-theme="light"] .account-primary-actions .btn{flex:1 1 160px}
+ html[data-theme="light"] .task-actions{flex-direction:row;flex-wrap:wrap}
+ html[data-theme="light"] .form-footer .actions{width:100%;justify-content:flex-end;flex-wrap:wrap}
+ html[data-theme="light"] .ux-view-picker{width:100%}
+}
+@media(max-width:390px){
+ .moon-filter-group,
+ .moon-filter-group.moon-filter-date,
+ .moon-filter-group.moon-filter-period,
+ .moon-filter-group.moon-filter-tax,
+ .moon-filter-group.moon-filter-status{flex-basis:100%}
+ html[data-theme="light"] .day-action{flex-wrap:wrap}
+ html[data-theme="light"] .day-action-main{flex-basis:calc(100% - 44px)}
+ html[data-theme="light"] .day-action .btn.small{margin-left:auto}
 }
