@@ -432,3 +432,30 @@ html[data-theme="light"] .metric .label{gap:12px;align-items:center}
 html[data-theme="light"] .metric .number{margin:10px 0 8px}
 html[data-theme="light"] .settings-icon svg,
 html[data-theme="light"] .account-avatar svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+
+/* Visual QA corrections: top-align short pages, consistent in-panel filters and mobile cells. */
+html[data-theme="light"] .main{margin:0 auto;align-self:start}
+html[data-theme="light"] .opportunity-filter-row{align-items:flex-end;gap:12px}
+html[data-theme="light"] .opportunity-filter-row .moon-filter-group{min-width:150px;max-width:205px;flex:0 1 205px;gap:8px}
+html[data-theme="light"] .opportunity-filter-row .moon-filter-status{min-width:150px}
+html[data-theme="light"] .opportunity-filter-row .moon-filter-group .btn,
+html[data-theme="light"] .opportunity-filter-row .moon-filter-group .field{width:100%;min-height:var(--moon-button-height);text-align:left}
+html[data-theme="light"] .opportunity-filter-row .status-filter-trigger{justify-content:space-between}
+html[data-theme="light"] .moon-cell-value{min-width:0;overflow-wrap:break-word;word-break:normal}
+html[data-theme="light"] .moon-cell-value .person,
+html[data-theme="light"] .moon-cell-value .subtle{min-width:0;overflow-wrap:break-word;word-break:normal}
+html[data-theme="light"] .nav-ico svg{width:18px;height:18px}
+@media(max-width:720px){
+ html[data-theme="light"] .main{margin:0 auto}
+ html[data-theme="light"] .opportunity-filter-row{display:flex;align-items:flex-end;gap:10px;width:100%}
+ html[data-theme="light"] .opportunity-filter-row .moon-filter-group{flex:1 1 140px;min-width:0;max-width:none}
+ html[data-theme="light"] .workspace-opportunities .data-table tbody td,
+ html[data-theme="light"] .workspace-contacts .data-table tbody td{align-items:flex-start;gap:12px}
+ html[data-theme="light"] .workspace-opportunities .data-table tbody td::before,
+ html[data-theme="light"] .workspace-contacts .data-table tbody td::before{flex:0 0 34%;max-width:34%}
+ html[data-theme="light"] .workspace-opportunities .data-table tbody td .moon-cell-value,
+ html[data-theme="light"] .workspace-contacts .data-table tbody td .moon-cell-value{display:block;flex:1 1 0;min-width:0;max-width:66%;text-align:right;overflow-wrap:break-word;word-break:normal}
+ html[data-theme="light"] .account-identity{flex-wrap:wrap;gap:10px}
+ html[data-theme="light"] .account-identity>div{flex:1 1 190px;min-width:0}
+ html[data-theme="light"] .account-identity .account-connected{margin-left:58px;max-width:calc(100% - 58px)}
+}
