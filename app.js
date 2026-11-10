@@ -16,7 +16,7 @@ let statusFilterOpen=false,opportunityStageFilter=new Set(STAGES),opportunitySor
 const UI_PREF_KEY="moon.ui.preferences.v1";
 let sidebarCollapsed=false,themePreference="system";
 try{const pref=JSON.parse(localStorage.getItem(UI_PREF_KEY)||"{}");sidebarCollapsed=!!pref.sidebarCollapsed;themePreference=["system","light","dark"].includes(pref.theme)?pref.theme:"system"}catch(e){}
-function applyTheme(){if(typeof document==="undefined"||!document.documentElement)return;document.documentElement.dataset.theme=themePreference;document.documentElement.style.colorScheme=themePreference==="system"?"light dark":themePreference;}
+function applyTheme(){if(typeof document==="undefined"||!document.documentElement)return;const resolved=themePreference==="system"?(typeof window!=="undefined"&&window.matchMedia?.("(prefers-color-scheme: dark)").matches?"dark":"light"):themePreference;document.documentElement.dataset.theme=resolved;document.documentElement.style.colorScheme=resolved;}
 function persistUi(){try{localStorage.setItem(UI_PREF_KEY,JSON.stringify({sidebarCollapsed,theme:themePreference}))}catch(e){}applyTheme()}
 applyTheme();
 let reportingPeriod="month",reportingAnchor="",reportingFrom="",reportingTo="";
@@ -754,6 +754,7 @@ function init(){
 // Do not load unscoped legacy CRM data before authentication.
 if(!window.MOON_CLOUD)load();render();
 document.addEventListener("click",onClick);
+ if(typeof window!=="undefined"&&window.matchMedia){const osTheme=window.matchMedia("(prefers-color-scheme: dark)");osTheme.addEventListener?.("change",()=>{if(themePreference==="system")applyTheme()})}
 if(typeof setTimeout==="function"&&typeof setInterval==="function"){setTimeout(checkMoonUpdate,5000);setInterval(checkMoonUpdate,180000);document.addEventListener("visibilitychange",()=>{if(!document.hidden)checkMoonUpdate()})}
 document.addEventListener("change",e=>{
 const t=e.target;
