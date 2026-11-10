@@ -25,6 +25,7 @@ jobs:
       - name: Check JavaScript syntax
         run: |
           node --check app.js
+          node --check ux-overhaul.js
           node --check cloud.js
           node --check visitor.js
           node --check voice.js
