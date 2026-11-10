@@ -30,7 +30,7 @@ async function main(){
     const result=await tab.evaluate(()=>{
       const root=document.documentElement;
       const labels=[...document.querySelectorAll(".moon-filter-group")].map(group=>{
-       const label=group.querySelector(".moon-filter-label"),control=group.querySelector(".field");
+       const label=group.querySelector(".moon-filter-label"),control=group.querySelector(".field,.status-filter-trigger");
        if(!label||!control)return {ok:false,reason:"missing filter label or control"};
        const a=label.getBoundingClientRect(),b=control.getBoundingClientRect();
        return {ok:a.bottom<=b.top+2,reason:"label is not above its field"};
