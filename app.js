@@ -170,10 +170,22 @@ if(isReadOnly()){
 }
 if(page==="account"&&!isReadOnly())window.MOON_VISITOR?.maybeLoadAdminLinks?.();
 }
+function metricIcon(icon){
+ const shapes={
+  "€":'<circle cx="12" cy="12" r="9"/><path d="M15.5 8a5 5 0 1 0 0 8M5 11h8m-8 3h8"/>',
+  "↗":'<path d="M4 18 19 5m-9 0h9v9"/>',
+  "↘":'<path d="m4 5 15 14m-9 0h9v-9"/>',
+  "%":'<circle cx="7" cy="7" r="2"/><circle cx="17" cy="17" r="2"/><path d="M19 5 5 19"/>',
+  "×":'<path d="M6 6l12 12M18 6 6 18"/>',
+  "◉":'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/>',
+  "◈":'<path d="m12 2 9 10-9 10L3 12Z"/><path d="m12 2 4 10-4 10-4-10Z"/>'
+ };
+ return '<span class="moon-metric-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">'+(shapes[icon]||shapes["◉"])+'</svg></span>';
+}
 function metric(label,value,foot,icon,color="",revenueKey=""){
  const active=!!revenueKey,tag=active?"button":"div";
  const action=active?' type="button" data-action="revenue-breakdown" data-revenue="'+esc(revenueKey)+'" aria-label="'+esc(label)+': '+esc(value)+'. Afficher les opportunités liées"':"";
- return '<'+tag+' class="metric'+(active?' metric-action':'')+'"'+action+'><div class="label">'+label+'<span>'+icon+'</span></div><div class="number '+color+'">'+value+'</div><div class="foot">'+foot+(active?' · Voir le détail ↗':'')+'</div></'+tag+'>';
+ return '<'+tag+' class="metric'+(active?' metric-action':'')+'"'+action+'><div class="label">'+label+metricIcon(icon)</div><div class="number '+color+'">'+value+'</div><div class="foot">'+foot+(active?' · Voir le détail ↗':'')+'</div></'+tag+'>';
 }
 function dueClass(t){if(t.status==="done")return "won";if(t.due&&t.due<today())return "late";if(t.due===today())return "today";return ""}
 function dueLabel(t){if(t.status==="done")return "Terminée";if(!t.due)return "Sans échéance";if(t.due<today())return "En retard · "+dt(t.due);if(t.due===today())return "Aujourd'hui";return dt(t.due)}
