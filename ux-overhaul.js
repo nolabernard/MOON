@@ -142,6 +142,14 @@
       const more=button("","more","ux-mobile-item");const mi=document.createElement("span");mi.innerHTML=iconFor("more");const ml=document.createElement("small");ml.textContent="Plus";more.append(mi,ml);if(!isReadOnly())bottom.append(more);
       shell.append(bottom);
       polishActions(shell);
+      for(const el of shell.querySelectorAll(".settings-icon")){
+        const title=el.closest(".panel")?.querySelector("h2")?.textContent||"";
+        el.innerHTML=iconFor(/export|import|sauvegarde/i.test(title)?"download":/contenu|résultat|statistique/i.test(title)?"table":"settings");
+        el.setAttribute("aria-hidden","true");
+      }
+      for(const el of shell.querySelectorAll(".account-avatar")){
+        el.innerHTML=iconFor("account");el.setAttribute("aria-hidden","true");
+      }
     }finally{decorating=false}
   }
   render=function(){const value=originalRender.apply(this,arguments);decorate();return value};
