@@ -425,3 +425,10 @@ html[data-theme="light"] .badge{line-height:1.25;vertical-align:middle}
  html[data-theme="light"] .day-action-main{flex-basis:calc(100% - 44px)}
  html[data-theme="light"] .day-action .btn.small{margin-left:auto}
 }
+
+.moon-metric-icon{display:inline-grid;place-items:center;width:32px;height:32px;flex:0 0 32px;border-radius:10px;color:#405B8F;background:#EFF3FA}
+.moon-metric-icon svg{width:20px;height:20px}
+html[data-theme="light"] .metric .label{gap:12px;align-items:center}
+html[data-theme="light"] .metric .number{margin:10px 0 8px}
+html[data-theme="light"] .settings-icon svg,
+html[data-theme="light"] .account-avatar svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
