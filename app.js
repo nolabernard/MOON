@@ -185,7 +185,7 @@ function metricIcon(icon){
 function metric(label,value,foot,icon,color="",revenueKey=""){
  const active=!!revenueKey,tag=active?"button":"div";
  const action=active?' type="button" data-action="revenue-breakdown" data-revenue="'+esc(revenueKey)+'" aria-label="'+esc(label)+': '+esc(value)+'. Afficher les opportunités liées"':"";
- return '<'+tag+' class="metric'+(active?' metric-action':'')+'"'+action+'><div class="label">'+label+metricIcon(icon)+'</div><div class="number '+color+'">'+value+'</div><div class="foot">'+foot+(active?' · Voir le détail ↗':'')+'</div></'+tag+'>';
+ return '<'+tag+' class="metric'+(active?' metric-action':'')+'"'+action+'><div class="label">'+label+(typeof metricIcon==="function"?metricIcon(icon):'<span>'+esc(icon)+'</span>')+'</div><div class="number '+color+'">'+value+'</div><div class="foot">'+foot+(active?' · Voir le détail ↗':'')+'</div></'+tag+'>';
 }
 function dueClass(t){if(t.status==="done")return "won";if(t.due&&t.due<today())return "late";if(t.due===today())return "today";return ""}
 function dueLabel(t){if(t.status==="done")return "Terminée";if(!t.due)return "Sans échéance";if(t.due<today())return "En retard · "+dt(t.due);if(t.due===today())return "Aujourd'hui";return dt(t.due)}
