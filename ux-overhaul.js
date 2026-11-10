@@ -91,7 +91,14 @@
       const nav=shell.querySelector(".sidebar nav"),actions=shell.querySelector(".topbar .actions");
       for(const table of shell.querySelectorAll(".workspace-opportunities .data-table,.workspace-contacts .data-table")){
         const headings=[...table.querySelectorAll("thead th")].map(el=>el.textContent.trim().replace(/[↕↑↓]/g,"").trim());
-        for(const row of table.querySelectorAll("tbody tr"))[...row.children].forEach((cell,index)=>cell.dataset.label=headings[index]||"Action");
+        for(const row of table.querySelectorAll("tbody tr"))[...row.children].forEach((cell,index)=>{
+          cell.dataset.label=headings[index]||"Action";
+          if(!cell.querySelector(":scope > .moon-cell-value")){
+            const value=document.createElement("div");value.className="moon-cell-value";
+            while(cell.firstChild)value.append(cell.firstChild);
+            cell.append(value);
+          }
+        });
       }
       if(!nav||!actions)return;
       for(const entry of nav.querySelectorAll(".nav-button")){
