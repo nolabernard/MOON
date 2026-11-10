@@ -63,3 +63,21 @@ html[data-theme="light"] .ux-bottom-nav,html[data-theme="system"] .ux-bottom-nav
 html[data-theme="light"] .ux-mobile-item,html[data-theme="system"] .ux-mobile-item{color:#59667d}
 html[data-theme="light"] .ux-mobile-item.active,html[data-theme="system"] .ux-mobile-item.active{background:#eeeafa;color:#5949a5}
 @media(prefers-reduced-motion:reduce){.ux-result,.ux-create-option,.sidebar .nav-button{transition:none}}
+
+.ux-advanced-fields{grid-column:1/-1;min-width:0;border:1px solid #394761;border-radius:13px;padding:0 14px;margin-top:6px}
+.ux-advanced-fields summary{cursor:pointer;font-weight:750;font-size:13px;padding:15px 4px;list-style-position:inside}
+.ux-advanced-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;padding:8px 0 17px}
+.ux-advanced-grid label{min-width:0}
+html[data-theme="light"] .ux-advanced-fields,html[data-theme="system"] .ux-advanced-fields{border-color:#d4dceb}
+@media(max-width:720px){
+ .ux-advanced-grid{grid-template-columns:1fr}
+ .workspace-opportunities .table-wrap,.workspace-contacts .table-wrap{overflow:visible;max-width:100%;width:100%}
+ .workspace-opportunities .data-table,.workspace-contacts .data-table{display:block;min-width:0!important;width:100%}
+ .workspace-opportunities .data-table thead,.workspace-contacts .data-table thead{display:none}
+ .workspace-opportunities .data-table tbody,.workspace-contacts .data-table tbody{display:grid;gap:10px}
+ .workspace-opportunities .data-table tbody tr,.workspace-contacts .data-table tbody tr{display:grid;border:1px solid #36415e;border-radius:13px;padding:12px 14px;gap:7px;min-width:0;background:#192238}
+ .workspace-opportunities .data-table tbody td,.workspace-contacts .data-table tbody td{display:flex;align-items:baseline;justify-content:space-between;gap:12px;border:0!important;padding:4px 0!important;min-width:0;overflow-wrap:anywhere;text-align:right}
+ .workspace-opportunities .data-table tbody td::before,.workspace-contacts .data-table tbody td::before{content:attr(data-label);text-align:left;color:#97a8c4;font-size:11px;font-weight:700;flex:0 0 36%;max-width:36%}
+ .workspace-opportunities .data-table tbody td:first-child,.workspace-contacts .data-table tbody td:first-child{font-weight:750}
+ html[data-theme="light"] .workspace-opportunities .data-table tbody tr,html[data-theme="light"] .workspace-contacts .data-table tbody tr,html[data-theme="system"] .workspace-opportunities .data-table tbody tr,html[data-theme="system"] .workspace-contacts .data-table tbody tr{background:#fff;border-color:#dbe2eb}
+}
