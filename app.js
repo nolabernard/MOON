@@ -4,12 +4,12 @@ const KEY="moon.crm.v2",OLD="moon.crm.v1";
 // Browser data are scoped to the authenticated Supabase user, never shared between accounts.
 let activeOwner=null;
 const scopedKey=()=>activeOwner?KEY+".user."+activeOwner:KEY;
-const emptyCRM=()=>({version:2,contacts:[],opportunities:[],tasks:[]});
+const emptyCRM=()=>({version:2,contacts:[],opportunities:[],tasks:[],reportingGoals:{},reportingAdjustments:[]});
 const STAGES=["Nouveau","Contacté","En discussion","RDV / Proposition","Gagné","Perdu"];
 const MATURITIES=["","Froid","Tiède","Chaud"];
 const TYPES=["VAE","Formation courte","Autre"];
 const CHANNELS=["Appel","Email","SMS","Visioconférence","Rendez-vous","Note"];
-let data={version:2,contacts:[],opportunities:[],tasks:[]};
+let data=emptyCRM();
 let naturalQuery="";
 let opportunityReturnPage="opportunities";
 let statusFilterOpen=false,opportunityStageFilter=new Set(STAGES),opportunitySort="created",opportunitySortDir="desc",selectedOpportunityId="";
@@ -19,7 +19,7 @@ try{const pref=JSON.parse(localStorage.getItem(UI_PREF_KEY)||"{}");sidebarCollap
 function applyTheme(){if(typeof document==="undefined"||!document.documentElement)return;document.documentElement.dataset.theme=themePreference;document.documentElement.style.colorScheme=themePreference==="system"?"light dark":themePreference;}
 function persistUi(){try{localStorage.setItem(UI_PREF_KEY,JSON.stringify({sidebarCollapsed,theme:themePreference}))}catch(e){}applyTheme()}
 applyTheme();
-let reportingPeriod="all",reportingAnchor="",reportingFrom="",reportingTo="";
+let reportingPeriod="month",reportingAnchor="",reportingFrom="",reportingTo="";
 let page="day",period="all",rangeFrom="",rangeTo="",tax="ht",taskMode="open",afterContact=false;
 const $=id=>document.getElementById(id);
 const isReadOnly=()=>!!window.MOON_VISITOR?.isVisitor?.();
@@ -45,6 +45,7 @@ function normalize(){
 if(!Array.isArray(data.contacts))data.contacts=[];
 if(!Array.isArray(data.opportunities))data.opportunities=[];
 if(!Array.isArray(data.tasks))data.tasks=[];
+window.MOON_GOALS?.ensure(data);
 data.contacts=data.contacts.filter(c=>c&&c.id).map(c=>({...c,first:c.first||"",last:c.last||"",company:c.company||""}));
 data.opportunities=data.opportunities.filter(o=>o&&o.id).map(o=>({...o,stage:STAGES.includes(o.stage)?o.stage:"Nouveau",maturity:MATURITIES.includes(o.maturity)?o.maturity:"",events:Array.isArray(o.events)?o.events:[],category:o.category||"Autre",vat:o.vat??"0"}));
 data.tasks=data.tasks.filter(t=>t&&t.id).map(t=>({...t,status:t.status==="done"?"done":"open",type:t.type||"Relance"}));
@@ -273,7 +274,8 @@ function reportingPage(){
  const ops=reportingOpportunities(),won=ops.filter(o=>o.stage==="Gagné"),lost=ops.filter(o=>o.stage==="Perdu"),open=ops.filter(isActive);
  const rate=won.length+lost.length?Math.round(won.length/(won.length+lost.length)*100):0;
  const weighted=weightedSum(open);
- return '<p class="subtle">Période analysée : '+esc(reportingPeriodLabel())+' · Date de clôture pour les ventes, date prévisionnelle pour les opportunités actives.</p><section class="grid-metrics">'+metric("CA sécurisé",money(sum(won)),won.length+" dossiers gagnés","€","","secured")+metric("CA pondéré estimé",money(weighted),"Probabilités indicatives par étape","↗","","weighted")+metric("Conversion",rate+" %",(won.length+lost.length)+" dossiers clos","%")+metric("Perdus",lost.length+"","Dossiers non convertis","×")+'</section>'+
+ return (isReadOnly()?'<section class="panel"><h2>Objectifs d’activité</h2><p class="subtle">Les objectifs personnels ne sont pas partagés dans la vue visiteur.</p></section>':(window.MOON_GOALS?.render?.(data,...reportingBounds(),reportingPeriod,today(),false)||""))+
+ '<p class="subtle">Période analysée : '+esc(reportingPeriodLabel())+' · Date de clôture pour les ventes, date prévisionnelle pour les opportunités actives.</p><section class="grid-metrics">'+metric("CA sécurisé",money(sum(won)),won.length+" dossiers gagnés","€","","secured")+metric("CA pondéré estimé",money(weighted),"Probabilités indicatives par étape","↗","","weighted")+metric("Conversion",rate+" %",(won.length+lost.length)+" dossiers clos","%")+metric("Perdus",lost.length+"","Dossiers non convertis","×")+'</section>'+
  '<section class="panel"><h2>Résultats par formation</h2>'+TYPES.map(cat=>{const a=ops.filter(o=>o.category===cat);return '<button type="button" class="task-item revenue-category-row" data-action="revenue-breakdown" data-revenue="category:'+esc(cat)+'" aria-label="Voir les ventes gagnées et le chiffre d’affaires de '+esc(cat)+'"><div class="task-content"><strong>'+esc(cat)+'</strong><div class="subtle">'+a.length+' opportunités · '+a.filter(o=>o.stage==="Gagné").length+' gagnées</div></div><strong>'+money(sum(a.filter(o=>o.stage==="Gagné")))+' <span aria-hidden="true">↗</span></strong></button>'}).join("")+'</section>'+
  '<section class="panel"><h2>Bilan partageable</h2><p class="subtle">Données CRM à cet instant. Le CA pondéré est une estimation.</p><button type="button" class="btn primary" data-action="copy-report">Copier le bilan</button></section>';
 }
@@ -327,8 +329,8 @@ function opportunities(){
 }
 function sortedEvents(o){return [...(o?.events||[])].sort((a,b)=>String(b.at||b.date||"").localeCompare(String(a.at||a.date||"")))}
 function eventEditButton(o,e){const index=(o.events||[]).indexOf(e);return '<button type="button" class="event-edit-btn" data-action="edit-exchange" data-id="'+esc(o.id)+'" data-event-index="'+index+'" title="Modifier cet échange" aria-label="Modifier l’échange du '+esc(fmtDateTime(e.at))+'">✎</button>'}
-function editExchangeModal(o,index){const e=o?.events?.[index];if(!e)return;const raw=e.at||e.date||new Date().toISOString(),date=new Date(raw),local=new Date(date.getTime()-date.getTimezoneOffset()*60000).toISOString().slice(0,16);modal("Modifier un échange",'<form id="exchange-edit-form" data-id="'+esc(o.id)+'" data-event-index="'+index+'"><div class="form-grid">'+select("channel","Canal",CHANNELS,e.channel||"Note")+input("date","Date / heure",local,"datetime-local",true)+textarea("text","Compte rendu de l’échange *",e.text||"")+'</div><div class="form-footer"><button type="button" class="btn" data-action="close-modal">Annuler</button><button type="button" class="btn primary" data-action="save-exchange-edit">Enregistrer les modifications</button></div></form>')}
-function saveExchangeEdit(f){const o=opportunity(f.dataset.id),index=Number(f.dataset.eventIndex),e=o?.events?.[index];if(!e)return;const v=Object.fromEntries(new FormData(f)),textValue=(v.text||"").trim();if(!textValue){alert("Saisissez un commentaire.");return}const date=new Date(v.date);if(!Number.isFinite(date.getTime())){alert("Date invalide.");return}const previous={...e};Object.assign(e,{at:date.toISOString(),channel:v.channel,text:textValue});if(!save()){Object.assign(e,previous);return}const verified=JSON.parse(localStorage.getItem(scopedKey())||"null")?.opportunities?.find(x=>x.id===o.id)?.events?.[index];if(!verified||verified.at!==e.at||verified.text!==e.text){Object.assign(e,previous);alert("Modification non confirmée dans le stockage.");return}closeModal();if(page==="opportunity-detail")render();else opportunityModal(o);toast("Échange modifié et enregistré")}
+function editExchangeModal(o,index){const e=o?.events?.[index];if(!e)return;const raw=e.at||e.date||new Date().toISOString(),date=new Date(raw),local=new Date(date.getTime()-date.getTimezoneOffset()*60000).toISOString().slice(0,16);modal("Modifier un échange",'<form id="exchange-edit-form" data-id="'+esc(o.id)+'" data-event-index="'+index+'"><div class="form-grid">'+select("channel","Canal",CHANNELS,e.channel||"Note")+select("direction","Sens",["Sortant","Entrant"],e.direction==="outgoing"?"Sortant":"Entrant")+input("date","Date / heure",local,"datetime-local",true)+textarea("text","Compte rendu de l’échange *",e.text||"")+'</div><div class="form-footer"><button type="button" class="btn" data-action="close-modal">Annuler</button><button type="button" class="btn primary" data-action="save-exchange-edit">Enregistrer les modifications</button></div></form>')}
+function saveExchangeEdit(f){const o=opportunity(f.dataset.id),index=Number(f.dataset.eventIndex),e=o?.events?.[index];if(!e)return;const v=Object.fromEntries(new FormData(f)),textValue=(v.text||"").trim();if(!textValue){alert("Saisissez un commentaire.");return}const date=new Date(v.date);if(!Number.isFinite(date.getTime())){alert("Date invalide.");return}const previous={...e};Object.assign(e,{at:date.toISOString(),channel:v.channel,direction:v.direction==="Sortant"?"outgoing":"incoming",text:textValue});if(!save()){Object.assign(e,previous);return}const verified=JSON.parse(localStorage.getItem(scopedKey())||"null")?.opportunities?.find(x=>x.id===o.id)?.events?.[index];if(!verified||verified.at!==e.at||verified.text!==e.text){Object.assign(e,previous);alert("Modification non confirmée dans le stockage.");return}closeModal();if(page==="opportunity-detail")render();else opportunityModal(o);toast("Échange modifié et enregistré")}
 function opportunityDetailPage(){
  const o=opportunity(selectedOpportunityId);
  if(!o)return '<section class="panel empty"><strong>Opportunité introuvable</strong><p>Elle a peut-être été supprimée ou modifiée depuis un autre appareil.</p><button class="btn primary" data-action="nav" data-page="opportunities">Retour aux opportunités</button></section>';
@@ -409,7 +411,7 @@ ${input("owner","Responsable",o?.owner)}
 ${textarea("notes","Notes commerciales",o?.notes)}
 </div>${formFooter(o,"opportunity")}</form>
 ${o?`<div class="row" style="margin-top:24px"><h3>Historique des échanges</h3><button class="btn small" data-action="new-task" data-opportunity-id="${esc(o.id)}">+ Tâche liée</button></div>
-<form id="interaction-form" data-id="${esc(o.id)}"><div class="form-grid">${select("channel","Canal",CHANNELS,"Appel")}${input("date","Date / heure",new Date().toISOString().slice(0,16),"datetime-local",true)}${textarea("text","Commentaire *","")}</div><div class="form-footer"><span></span><button type="button" data-action="save-interaction-direct" class="btn primary">+ Ajouter un échange</button></div></form>
+<form id="interaction-form" data-id="${esc(o.id)}"><div class="form-grid">${select("channel","Canal",CHANNELS,"Appel")}${select("direction","Sens",["Sortant","Entrant"],"Sortant")}${input("date","Date / heure",new Date().toISOString().slice(0,16),"datetime-local",true)}${textarea("text","Commentaire *","")}</div><div class="form-footer"><span></span><button type="button" data-action="save-interaction-direct" class="btn primary">+ Ajouter un échange</button></div></form>
 <div class="timeline">${events.length?events.map(e=>`<div class="timeline-item"><div class="timeline-meta">${esc(e.channel)} · ${fmtDateTime(e.at)}${eventEditButton(o,e)}</div><p>${esc(e.text)}</p></div>`).join(""):'<p class="subtle">Aucun échange enregistré.</p>'}</div>`:'<p class="subtle">Enregistrez l’opportunité pour ajouter des échanges et des tâches liées.</p>'}`);
 }
 function taskLabel(type,opId,contactId){const o=opportunity(opId),c=o?linkedContact(o):contact(contactId);return [type||"Tâche",o?.training||(c?contactName(c):"")].filter(Boolean).join(" - ")}
@@ -421,7 +423,7 @@ function taskModal(t=null,opId="",contactId=""){
  const relation=lockedOp?`<input type="hidden" name="opportunityId" value="${esc(selectedOp.id)}"><input type="hidden" name="contactId" value="${esc(selectedContact)}"><div class="task-linked-summary"><strong>${esc(selectedOp.training)}</strong><span>${esc(contactName(linkedContact(selectedOp)))}</span></div>`:
  `<div class="task-relation-grid"><label>Opportunité liée<select class="field" name="opportunityId">${opChoices}</select></label>${lockedContact?`<input type="hidden" name="contactId" value="${esc(selectedContact)}"><div class="task-linked-summary"><span>Contact associé</span><strong>${esc(contactName(contact(selectedContact)))}</strong></div>`:`<label>Contact lié<select class="field" name="contactId" ${selectedOp?"disabled":""}>${cChoices}</select></label>`}</div><p class="subtle task-relation-help" id="task-relation-help">${selectedOp?"Le contact est automatiquement associé à l’opportunité sélectionnée.":"Sélectionnez une opportunité pour retrouver automatiquement son contact, ou choisissez un contact seul."}</p>`;
  modal(t?"Modifier la tâche":"Nouvelle tâche",`<form id="task-form" class="task-form"><input type="hidden" name="id" value="${esc(t?.id||"")}">
- <section class="task-form-section"><h3>À faire</h3><div class="form-grid">${select("type","Type d’action",["Relance","Appel","Email","Rendez-vous","Administratif","Autre"],t?.type||"Relance")}${input("due","Date d’échéance *",t?.due||today(),"date",true)}${select("priority","Priorité",["Normale","Haute","Basse"],t?.priority||"Normale")}</div></section>
+ <section class="task-form-section"><h3>À faire</h3><div class="form-grid">${select("type","Type d’action",["Relance","Appel","Email","Rendez-vous","Administratif","Autre"],t?.type||"Relance")}${select("meetingStatus","Statut du rendez-vous",["Prévu","Annulé"],t?.meetingStatus==="cancelled"?"Annulé":"Prévu")}${input("due","Date d’échéance *",t?.due||today(),"date",true)}${select("priority","Priorité",["Normale","Haute","Basse"],t?.priority||"Normale")}</div></section>
  <section class="task-form-section"><h3>Associer la tâche</h3>${relation}</section>
  <section class="task-form-section"><label class="task-title-label">Intitulé automatique<output class="task-title-preview" id="task-auto-title" aria-live="polite">${esc(taskLabel(t?.type||"Relance",selectedOp?.id||"",selectedContact))}</output></label>${textarea("notes","Commentaire / détails",t?.notes)}</section>
  ${formFooter(t,"task")}</form>`);
@@ -473,7 +475,7 @@ const v=Object.fromEntries(new FormData(f));
 if(!v.due){alert("La date d’échéance est obligatoire.");return}
 const existing=task(v.id);const op=v.opportunityId?opportunity(v.opportunityId):null;
 const contactId=op?.contactId||v.contactId||"";
-const values={title:taskLabel(v.type,op?.id||"",contactId),type:v.type,due:v.due,priority:v.priority,opportunityId:op?.id||"",contactId,notes:v.notes};
+const values={title:taskLabel(v.type,op?.id||"",contactId),type:v.type,due:v.due,priority:v.priority,opportunityId:op?.id||"",contactId,notes:v.notes,meetingStatus:v.meetingStatus==="Annulé"?"cancelled":"planned"};
 if(existing)Object.assign(existing,values);else data.tasks.push({id:id(),created:new Date().toISOString(),status:"open",...values});
 if(save()){
  const savedId=existing?.id||data.tasks[data.tasks.length-1]?.id;
@@ -485,7 +487,7 @@ if(save()){
 function interactionSubmit(f){
 const o=opportunity(f.dataset.id);if(!o)return;
 const v=Object.fromEntries(new FormData(f));if(!v.text.trim()){alert("Saisissez un commentaire.");return}
-o.events??=[];o.events.push({at:new Date(v.date).toISOString(),channel:v.channel,text:v.text.trim()});
+o.events??=[];o.events.push({id:id(),at:new Date(v.date).toISOString(),channel:v.channel,direction:v.direction==="Sortant"?"outgoing":"incoming",text:v.text.trim()});
 if(save()){
  const last=o.events[o.events.length-1];
  const verified=JSON.parse(localStorage.getItem(scopedKey())||"null")?.opportunities?.find(x=>x.id===o.id)?.events?.some(x=>x.at===last.at&&x.text===last.text);
@@ -649,7 +651,7 @@ if(isReadOnly()){
  if(a==="edit-task"){visitorTaskModal(task(x));return}
  if(a==="edit-opportunity"){if(!window.MOON_VISITOR?.pageAllowed?.("opportunity-detail"))return;if($("modal")?.open)closeModal();opportunityReturnPage=page==="board"?"board":"opportunities";selectedOpportunityId=x;page="opportunity-detail";render();return}
  if(a==="open-opportunity"){if(!window.MOON_VISITOR?.pageAllowed?.("opportunity-detail"))return;if($("modal")?.open)closeModal();}
- const allowed=new Set(["nav","open-opportunity","revenue-breakdown","day-jump","toggle-status-filter","select-all-stages","clear-all-stages","sort-opportunities","natural-search","toggle-sidebar","set-theme","close-modal","apply-moon-update","dismiss-moon-update"]);
+ const allowed=new Set(["goals-detail","nav","open-opportunity","revenue-breakdown","day-jump","toggle-status-filter","select-all-stages","clear-all-stages","sort-opportunities","natural-search","toggle-sidebar","set-theme","close-modal","apply-moon-update","dismiss-moon-update"]);
  if(!allowed.has(a)||(a==="nav"&&!window.MOON_VISITOR?.pageAllowed?.(btn.dataset.page)))return;
 }
 if(["save-contact-direct","save-opportunity-direct","save-task-direct","save-interaction-direct"].includes(a)){
@@ -676,6 +678,7 @@ if(a==="clear-all-stages"){opportunityStageFilter=new Set();render();return}
 if(a==="sort-opportunities"){const key=btn.dataset.sort;if(!["amount","follow","created","stage"].includes(key))return;if(opportunitySort===key)opportunitySortDir=opportunitySortDir==="asc"?"desc":"asc";else{opportunitySort=key;opportunitySortDir=key==="created"?"desc":"asc"}render();return}
 if(a==="apply-moon-update"){applyMoonUpdate();return}
 if(a==="dismiss-moon-update"){$("moon-update").hidden=true;return}
+if(a.startsWith("goals-")){window.MOON_GOALS?.handleAction(a,btn,{data,save,render,modal,today,id,reportingBounds,periodMode:reportingPeriod,readOnly:isReadOnly()});return}
 if(a==="revenue-breakdown"){revenueBreakdown(btn.dataset.revenue||"");return}
 if(a==="day-jump"){document.getElementById(btn.dataset.target)?.scrollIntoView({behavior:"smooth",block:"start"});return}
 if(a==="natural-search"){naturalQuery=$("natural-query")?.value?.trim()||"";render();return}
@@ -702,11 +705,12 @@ else if(a==="import-json"||a==="import-csv"){$("file-import").dataset.kind=a==="
 function handleFormSubmit(e){
  if(isReadOnly()){e.preventDefault();e.stopPropagation();return}
  const form=e.target;
- if(!["cloud-login-form","contact-form","opportunity-form","task-form","interaction-form"].includes(form?.id))return;
+ if(!["cloud-login-form","contact-form","opportunity-form","task-form","interaction-form","goals-add-form","goals-base-form","goals-month-form"].includes(form?.id))return;
  // Capture-phase cancellation: never allow a CRM form to navigate/reload the page.
  e.preventDefault();
  e.stopPropagation();
  try{
+  if(form.id.startsWith("goals-")){window.MOON_GOALS?.handleSubmit(form,{data,save,render,closeModal,modal,today,id,reportingBounds,periodMode:reportingPeriod});return}
   if(form.id==="cloud-login-form"){window.MOON_CLOUD?.login(form);return}
   if(form.id==="contact-form")contactSubmit(form);
   else if(form.id==="opportunity-form")opportunitySubmit(form);
@@ -718,7 +722,7 @@ function handleFormSubmit(e){
  }
 }
 
-const MOON_APP_VERSION="31.3";
+const MOON_APP_VERSION="32.0";
 let moonUpdateReady=false,moonUpdateChecking=false,moonFormDirty=false;
 function showMoonUpdate(){
  const node=$("moon-update");if(!node)return;

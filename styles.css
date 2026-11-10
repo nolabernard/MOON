@@ -421,3 +421,29 @@ html[data-theme="light"] .visitor-status-bar #visitor-live-status{color:#57409a}
 .visitor-link-row{flex-wrap:wrap;gap:10px}
 .visitor-link-row small{display:block;overflow-wrap:anywhere}
 @media(max-width:600px){.visitor-permissions-grid{grid-template-columns:1fr 1fr}.visitor-link-row .actions{flex-wrap:wrap}}
+
+
+/* MOON — activity goals in Reporting */
+.moon-goals{margin-bottom:22px}
+.moon-goals-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:15px}
+.moon-goals-head h2{margin:0}
+.moon-goals-head p{margin:6px 0 0}
+.moon-goals-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.moon-goal-card{display:flex;flex-direction:column;align-items:stretch;text-align:left;gap:12px;min-width:0;padding:17px;border-radius:13px;border:1px solid var(--border,#35425e);background:var(--surface-raised,#1b263c);color:inherit}
+.moon-goal-card:hover,.moon-goal-card:focus-visible{border-color:#8575e9}
+.moon-goal-label{font-size:12px;font-weight:700;min-height:30px;color:inherit}
+.moon-goal-value{font-size:clamp(21px,2.1vw,28px);font-weight:800;font-variant-numeric:tabular-nums}
+.moon-goal-value small{font-size:13px;font-weight:500;color:var(--text-muted,#9daaca)}
+.moon-goal-track{display:block;height:7px;background:var(--border,#35425e);border-radius:20px;overflow:hidden}
+.moon-goal-track span{display:block;height:100%;background:#61b59a;border-radius:20px}
+.moon-goal-foot{font-size:11px;color:var(--text-muted,#a6b3cc)}
+.moon-goal-config,.moon-goal-detail{display:grid;gap:14px}
+.moon-goal-field{display:flex!important;flex-direction:row;align-items:center;justify-content:space-between;gap:14px}
+.moon-goal-field span{flex:1}
+.moon-goal-number{width:100px;text-align:right}
+.moon-month-buttons{display:grid;grid-template-columns:repeat(6,1fr);gap:7px;margin-top:12px}
+.moon-goal-add{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.moon-goal-log{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:11px 0;border-bottom:1px solid var(--border,#35425e)}
+.moon-goal-log small{color:var(--text-muted,#a6b3cc)}
+@media(max-width:1100px){.moon-goals-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:480px){.moon-goals-grid{gap:8px}.moon-goal-card{padding:12px;gap:9px}.moon-month-buttons{grid-template-columns:repeat(4,1fr)}.moon-goal-add{grid-template-columns:1fr}.moon-goal-value{font-size:22px}}
