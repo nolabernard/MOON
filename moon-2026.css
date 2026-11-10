@@ -459,3 +459,19 @@ html[data-theme="light"] .nav-ico svg{width:18px;height:18px}
  html[data-theme="light"] .account-identity>div{flex:1 1 190px;min-width:0}
  html[data-theme="light"] .account-identity .account-connected{margin-left:58px;max-width:calc(100% - 58px)}
 }
+
+/* Final QA: one-line opportunity toolbar on wide screens. */
+@media(min-width:1100px){
+ html[data-theme="light"] .workspace-opportunities>.panel>.row{
+  flex-wrap:nowrap;align-items:end;justify-content:space-between;gap:16px;
+ }
+ html[data-theme="light"] .workspace-opportunities .opportunity-filter-row{
+  display:flex;flex:0 1 auto;flex-wrap:nowrap;align-items:end;gap:12px;
+ }
+ html[data-theme="light"] .workspace-opportunities .opportunity-filter-row .moon-filter-group{
+  flex:0 0 175px;min-width:175px;max-width:175px;
+ }
+ html[data-theme="light"] .workspace-opportunities .ux-view-picker{
+  flex:0 0 auto;white-space:nowrap;margin:0;
+ }
+}
