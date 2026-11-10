@@ -70,7 +70,7 @@
   function polishActions(root){
     if(!root)return;
     for(const btn of root.querySelectorAll("button[data-action],button[data-ux]")){
-      if(btn.classList.contains("nav-button")||btn.classList.contains("ux-mobile-item")||btn.dataset.moonIconReady==="true")continue;
+      if(btn.classList.contains("nav-button")||btn.classList.contains("ux-mobile-item")||btn.classList.contains("day-next")||btn.dataset.moonIconReady==="true")continue;
       const symbol=actionIcons[btn.dataset.action]||uxIcons[btn.dataset.ux];
       if(!symbol)continue;
       const text=btn.textContent.trim();
