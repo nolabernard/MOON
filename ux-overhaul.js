@@ -60,10 +60,10 @@
       nav.querySelectorAll('[data-page="dashboard"],[data-page="board"]').forEach(n=>n.remove());
       const op=nav.querySelector('[data-page="opportunities"]');
       if(op){op.classList.toggle("active",page==="board"||page==="opportunities");op.querySelector(".nav-label").textContent="Opportunités"}
-      const reporting=nav.querySelector('[data-page="reporting"] .nav-label');if(reporting)reporting.textContent="Analyse";
+      const reporting=nav.querySelector('[data-page="reporting"] .nav-label');if(reporting)reporting.textContent="Reporting";
       const title=shell.querySelector(".topbar h1");
       if(title&&page==="board")title.textContent="Opportunités";
-      if(title&&page==="reporting")title.textContent="Analyse commerciale";
+      if(title&&page==="reporting")title.textContent="Reporting commercial";
       if(page==="day"){
         const existing=nav.querySelector('[data-page="day"] .nav-label');
         if(existing)existing.textContent="Ma journée";
@@ -86,7 +86,7 @@
       }
       const currentBottom=shell.querySelector(".ux-bottom-nav");if(currentBottom)currentBottom.remove();
       const bottom=document.createElement("nav");bottom.className="ux-bottom-nav";bottom.setAttribute("aria-label","Navigation mobile");
-      const entries=[["day","☀","Journée"],["opportunities","◇","Dossiers"],["contacts","♙","Contacts"],["tasks","☑","Tâches"],["reporting","▤","Analyse"]];
+      const entries=[["day","☀","Journée"],["opportunities","◇","Dossiers"],["contacts","♙","Contacts"],["tasks","☑","Tâches"],["reporting","▤","Reporting"]];
       for(const [key,icon,label] of entries){
         if(!can(key)&&!(key==="opportunities"&&can("board")))continue;
         const item=button("","navigate","ux-mobile-item");item.dataset.page=key;

@@ -198,3 +198,70 @@ dialog::backdrop{background:#17223878}
  .workspace-opportunities .data-table tbody td::before,.workspace-contacts .data-table tbody td::before{color:#718198!important}
 }
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+
+/* Account screen: eliminate legacy navy surfaces and restore readable text. */
+.account-identity,
+html[data-theme="light"] .account-identity{
+ background:#F5F8FC!important;
+ border:1px solid #E0E7F1!important;
+ color:#172238!important;
+ box-shadow:none!important;
+}
+.account-identity>div,
+.account-identity strong,
+html[data-theme="light"] .account-identity strong{
+ color:#172238!important;
+}
+.account-identity .subtle,
+.account-identity>div>span{
+ color:#60738D!important;
+}
+.account-identity .account-avatar{
+ background:#E5EDF9!important;
+ color:#3D5B8D!important;
+ border:1px solid #D5E1F2!important;
+}
+.account-connected,
+html[data-theme="light"] .account-connected{
+ color:#177451!important;
+ background:#E6F5ED!important;
+ border:1px solid #C9E8D7!important;
+ border-radius:999px;
+ padding:6px 10px;
+ white-space:nowrap;
+}
+.sync-overview,
+html[data-theme="light"] .sync-overview{
+ background:#F5F8FC!important;
+ border:1px solid #E0E7F1!important;
+ color:#172238!important;
+ box-shadow:none!important;
+}
+.sync-overview>span,
+html[data-theme="light"] .sync-overview>span{
+ color:#52657F!important;
+ font-weight:650;
+}
+.sync-overview small,
+html[data-theme="light"] .sync-overview small{
+ color:#63758C!important;
+}
+.sync-overview strong[data-state="synced"]{
+ color:#16724D!important;
+}
+.sync-overview strong[data-state="pending"],
+.sync-overview strong[data-state="saving"]{
+ color:#986117!important;
+}
+.sync-overview strong[data-state="error"],
+.sync-overview strong[data-state="conflict"]{
+ color:#B02E44!important;
+}
+.sync-overview strong[data-state="paused"]{
+ color:#626F85!important;
+}
+@media(max-width:720px){
+ .account-identity{gap:10px;padding:14px!important}
+ .account-connected{margin-left:0!important}
+ .sync-overview{padding:15px!important}
+}
