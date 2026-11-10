@@ -37,10 +37,16 @@ test("action and metric pictograms use reusable outline SVG rather than emoji-on
 });
 
 test("MOON stays light-only with unchanged backend entrypoints",()=>{
- assert.match(html,/moon-2026\.css\?v=1\.2/);
- assert.match(html,/ux-overhaul\.js\?v=2\.2/);
+ assert.match(html,/moon-2026\.css\?v=1\.3/);
+ assert.match(html,/ux-overhaul\.js\?v=2\.3/);
  assert.match(html,/app\.js\?v=33\.1/);
  assert.doesNotMatch(app,/themePreference/);
  assert.match(app,/document\.documentElement\.dataset\.theme="light"/);
  assert.match(app,/window\.MOON_CLOUD_BRIDGE/);
+});
+
+test("exchange inputs use vertically stacked labels and next-action rows keep two-line layout",()=>{
+ assert.match(css,/\.opportunity-timeline #interaction-form \.form-grid>label/);
+ assert.match(css,/\.day-next>strong/);
+ assert.match(ux,/btn\.classList\.contains\("day-next"\)/);
 });
