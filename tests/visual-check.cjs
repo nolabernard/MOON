@@ -42,7 +42,7 @@ async function main(){
        scrollWidth:root.scrollWidth,innerWidth:window.innerWidth,filters:labels,
        regularBad:regular.filter(b=>b.getBoundingClientRect().height<39).map(b=>b.textContent.slice(0,45)),
        smallBad:small.filter(b=>b.getBoundingClientRect().height<32).map(b=>b.textContent.slice(0,45)),
-       darkTheme:getComputedStyle(document.body).color==="rgb(240, 242, 250)"
+       darkTheme:getComputedStyle(document.body).color==="rgb(240, 242, 250)",topbarTop:document.querySelector(".topbar")?.getBoundingClientRect().top||0,opCellWidth:document.querySelector(".workspace-opportunities .data-table tbody td:nth-child(2) .moon-cell-value")?.getBoundingClientRect().width||0,accountEmailWidth:document.querySelector(".account-identity>div")?.getBoundingClientRect().width||0
       };
     });
     const where=section+" at "+width+"px";
@@ -51,6 +51,9 @@ async function main(){
     check(!result.regularBad.length,where+": short buttons "+result.regularBad);
     check(!result.smallBad.length,where+": short compact buttons "+result.smallBad);
     check(!result.darkTheme,where+": unexpected dark theme");
+    check(result.topbarTop<(width<=720?160:110),where+": content vertically centered instead of top-aligned");
+    if(section==="opportunities"&&width<=720)check(result.opCellWidth>=95,where+": broken mobile opportunity cell");
+    if(section==="account"&&width<=390)check(result.accountEmailWidth>=175,where+": account email area too narrow");
     if(section==="reporting")check(result.filters.length>=2,where+": reporting filters missing");
     if([375,1440].includes(width))await tab.screenshot({path:path.join(output,section+"-"+width+".png"),fullPage:true});
     checked++;
