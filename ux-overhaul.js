@@ -7,17 +7,38 @@
   const can=(section)=>!isReadOnly()||!!window.MOON_VISITOR?.pageAllowed?.(section);
   function button(text,action,cls){const b=document.createElement("button");b.type="button";b.className=cls||"btn";b.dataset.ux=action;b.textContent=text;return b}
   function go(destination){
-    if(destination==="opportunities"&&viewChoice==="kanban")destination="board";
+    if(destination==="opportunities"&&(viewChoice==="kanban"||(!can("opportunities")&&can("board"))))destination="board";
     if(!can(destination))return;
     if(document.getElementById("modal")?.open)closeModal();
     page=destination;render();window.MOON_CLOUD?.refreshStatus?.();
   }
+  function enhanceForm(){
+    const form=document.querySelector("#modal #opportunity-form");
+    if(!form||form.dataset.uxEnhanced)return;
+    form.dataset.uxEnhanced="true";
+    const grid=form.querySelector(".form-grid");if(!grid)return;
+    const advanced=new Set(["maturity","vat","customVat","forecast","closed","lostReason","source","owner","notes"]);
+    const labels=[...grid.querySelectorAll("label")].filter(label=>label.querySelector("[name]")&&advanced.has(label.querySelector("[name]").name));
+    if(!labels.length)return;
+    const details=document.createElement("details");details.className="ux-advanced-fields";
+    if(form.elements.id?.value)details.open=true;
+    const summary=document.createElement("summary");summary.textContent="Informations complémentaires";
+    const contents=document.createElement("div");contents.className="ux-advanced-grid";
+    for(const label of labels)contents.append(label);
+    details.append(summary,contents);grid.append(details);
+  }
+  const originalModal=modal;
+  modal=function(){const result=originalModal.apply(this,arguments);enhanceForm();return result};
   function decorate(){
     if(decorating)return;decorating=true;
     try{
       const shell=document.querySelector("#app .shell");
       if(!shell)return;
       const nav=shell.querySelector(".sidebar nav"),actions=shell.querySelector(".topbar .actions");
+      for(const table of shell.querySelectorAll(".workspace-opportunities .data-table,.workspace-contacts .data-table")){
+        const headings=[...table.querySelectorAll("thead th")].map(el=>el.textContent.trim().replace(/[↕↑↓]/g,"").trim());
+        for(const row of table.querySelectorAll("tbody tr"))[...row.children].forEach((cell,index)=>cell.dataset.label=headings[index]||"Action");
+      }
       if(!nav||!actions)return;
       nav.querySelectorAll('[data-page="dashboard"],[data-page="board"]').forEach(n=>n.remove());
       const op=nav.querySelector('[data-page="opportunities"]');
