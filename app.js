@@ -112,19 +112,45 @@ function reportingOpportunities(){
 }
 function reportingPeriodLabel(){const [from,to]=reportingBounds();return reportingPeriod==="all"?"Toutes périodes":(from?dt(from):"Début")+" – "+(to?dt(to):"Sans fin")}
 function navButton(k,icon,label){if(isReadOnly()&&!window.MOON_VISITOR?.pageAllowed?.(k))return "";return `<button class="nav-button ${page===k?"active":""}" data-action="nav" data-page="${k}" type="button" title="${esc(label)}" aria-label="${esc(label)}"><span class="nav-ico">${icon}</span><span class="nav-label">${label}</span></button>`}
+function filterField(label,id,control,extraClass=""){
+ return '<label class="moon-filter-group '+esc(extraClass)+'" for="'+esc(id)+'"><span class="moon-filter-label">'+esc(label)+'</span>'+control+'</label>';
+}
 function reportingFilters(){
- const select='<label class="subtle">Période<select class="field" id="reporting-period" aria-label="Période du reporting">'+opts(["all","week","month","year","custom"],reportingPeriod).replace(/>all</g,">Toutes périodes<").replace(/>week</g,">Semaine<").replace(/>month</g,">Mois<").replace(/>year</g,">Année<").replace(/>custom</g,">Personnalisée<")+'</select></label>';
- if(reportingPeriod==="custom")return select+'<label class="subtle">Du <input class="field" type="date" id="reporting-from" value="'+esc(reportingFrom)+'"></label><label class="subtle">Au <input class="field" type="date" id="reporting-to" value="'+esc(reportingTo)+'"></label>';
- if(reportingPeriod==="all")return select;
- return select+'<label class="subtle">Date de référence<input class="field" type="date" id="reporting-anchor" value="'+esc(reportingAnchor||today())+'"></label>';
+ const periodSelect='<select class="field" id="reporting-period" aria-label="Période du reporting">'+opts(["all","week","month","year","custom"],reportingPeriod).replace(/>all</g,">Toutes périodes<").replace(/>week</g,">Semaine<").replace(/>month</g,">Mois<").replace(/>year</g,">Année<").replace(/>custom</g,">Personnalisée<")+'</select>';
+ let output=filterField("Période","reporting-period",periodSelect,"moon-filter-period");
+ if(reportingPeriod==="custom"){
+  output+=filterField("Du","reporting-from",'<input class="field" type="date" id="reporting-from" value="'+esc(reportingFrom)+'">',"moon-filter-date");
+  output+=filterField("Au","reporting-to",'<input class="field" type="date" id="reporting-to" value="'+esc(reportingTo)+'">',"moon-filter-date");
+ }else if(reportingPeriod!=="all"){
+  output+=filterField("Date de référence","reporting-anchor",'<input class="field" type="date" id="reporting-anchor" value="'+esc(reportingAnchor||today())+'">',"moon-filter-date");
+ }
+ return output;
 }
 function toolbar(){
-const filter=`<select class="field" id="period" aria-label="Période">${opts(["all","month","quarter","year","custom"],period).replace(/>all</g,">Toutes périodes<").replace(/>month</g,">Ce mois<").replace(/>quarter</g,">Ce trimestre<").replace(/>year</g,">Cette année<").replace(/>custom</g,">Personnalisée<")}</select>${period==="custom"?`<label class="subtle">Du <input class="field" id="range-from" type="date" value="${esc(rangeFrom)}"></label><label class="subtle">Au <input class="field" id="range-to" type="date" value="${esc(rangeTo)}"></label>`:""}`;
-return `<div class="filters">${page==="dashboard"||page==="board"||page==="opportunities"?filter:""}${page==="reporting"?reportingFilters():""}
-${page==="dashboard"||page==="board"||page==="opportunities"||page==="reporting"?`<select class="field" id="tax" aria-label="Affichage financier">${opts(["ht","ttc"],tax).replace(/>ht</g,">Montants HT<").replace(/>ttc</g,">Montants TTC<")}</select>`:""}
-${page==="contacts"||page==="opportunities"||page==="tasks"?`<input class="field search" id="search" placeholder="Rechercher..." autocomplete="off" aria-label="Rechercher">`:""}
-${page==="tasks"?`<select id="task-mode" class="field" aria-label="Filtrer les tâches">${opts(["open","all","done"],taskMode).replace(/>open</g,">À faire<").replace(/>all</g,">Toutes<").replace(/>done</g,">Terminées<")}</select>`:""}
-</div>`;
+ const inOpportunities=["dashboard","board","opportunities"].includes(page);
+ const showTax=inOpportunities||page==="reporting";
+ const periodSelect='<select class="field" id="period" aria-label="Période">'+opts(["all","month","quarter","year","custom"],period).replace(/>all</g,">Toutes périodes<").replace(/>month</g,">Ce mois<").replace(/>quarter</g,">Ce trimestre<").replace(/>year</g,">Cette année<").replace(/>custom</g,">Personnalisée<")+'</select>';
+ let fields="";
+ if(inOpportunities){
+  fields+=filterField("Période","period",periodSelect,"moon-filter-period");
+  if(period==="custom"){
+   fields+=filterField("Du","range-from",'<input class="field" id="range-from" type="date" value="'+esc(rangeFrom)+'">',"moon-filter-date");
+   fields+=filterField("Au","range-to",'<input class="field" id="range-to" type="date" value="'+esc(rangeTo)+'">',"moon-filter-date");
+  }
+ }
+ if(page==="reporting")fields+=reportingFilters();
+ if(showTax){
+  const taxControl='<select class="field" id="tax" aria-label="Affichage financier">'+opts(["ht","ttc"],tax).replace(/>ht</g,">Montants HT<").replace(/>ttc</g,">Montants TTC<")+'</select>';
+  fields+=filterField("Montants","tax",taxControl,"moon-filter-tax");
+ }
+ if(["contacts","opportunities","tasks"].includes(page)){
+  fields+=filterField("Recherche","search",'<input class="field search" id="search" placeholder="Nom, entreprise ou dossier…" autocomplete="off" aria-label="Rechercher dans la liste">',"moon-filter-search");
+ }
+ if(page==="tasks"){
+  const mode='<select id="task-mode" class="field" aria-label="Filtrer les tâches">'+opts(["open","all","done"],taskMode).replace(/>open</g,">À faire<").replace(/>all</g,">Toutes<").replace(/>done</g,">Terminées<")+'</select>';
+  fields+=filterField("Statut","task-mode",mode,"moon-filter-status");
+ }
+ return fields?'<div class="filters moon-filter-bar" role="group" aria-label="Filtres de '+esc(page==="reporting"?"Reporting":page)+'">'+fields+'</div>':"";
 }
 function render(){
 moonFormDirty=false;
