@@ -27,9 +27,9 @@
 .ux-result small,.ux-create-option small{font-size:12px;color:#a7b4cd}
 .ux-create-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 .ux-bottom-nav{display:none}
-html[data-theme="light"] .ux-result,html[data-theme="light"] .ux-create-option,html[data-theme="system"] .ux-result,html[data-theme="system"] .ux-create-option{background:#fff;border-color:#d8dfea;color:#19253f}
-html[data-theme="light"] .ux-result small,html[data-theme="light"] .ux-create-option small,html[data-theme="system"] .ux-result small,html[data-theme="system"] .ux-create-option small{color:#64748b}
-html[data-theme="light"] .ux-result:hover,html[data-theme="light"] .ux-create-option:hover,html[data-theme="system"] .ux-result:hover,html[data-theme="system"] .ux-create-option:hover{background:#f0edfe;border-color:#9685e8}
+html[data-theme="light"] .ux-result,html[data-theme="light"] .ux-create-option{background:#fff;border-color:#d8dfea;color:#19253f}
+html[data-theme="light"] .ux-result small,html[data-theme="light"] .ux-create-option small{color:#64748b}
+html[data-theme="light"] .ux-result:hover,html[data-theme="light"] .ux-create-option:hover{background:#f0edfe;border-color:#9685e8}
 @media(max-width:920px){.topbar .actions{justify-content:flex-start}.ux-view-picker{margin-top:8px}}
 @media(max-width:720px){
  .sidebar{position:relative;min-height:0;padding:11px 16px!important;overflow:visible!important;box-shadow:none}
@@ -59,16 +59,16 @@ html[data-theme="light"] .ux-result:hover,html[data-theme="light"] .ux-create-op
  .day-hero{padding:18px}
  .day-columns{grid-template-columns:1fr}
 }
-html[data-theme="light"] .ux-bottom-nav,html[data-theme="system"] .ux-bottom-nav{background:#fff;border-color:#e0e5ef;box-shadow:0 -6px 18px #101b3114}
-html[data-theme="light"] .ux-mobile-item,html[data-theme="system"] .ux-mobile-item{color:#59667d}
-html[data-theme="light"] .ux-mobile-item.active,html[data-theme="system"] .ux-mobile-item.active{background:#eeeafa;color:#5949a5}
+html[data-theme="light"] .ux-bottom-nav{background:#fff;border-color:#e0e5ef;box-shadow:0 -6px 18px #101b3114}
+html[data-theme="light"] .ux-mobile-item{color:#59667d}
+html[data-theme="light"] .ux-mobile-item.active{background:#eeeafa;color:#5949a5}
 @media(prefers-reduced-motion:reduce){.ux-result,.ux-create-option,.sidebar .nav-button{transition:none}}
 
 .ux-advanced-fields{grid-column:1/-1;min-width:0;border:1px solid #394761;border-radius:13px;padding:0 14px;margin-top:6px}
 .ux-advanced-fields summary{cursor:pointer;font-weight:750;font-size:13px;padding:15px 4px;list-style-position:inside}
 .ux-advanced-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;padding:8px 0 17px}
 .ux-advanced-grid label{min-width:0}
-html[data-theme="light"] .ux-advanced-fields,html[data-theme="system"] .ux-advanced-fields{border-color:#d4dceb}
+html[data-theme="light"] .ux-advanced-fields{border-color:#d4dceb}
 @media(max-width:720px){
  .ux-advanced-grid{grid-template-columns:1fr}
  .workspace-opportunities .table-wrap,.workspace-contacts .table-wrap{overflow:visible;max-width:100%;width:100%}
@@ -79,5 +79,46 @@ html[data-theme="light"] .ux-advanced-fields,html[data-theme="system"] .ux-advan
  .workspace-opportunities .data-table tbody td,.workspace-contacts .data-table tbody td{display:flex;align-items:baseline;justify-content:space-between;gap:12px;border:0!important;padding:4px 0!important;min-width:0;overflow-wrap:anywhere;text-align:right}
  .workspace-opportunities .data-table tbody td::before,.workspace-contacts .data-table tbody td::before{content:attr(data-label);text-align:left;color:#97a8c4;font-size:11px;font-weight:700;flex:0 0 36%;max-width:36%}
  .workspace-opportunities .data-table tbody td:first-child,.workspace-contacts .data-table tbody td:first-child{font-weight:750}
- html[data-theme="light"] .workspace-opportunities .data-table tbody tr,html[data-theme="light"] .workspace-contacts .data-table tbody tr,html[data-theme="system"] .workspace-opportunities .data-table tbody tr,html[data-theme="system"] .workspace-contacts .data-table tbody tr{background:#fff;border-color:#dbe2eb}
+ html[data-theme="light"] .workspace-opportunities .data-table tbody tr,html[data-theme="light"] .workspace-contacts .data-table tbody tr{background:#fff;border-color:#dbe2eb}
+}
+
+/* High-contrast typography for actual dark mode only. */
+html[data-theme="dark"] .ux-result,
+html[data-theme="dark"] .ux-create-option,
+html[data-theme="dark"] .ux-advanced-fields,
+html[data-theme="dark"] .ux-advanced-fields summary,
+html[data-theme="dark"] .ux-search-dialog label,
+html[data-theme="dark"] .ux-bottom-nav .ux-mobile-item.active,
+html[data-theme="dark"] .workspace-opportunities .data-table tbody td,
+html[data-theme="dark"] .workspace-contacts .data-table tbody td{color:#fff}
+html[data-theme="dark"] .ux-result small,
+html[data-theme="dark"] .ux-create-option small,
+html[data-theme="dark"] .workspace-opportunities .data-table tbody td::before,
+html[data-theme="dark"] .workspace-contacts .data-table tbody td::before{color:#e0e6f5}
+@media(prefers-color-scheme:dark){
+ html[data-theme="system"] .ux-result,
+ html[data-theme="system"] .ux-create-option,
+ html[data-theme="system"] .ux-advanced-fields,
+ html[data-theme="system"] .ux-advanced-fields summary,
+ html[data-theme="system"] .ux-search-dialog label,
+ html[data-theme="system"] .ux-bottom-nav .ux-mobile-item.active,
+ html[data-theme="system"] .workspace-opportunities .data-table tbody td,
+ html[data-theme="system"] .workspace-contacts .data-table tbody td{color:#fff}
+ html[data-theme="system"] .ux-result small,
+ html[data-theme="system"] .ux-create-option small,
+ html[data-theme="system"] .workspace-opportunities .data-table tbody td::before,
+ html[data-theme="system"] .workspace-contacts .data-table tbody td::before{color:#e0e6f5}
+}
+@media(prefers-color-scheme:light){
+ html[data-theme="system"] .ux-result,html[data-theme="system"] .ux-create-option{background:#fff;border-color:#d8dfea;color:#19253f}
+ html[data-theme="system"] .ux-result small,html[data-theme="system"] .ux-create-option small{color:#64748b}
+ html[data-theme="system"] .ux-result:hover,html[data-theme="system"] .ux-create-option:hover{background:#f0edfe;border-color:#9685e8}
+ html[data-theme="system"] .ux-bottom-nav{background:#fff;border-color:#e0e5ef;box-shadow:0 -6px 18px #101b3114}
+ html[data-theme="system"] .ux-mobile-item{color:#59667d}
+ html[data-theme="system"] .ux-mobile-item.active{background:#eeeafa;color:#5949a5}
+ html[data-theme="system"] .ux-advanced-fields{border-color:#d4dceb}
+ @media(max-width:720px){
+  html[data-theme="system"] .workspace-opportunities .data-table tbody tr,
+  html[data-theme="system"] .workspace-contacts .data-table tbody tr{background:#fff;border-color:#dbe2eb}
+ }
 }
