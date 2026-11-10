@@ -28,7 +28,7 @@ test("component sizes and responsive layouts come from shared design tokens",()=
 test("action and metric pictograms use reusable outline SVG rather than emoji-only controls",()=>{
  assert.match(ux,/function polishActions\(/);
  assert.match(ux,/const actionIcons=/);
- assert.match(ux,/stroke-width="1\.8"/);
+ assert.match(css,/stroke-width:1\.8/);
  assert.match(ux,/polishActions\(shell\)/);
  assert.match(app,/function metricIcon\(/);
  assert.match(app,/metricIcon\(icon\)/);
