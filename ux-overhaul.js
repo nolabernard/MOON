@@ -29,6 +29,16 @@
   }
   const originalModal=modal;
   modal=function(){const result=originalModal.apply(this,arguments);enhanceForm();return result};
+  const icons={
+    day:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/>',
+    opportunities:'<rect x="3" y="7" width="18" height="14" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 13h18"/>',
+    contacts:'<circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2M17 5a3 3 0 0 1 0 6m2 9v-2a6 6 0 0 0-3-5.2"/>',
+    tasks:'<rect x="3" y="3" width="18" height="18" rx="3"/><path d="m7.5 12 3 3 6-7"/>',
+    reporting:'<path d="M4 20V12m5 8V5m5 15v-8m5 8V9"/><path d="M2 21h20"/>',
+    account:'<circle cx="12" cy="8" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/>',
+    settings:'<circle cx="12" cy="12" r="3"/><path d="M12 2v2m0 16v2m10-10h-2M4 12H2m17.1 7.1-1.5-1.5M6.4 6.4 4.9 4.9m14.2 0-1.5 1.5M6.4 17.6l-1.5 1.5"/>'
+  };
+  function iconFor(key){return '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">'+(icons[key]||icons.day)+'</svg>'}
   function decorate(){
     if(decorating)return;decorating=true;
     try{
@@ -40,6 +50,13 @@
         for(const row of table.querySelectorAll("tbody tr"))[...row.children].forEach((cell,index)=>cell.dataset.label=headings[index]||"Action");
       }
       if(!nav||!actions)return;
+      for(const entry of nav.querySelectorAll(".nav-button")){
+        const key=entry.dataset.page,container=entry.querySelector(".nav-ico");
+        if(container&&icons[key])container.innerHTML=iconFor(key);
+      }
+      const brandIcon=shell.querySelector(".brand-symbol");if(brandIcon){brandIcon.textContent="";brandIcon.setAttribute("aria-hidden","true")}
+      const navLabels=shell.querySelectorAll(".sidebar .nav-group-label");for(const label of navLabels)if(label.textContent.trim()==="ESPACE PERSONNEL")label.textContent="Espace personnel";
+
       nav.querySelectorAll('[data-page="dashboard"],[data-page="board"]').forEach(n=>n.remove());
       const op=nav.querySelector('[data-page="opportunities"]');
       if(op){op.classList.toggle("active",page==="board"||page==="opportunities");op.querySelector(".nav-label").textContent="Opportunités"}
@@ -73,7 +90,7 @@
       for(const [key,icon,label] of entries){
         if(!can(key)&&!(key==="opportunities"&&can("board")))continue;
         const item=button("","navigate","ux-mobile-item");item.dataset.page=key;
-        const ico=document.createElement("span");ico.textContent=icon;ico.setAttribute("aria-hidden","true");
+        const ico=document.createElement("span");ico.innerHTML=iconFor(key);ico.setAttribute("aria-hidden","true");
         const txt=document.createElement("small");txt.textContent=label;item.append(ico,txt);
         if(page===key||(key==="opportunities"&&page==="board")){item.classList.add("active");item.setAttribute("aria-current","page")}
         bottom.append(item);
